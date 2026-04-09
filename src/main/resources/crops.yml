@@ -1,0 +1,19 @@
+# Definition for farmable crops
+crops:
+  potato:
+    seed: POTATO
+    farmland: FARMLAND
+    growth-time: 300 # seconds
+    requirements:
+      auraskills:
+        farming: ">= 1"
+    drops:
+      - material: POTATO
+        chance: 80.0
+      - material: "mmoitems-MATERIAL:RARE_POTATO"
+        chance: 15.0
+      - material: "mmoitems-MATERIAL:EPIC_POTATO"
+        chance: 4.0
+      - material: "mmoitems-MATERIAL:LEGENDARY_POTATO"
+        chance: 1.0
+    vanilla-animation: true

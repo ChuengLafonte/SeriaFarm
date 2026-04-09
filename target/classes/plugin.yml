@@ -1,0 +1,17 @@
+name: SeriaFarm
+version: 1.0.0
+main: id.seria.farm.SeriaFarmPlugin
+api-version: '1.21'
+depend: [MMOItems, AuraSkills, WorldGuard]
+commands:
+  sfarm:
+    description: Main command for SeriaFarm
+    aliases: [seriafarm]
+    permission: seriafarm.use
+permissions:
+  seriafarm.admin:
+    description: Full access to SeriaFarm
+    default: op
+  seriafarm.use:
+    description: Access to player commands
+    default: true

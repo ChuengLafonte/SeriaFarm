@@ -1,0 +1,97 @@
+# SeriaFarm GUI Configuration
+# This file defines the layout and items for all plugin menus.
+
+main_menu:
+  title: "&#fbca00&lSeriaFarm Main Menu"
+  size: 36
+  items:
+    toggle:
+      material: GREEN_WOOL
+      slot: 11
+      name: "&#fbca00Toggle Menu"
+      lore: ["&7Enable or Disable Plugin Features"]
+    prefix:
+      material: NAME_TAG
+      slot: 13
+      name: "&#fbca00Plugin Prefix"
+      lore: ["&7Set the prefix for messages", "&7Customizable via chat input."]
+    add:
+      material: NETHER_STAR
+      slot: 15
+      name: "&#fbca00Add More Blocks"
+      lore: ["&7Add more blocks to regeneration.", "&7Choose which region blocks should be added."]
+    wand:
+      material: STONE_AXE
+      slot: 20
+      custom-model-data: 20
+      name: "&#fbca00Regen Wand"
+      lore: ["&7Receive a regen wand.", "&7Used to select Pos1 and Pos2."]
+    reload:
+      material: CLOCK
+      slot: 22
+      name: "&#fbca00Reload Plugin"
+      lore: ["&7Reloads the plugin configurations."]
+    edit:
+      material: DIAMOND_ORE
+      slot: 24
+      name: "&#fbca00Edit Menu"
+      lore: ["&7Edit how the block regenerates.", "&7Choose which region blocks should be edited."]
+    exit:
+      material: BARRIER
+      slot: 35
+      name: "&cClose | Exit"
+      lore: ["&7Closes the current GUI."]
+
+toggle_menu:
+  title: "&#cf8ff7&lToggle Menu"
+  size: 54
+  items:
+    enable:
+      material: GREEN_WOOL
+      slot: 11
+      name: "&#cf8ff7Enable / Disable"
+      lore: ["&7Toggle plugin activation."]
+    drop_to_inv:
+      material: CHEST_MINECART
+      slot: 13
+      name: "&#cf8ff7Drop To Inventory"
+      lore: ["&7Drops go to inventory.", "&7Else, they drop on block location."]
+    exit:
+      material: BARRIER
+      slot: 53
+      name: "&cBack to Main Menu"
+
+region_list_menu:
+  title: "&#ffa500&lRegion Menu"
+  size: 54
+  items:
+    exit:
+      material: BARRIER
+      slot: 53
+      name: "&cBack to Main Menu"
+    next:
+      material: GREEN_STAINED_GLASS_PANE
+      slot: 44
+      name: "&aNext Page"
+    prev:
+      material: RED_STAINED_GLASS_PANE
+      slot: 36
+      name: "&cPrevious Page"
+
+catalog_menu:
+  title: "&2&lCrop Catalog"
+  size: 54
+  items:
+    exit:
+      material: BARRIER
+      slot: 53
+      name: "&cBack to Main Menu"
+
+player_panel:
+  title: "&8» &2&lYour Farm Stats"
+  size: 27
+  items:
+    exit:
+      material: BARRIER
+      slot: 26
+      name: "&cClose"

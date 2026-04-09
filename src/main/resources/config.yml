@@ -1,0 +1,15 @@
+# SeriaFarm General Configuration
+settings:
+  database-type: SQLITE
+  debug: false
+  action-bar: true
+  harvest-click: true # Right-click to harvest
+  worldguard-bypass: true
+
+# Integration settings
+hooks:
+  mmoitems: true
+  auraskills: true
+  itemsadder: true
+  oraxen: true
+  nexo: true

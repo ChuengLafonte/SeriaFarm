@@ -1,0 +1,23 @@
+# Definition for blocks that regenerate
+blocks:
+  lapis_ore:
+    material: LAPIS_ORE
+    regen-delay: 15 # seconds
+    requirements:
+      tools:
+        allowed:
+          - IRON_PICKAXE
+          - DIAMOND_PICKAXE
+          - "mmoitems-PICKAXE:MITHRIL_PICKAXE"
+      auraskills:
+        mining: ">= 5"
+    rewards:
+      xp: 10
+      commands:
+        - "msg %player% You mined some Lapis!"
+  mithril_ore:
+    material: "mmoitems-BLOCK:MITHRIL_ORE" # Custom block support
+    regen-delay: 30
+    requirements:
+      auraskills:
+        mining: ">= 20"

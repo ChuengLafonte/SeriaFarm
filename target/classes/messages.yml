@@ -1,0 +1,6 @@
+# Message translations for SeriaFarm
+no-permission: "&cAnda tidak memiliki izin untuk melakukan ini!"
+no-permission-to-break: "&cLevel atau alat Anda tidak cukup untuk menghancurkan blok ini!"
+reloaded: "&aKonfigurasi SeriaFarm berhasil dimuat ulang."
+harvested: "&aAnda berhasil memanen %item%!"
+prefix: "&8[&6SeriaFarm&8] &r"
