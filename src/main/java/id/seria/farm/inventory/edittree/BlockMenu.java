@@ -128,20 +128,22 @@ public class BlockMenu implements Listener {
         }
 
         if (event.getRawSlot() == 36 && clicked.getType() == Material.GREEN_STAINED_GLASS_PANE) {
-            // Re-open with prev page logic (needs YamlConfiguration)
+            YamlConfiguration matConfig = (YamlConfiguration) plugin.getConfigManager().getConfig("materials.yml");
+            player.openInventory(blockmenu(player, currentPage - 1, matConfig, regionName));
             return;
         }
 
         if (event.getRawSlot() == 44 && clicked.getType() == Material.GREEN_STAINED_GLASS_PANE) {
-            // Re-open with next page logic
+            YamlConfiguration matConfig = (YamlConfiguration) plugin.getConfigManager().getConfig("materials.yml");
+            player.openInventory(blockmenu(player, currentPage + 1, matConfig, regionName));
             return;
         }
 
         if (event.getClick() == ClickType.SHIFT_LEFT || event.getClick() == ClickType.SHIFT_RIGHT) {
             String matName = LocalizedName.get(clicked);
             player.sendMessage(StaticColors.getHexMsg("&6&lSeriaFarm &8» &cDeleted &f" + matName));
-            // Add deletion logic here
-        } else {
+            // Deletion logic would go here
+        } else if (isMatItem(event.getRawSlot())) {
             // Open EditMenu
             String matName = LocalizedName.get(clicked);
             YamlConfiguration matConfig = (YamlConfiguration) plugin.getConfigManager().getConfig("materials.yml");
@@ -149,5 +151,10 @@ public class BlockMenu implements Listener {
             
             player.openInventory(new EditMenu(plugin).emenu(player, matConfig, matName, matFile, regionName));
         }
+    }
+
+    private boolean isMatItem(int slot) {
+        List<Integer> skipSlots = Arrays.asList(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 17, 18, 26, 27, 35, 36, 44, 46, 47, 48, 50, 51, 52, 53, 45, 49);
+        return !skipSlots.contains(slot) && slot < 44;
     }
 }

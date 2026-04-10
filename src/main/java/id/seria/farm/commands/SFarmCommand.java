@@ -43,7 +43,6 @@ public class SFarmCommand implements CommandExecutor, TabCompleter {
         String prefix = plugin.getConfig().getString("settings.prefix", "&6&lSeriaFarm &8»");
 
         switch (sub) {
-            case "menu":
             case "editor":
                 if (!player.isOp()) return noPerm(player);
                 player.openInventory(new MainMenu(plugin).mainmenu(player));
@@ -127,7 +126,6 @@ public class SFarmCommand implements CommandExecutor, TabCompleter {
 
     private void sendHelp(Player player) {
         player.sendMessage(StaticColors.getHexMsg("&8&m---&r &6&lSeriaFarm Help &8&m---"));
-        player.sendMessage(StaticColors.getHexMsg("&e/sfarm menu &7- Open Admin Panel"));
         player.sendMessage(StaticColors.getHexMsg("&e/sfarm editor &7- Open Admin Panel"));
         player.sendMessage(StaticColors.getHexMsg("&e/sfarm wand &7- Get Selection Wand"));
         player.sendMessage(StaticColors.getHexMsg("&e/sfarm pos1 &7- Set Position 1"));
@@ -146,14 +144,12 @@ public class SFarmCommand implements CommandExecutor, TabCompleter {
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         if (args.length == 1) {
             List<String> subs = new ArrayList<>();
-            subs.add("menu");
             subs.add("editor");
             subs.add("wand");
             subs.add("pos1");
             subs.add("pos2");
             subs.add("create");
             subs.add("clear");
-            subs.add("delete");
             subs.add("reload");
             return subs.stream().filter(s -> s.startsWith(args[0].toLowerCase())).collect(Collectors.toList());
         }

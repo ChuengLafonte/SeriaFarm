@@ -7,7 +7,7 @@ import id.seria.farm.inventory.utils.StaticColors;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
-import org.bukkit.configuration.file.YamlConfiguration;
+import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -18,15 +18,43 @@ import org.bukkit.inventory.ItemStack;
 public class ToggleMenu implements Listener {
 
     private final String name = StaticColors.getHexMsg("&#cf8ff7&lToggle Menu");
+    private final SeriaFarmPlugin plugin;
+
+    public ToggleMenu(SeriaFarmPlugin plugin) {
+        this.plugin = plugin;
+    }
 
     public Inventory togglemenu(Player player) {
         Inventory inventory = Bukkit.createInventory(player, 54, this.name);
-        YamlConfiguration config = (YamlConfiguration) SeriaFarmPlugin.getInstance().getConfig();
+        FileConfiguration config = plugin.getConfigManager().getConfig("config.yml");
 
-        inventory.setItem(11, InvUtils.createItemStacks(Material.GREEN_WOOL, StaticColors.getHexMsg("&#cf8ff7Enable / Disable"), "&7Toggle plugin activation.", "&7Click to toggle plugin state.", "", "&eStatus: " + (config.getBoolean("settings.enabled") ? "&aEnabled" : "&cDisabled")));
-        inventory.setItem(13, InvUtils.createItemStacks(Material.CHEST_MINECART, StaticColors.getHexMsg("&#cf8ff7Drop To Inventory"), "&7Drops go to inventory.", "&7Else, they drop on block location.", "", "&eStatus: " + (config.getBoolean("settings.drop-to-inventory") ? "&aEnabled" : "&cDisabled")));
+        // Slot 11: Enable / Disable
+        boolean enabled = config.getBoolean("settings.enabled", true);
+        inventory.setItem(11, InvUtils.createItemStacks(enabled ? Material.LIME_WOOL : Material.RED_WOOL, 
+            StaticColors.getHexMsg("&#cf8ff7Enable / Disable"), 
+            "&7Toggle plugin activation.", 
+            "&7Click to toggle plugin state.", 
+            "", 
+            "&eStatus: " + (enabled ? "&aEnabled" : "&cDisabled")));
+
+        // Slot 13: Drop to Inventory
+        boolean dropToInv = config.getBoolean("settings.drop-to-inventory", false);
+        inventory.setItem(13, InvUtils.createItemStacks(Material.CHEST_MINECART, 
+            StaticColors.getHexMsg("&#cf8ff7Drop To Inventory"), 
+            "&7Drops go to inventory.", 
+            "&7Else, they drop on block location.", 
+            "", 
+            "&eStatus: " + (dropToInv ? "&aEnabled" : "&cDisabled")));
         
-        // Mocking other slots matching UBR
+        // Slot 15: Crop Growth Mode
+        String growthMode = config.getString("settings.crop-growth-mode", "INSTANT");
+        inventory.setItem(15, InvUtils.createItemStacks(Material.WHEAT, 
+            StaticColors.getHexMsg("&#cf8ff7Crop Growth Mode"), 
+            "&7VANILLA: Step-by-step growth.", 
+            "&7INSTANT: Fully grown immediately.", 
+            "", 
+            "&eCurrent: " + (growthMode.equalsIgnoreCase("INSTANT") ? "&b&lINSTANT" : "&e&lVANILLA")));
+
         inventory.setItem(53, InvUtils.createItemStacks(Material.BARRIER, "&cClose | Exit", "", "&7Closes the current GUI"));
 
         ItemStack purpleGlass = InvUtils.createItemStacks(Material.PURPLE_STAINED_GLASS_PANE, " ", "", "");
@@ -43,20 +71,27 @@ public class ToggleMenu implements Listener {
         
         event.setCancelled(true);
         Player player = (Player) event.getWhoClicked();
-        YamlConfiguration config = (YamlConfiguration) SeriaFarmPlugin.getInstance().getConfig();
+        FileConfiguration config = plugin.getConfigManager().getConfig("config.yml");
 
         switch (event.getRawSlot()) {
             case 53:
-                player.openInventory(new MainMenu(SeriaFarmPlugin.getInstance()).mainmenu(player));
+                player.openInventory(new MainMenu(plugin).mainmenu(player));
                 break;
             case 11:
-                config.set("settings.enabled", !config.getBoolean("settings.enabled"));
-                SeriaFarmPlugin.getInstance().saveConfig();
+                config.set("settings.enabled", !config.getBoolean("settings.enabled", true));
+                plugin.getConfigManager().saveConfig("config.yml");
                 player.openInventory(togglemenu(player));
                 break;
             case 13:
-                config.set("settings.drop-to-inventory", !config.getBoolean("settings.drop-to-inventory"));
-                SeriaFarmPlugin.getInstance().saveConfig();
+                config.set("settings.drop-to-inventory", !config.getBoolean("settings.drop-to-inventory", false));
+                plugin.getConfigManager().saveConfig("config.yml");
+                player.openInventory(togglemenu(player));
+                break;
+            case 15:
+                String current = config.getString("settings.crop-growth-mode", "INSTANT");
+                String next = current.equalsIgnoreCase("INSTANT") ? "VANILLA" : "INSTANT";
+                config.set("settings.crop-growth-mode", next);
+                plugin.getConfigManager().saveConfig("config.yml");
                 player.openInventory(togglemenu(player));
                 break;
         }

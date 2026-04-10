@@ -40,4 +40,27 @@ public class LocationUtils {
                target.getY() >= minY && target.getY() < maxY &&
                target.getZ() >= minZ && target.getZ() < maxZ;
     }
+
+    public static java.util.Set<org.bukkit.Material> getUniqueMaterialsInRange(Location l1, Location l2) {
+        java.util.Set<org.bukkit.Material> materials = new java.util.HashSet<>();
+        if (l1 == null || l2 == null || !l1.getWorld().equals(l2.getWorld())) return materials;
+
+        int minX = Math.min(l1.getBlockX(), l2.getBlockX());
+        int minY = Math.min(l1.getBlockY(), l2.getBlockY());
+        int minZ = Math.min(l1.getBlockZ(), l2.getBlockZ());
+        int maxX = Math.max(l1.getBlockX(), l2.getBlockX());
+        int maxY = Math.max(l1.getBlockY(), l2.getBlockY());
+        int maxZ = Math.max(l1.getBlockZ(), l2.getBlockZ());
+
+        org.bukkit.World world = l1.getWorld();
+
+        for (int x = minX; x <= maxX; x++) {
+            for (int y = minY; y <= maxY; y++) {
+                for (int z = minZ; z <= maxZ; z++) {
+                    materials.add(world.getBlockAt(x, y, z).getType());
+                }
+            }
+        }
+        return materials;
+    }
 }

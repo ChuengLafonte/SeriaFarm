@@ -3,6 +3,7 @@ settings:
   database-type: SQLITE
   debug: false
   action-bar: true
+  show-growth-actionbar: true
   harvest-click: true # Right-click to harvest
   worldguard-bypass: true
 

@@ -19,19 +19,20 @@ import org.bukkit.persistence.PersistentDataType;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
-public class ReplaceBlockMenu implements Listener {
+public class DropsMenu implements Listener {
 
     private final SeriaFarmPlugin plugin;
 
-    public ReplaceBlockMenu(SeriaFarmPlugin plugin) {
+    public DropsMenu(SeriaFarmPlugin plugin) {
         this.plugin = plugin;
     }
 
-    public void open(Player player, String matName, String regionName, String configKey, String fullPath) {
-        String displayTitle = configKey.contains("delay") ? "Delay Block Editor" : "Replace Block Editor";
-        Inventory inv = Bukkit.createInventory(player, 54, StaticColors.getHexMsg("&#9370db&l" + displayTitle));
+    public void open(Player player, String matName, String regionName, String fullPath) {
+        Inventory inv = Bukkit.createInventory(player, 54, StaticColors.getHexMsg("&#9370db&lCustom Drops Editor"));
         
         // Setup border and controls
         ItemStack glass = InvUtils.createItemStacks(Material.PURPLE_STAINED_GLASS_PANE, " ", "");
@@ -39,35 +40,36 @@ public class ReplaceBlockMenu implements Listener {
             inv.setItem(i, glass);
         }
 
-        inv.setItem(48, InvUtils.createItemStacks(Material.LIME_STAINED_GLASS_PANE, "&a&lSAVE &f& EXIT", "&7Save all changes to config"));
+        inv.setItem(48, InvUtils.createItemStacks(Material.LIME_STAINED_GLASS_PANE, "&a&lSAVE &f& EXIT", "&7Save all drops to config"));
         inv.setItem(50, InvUtils.createItemStacks(Material.RED_STAINED_GLASS_PANE, "&c&lCANCEL", "&7Back to Edit Menu"));
         
         // Info item to store context
         ItemStack info = InvUtils.createItemStacks(Material.PAPER, "&eContext Info (Hidden)", "");
-        LocalizedName.set(info, matName + "|" + regionName + "|" + configKey + "|" + fullPath);
+        LocalizedName.set(info, matName + "|" + regionName + "|" + fullPath);
         inv.setItem(49, info);
 
         // Load existing data
         YamlConfiguration config = (YamlConfiguration) plugin.getConfigManager().getConfig("materials.yml");
-        List<String> current = config.getStringList(fullPath + "." + configKey);
+        List<?> drops = config.getList(fullPath + ".rewards.drops");
         
         int slot = 10;
-        for (String line : current) {
-            try {
-                String[] parts = line.split(";");
-                Material mat = Material.matchMaterial(parts[0].trim());
-                double chance = parts.length > 1 ? Double.parseDouble(parts[1].trim()) : 100.0;
-                
-                if (mat != null) {
-                    while (isBorder(slot)) slot++;
-                    if (slot >= 44) break;
+        if (drops != null) {
+            for (Object obj : drops) {
+                if (obj instanceof Map) {
+                    Map<?, ?> map = (Map<?, ?>) obj;
+                    ItemStack item = (ItemStack) map.get("item");
+                    double chance = map.containsKey("chance") ? ((Number) map.get("chance")).doubleValue() : 100.0;
                     
-                    ItemStack item = new ItemStack(mat);
-                    updateLore(item, chance);
-                    inv.setItem(slot, item);
-                    slot++;
+                    if (item != null) {
+                        while (isBorder(slot)) slot++;
+                        if (slot >= 44) break;
+                        
+                        updateLore(item, chance);
+                        inv.setItem(slot, item);
+                        slot++;
+                    }
                 }
-            } catch (Exception ignored) {}
+            }
         }
 
         player.openInventory(inv);
@@ -83,7 +85,11 @@ public class ReplaceBlockMenu implements Listener {
     private void updateLore(ItemStack item, double chance) {
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
-            List<String> lore = new ArrayList<>();
+            List<String> lore = meta.hasLore() ? meta.getLore() : new ArrayList<>();
+            // Clean up old chance lore if exists
+            lore.removeIf(line -> line.contains("Chance:"));
+            lore.removeIf(line -> line.contains("Click to"));
+            
             lore.add("");
             lore.add(StaticColors.getHexMsg("&eChance: &f" + chance + "%"));
             lore.add("");
@@ -97,7 +103,7 @@ public class ReplaceBlockMenu implements Listener {
 
     @EventHandler
     public void onInventoryClick(InventoryClickEvent event) {
-        if (!event.getView().getTitle().contains("Editor")) return;
+        if (!event.getView().getTitle().contains("Drops Editor")) return;
         
         int slot = event.getRawSlot();
         ItemStack clicked = event.getCurrentItem();
@@ -118,7 +124,8 @@ public class ReplaceBlockMenu implements Listener {
         }
 
         if (isBorder(slot)) {
-            event.setCancelled(true);
+            // Allow clicking on player inventory to drag N drop (handled by default but we check slot)
+            if (slot == 49) event.setCancelled(true);
             return;
         }
 
@@ -133,7 +140,7 @@ public class ReplaceBlockMenu implements Listener {
             // Left click to change chance
             event.setCancelled(true);
             
-            ChatInputListener.requestInput(player, "Set Chance (%)", "Enter a number 0-100", input -> {
+            ChatInputListener.requestInput(player, "Set Drop Chance (%)", "Enter a number 0-100", input -> {
                 try {
                     double chance = Double.parseDouble(input);
                     updateLore(clicked, chance);
@@ -163,23 +170,40 @@ public class ReplaceBlockMenu implements Listener {
         ItemStack info = inv.getItem(49);
         String data = LocalizedName.get(info);
         String[] parts = data.split("\\|");
-        String configKey = parts[2];
-        String fullPath = parts[3];
+        String fullPath = parts[2];
         
-        List<String> list = new ArrayList<>();
+        List<Map<String, Object>> dropsList = new ArrayList<>();
         for (int i = 0; i < 54; i++) {
             if (isBorder(i) || i == 49) continue;
             ItemStack item = inv.getItem(i);
             if (item != null && item.getType() != Material.AIR) {
-                double chance = item.getItemMeta().getPersistentDataContainer()
-                        .getOrDefault(SeriaFarmPlugin.chanceKey, PersistentDataType.DOUBLE, 100.0);
-                list.add(item.getType().name() + " ; " + chance);
+                ItemMeta meta = item.getItemMeta();
+                double chance = 100.0;
+                if (meta != null) {
+                    chance = meta.getPersistentDataContainer()
+                            .getOrDefault(SeriaFarmPlugin.chanceKey, PersistentDataType.DOUBLE, 100.0);
+                    
+                    // Cleanup lore for storage
+                    List<String> lore = meta.getLore();
+                    if (lore != null) {
+                        lore.removeIf(line -> line.contains("Chance:"));
+                        lore.removeIf(line -> line.contains("Click to"));
+                        if (lore.size() > 0 && lore.get(lore.size()-1).isEmpty()) lore.remove(lore.size()-1);
+                        meta.setLore(lore);
+                        item.setItemMeta(meta);
+                    }
+                }
+                
+                Map<String, Object> entry = new HashMap<>();
+                entry.put("item", item);
+                entry.put("chance", chance);
+                dropsList.add(entry);
             }
         }
         
         YamlConfiguration config = (YamlConfiguration) plugin.getConfigManager().getConfig("materials.yml");
-        config.set(fullPath + "." + configKey, list);
+        config.set(fullPath + ".rewards.drops", dropsList);
         plugin.getConfigManager().saveConfig("materials.yml");
-        player.sendMessage(StaticColors.getHexMsg("&6&lSeriaFarm &8» &aSettings saved successfully!"));
+        player.sendMessage(StaticColors.getHexMsg("&6&lSeriaFarm &8» &aCustom drops saved successfully!"));
     }
 }

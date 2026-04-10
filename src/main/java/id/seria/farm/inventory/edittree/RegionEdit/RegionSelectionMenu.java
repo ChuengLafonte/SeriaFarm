@@ -65,7 +65,9 @@ public class RegionSelectionMenu implements Listener {
             while (skipSlots.contains(slot)) slot++;
             if (slot >= 44) break;
 
-            inventory.setItem(slot, InvUtils.createItemStacks(Material.CHEST_MINECART, StaticColors.getHexMsg("&#ffa500Region Setting : [" + regionName + "]"), StaticColors.getHexMsg("&7Manage Region Regeneration"), ""));
+            ItemStack item = InvUtils.createItemStacks(Material.CHEST_MINECART, StaticColors.getHexMsg("&#ffa500Region Setting : [" + regionName + "]"), StaticColors.getHexMsg("&7Manage Region Regeneration"), "");
+            LocalizedName.set(item, regionName);
+            inventory.setItem(slot, item);
             slot++;
         }
 
@@ -99,11 +101,12 @@ public class RegionSelectionMenu implements Listener {
             player.openInventory(reg_sel(player, currentPage - 1));
         } else if (event.getRawSlot() == 44 && clicked.getType() == Material.GREEN_STAINED_GLASS_PANE) {
             player.openInventory(reg_sel(player, currentPage + 1));
+        } else if (event.getRawSlot() == 10 && currentPage == 1) {
+            player.openInventory(new id.seria.farm.inventory.maintree.GlobalBlocksMenu(plugin).blockmenu(player, 1));
         } else {
-            String regionName = InvUtils.extractStr(clicked.getItemMeta().getDisplayName());
-            if (regionName != null || (event.getRawSlot() == 10 && currentPage == 1)) {
-                String target = (event.getRawSlot() == 10) ? "global" : regionName;
-                player.openInventory(new PreRegionMenu(plugin).preregenmenu(player, target));
+            String regionName = LocalizedName.get(clicked);
+            if (regionName != null) {
+                player.openInventory(new PreRegionMenu(plugin).preregenmenu(player, regionName));
             }
         }
     }

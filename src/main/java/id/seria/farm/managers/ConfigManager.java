@@ -53,7 +53,20 @@ public class ConfigManager {
 
     // Helper to get formatted messages
     public String getMessage(String path) {
-        String msg = getConfig("messages.yml").getString(path, path);
+        FileConfiguration msgConfig = getConfig("messages.yml");
+        String msg = msgConfig.getString(path);
+        
+        if (msg == null) {
+            // Fallback to internal resource
+            java.io.InputStream internalStream = plugin.getResource("messages.yml");
+            if (internalStream != null) {
+                FileConfiguration internalConfig = YamlConfiguration.loadConfiguration(new java.io.InputStreamReader(internalStream));
+                msg = internalConfig.getString(path, path);
+            } else {
+                msg = path;
+            }
+        }
+        
         return org.bukkit.ChatColor.translateAlternateColorCodes('&', msg);
     }
 }

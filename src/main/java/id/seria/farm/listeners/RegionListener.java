@@ -20,6 +20,9 @@ public class RegionListener implements Listener {
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onBlockPlace(BlockPlaceEvent event) {
+        // 0. Check if plugin is globally enabled
+        if (!plugin.getConfigManager().getConfig("config.yml").getBoolean("settings.enabled", true)) return;
+
         Player player = event.getPlayer();
         if (player.isOp()) return; // OP always allowed
 

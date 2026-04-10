@@ -31,15 +31,20 @@ public class MainMenu implements Listener {
     public Inventory mainmenu(Player player) {
         Inventory inventory = Bukkit.createInventory(player, 36, this.name);
         
-        // Toggle (Slot 11) - Mocking config check
-        inventory.setItem(11, InvUtils.createItemStacks(Material.GREEN_WOOL, StaticColors.getHexMsg("&#fbca00Toggle Menu"), "&7Enable or Disable Plugin Features", "", "&eStatus: &aEnabled"));
+        // Toggle (Slot 11)
+        boolean enabled = plugin.getConfigManager().getConfig("config.yml").getBoolean("settings.enabled", true);
+        inventory.setItem(11, InvUtils.createItemStacks(enabled ? Material.LIME_WOOL : Material.RED_WOOL, 
+            StaticColors.getHexMsg("&#fbca00Toggle Menu"), 
+            "&7Enable or Disable Plugin Features", 
+            "", 
+            "&eStatus: " + (enabled ? "&aEnabled" : "&cDisabled")));
         
         // Prefix (Slot 13)
         inventory.setItem(13, InvUtils.createItemStacks(Material.NAME_TAG, StaticColors.getHexMsg("&#fbca00Plugin Prefix"), "&7Set the prefix for messages.", "&7You can use color codes.", "", "&eCurrent: " + StaticColors.getHexMsg("&6&lSeriaFarm &8»")));
         
         // Add (Slot 15)
         inventory.setItem(15, InvUtils.createItemStacks(Material.NETHER_STAR, StaticColors.getHexMsg("&#fbca00Add More Blocks"), "&7Add more blocks to regeneration.", "&7Choose which region blocks should be added."));
-        
+
         // Wand (Slot 20)
         inventory.setItem(20, InvUtils.createItemStacks(Material.IRON_AXE, StaticColors.getHexMsg("&#fbca00Regen Wand"), "&7Receive a regen wand.", "&7Used to select Pos1 and Pos2."));
         
@@ -72,7 +77,7 @@ public class MainMenu implements Listener {
         
         switch (event.getRawSlot()) {
             case 11: // Toggle
-                player.openInventory(new ToggleMenu().togglemenu(player));
+                player.openInventory(new ToggleMenu(plugin).togglemenu(player));
                 break;
             case 13: // Prefix
                 player.closeInventory();

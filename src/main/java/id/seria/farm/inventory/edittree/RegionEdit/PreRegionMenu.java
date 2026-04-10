@@ -57,10 +57,17 @@ public class PreRegionMenu implements Listener {
             StaticColors.getHexMsg("&7Current Status: " + (config.getBoolean(path + "allow-block-place", false) ? "&aEnabled" : "&cDisabled"))));
         
         inventory.setItem(24, InvUtils.createItemStacks(Material.MINECART, StaticColors.getHexMsg("&9Edit Blocks Menu"), StaticColors.getHexMsg("&7Edit How Block Regenerates")));
+        
+        // Slot 31: Scan Region
+        inventory.setItem(31, InvUtils.createItemStacks(Material.ENDER_EYE, StaticColors.getHexMsg("&b&lSCAN REGION"), 
+            StaticColors.getHexMsg("&7Detects all blocks inside the region."), 
+            StaticColors.getHexMsg("&7and automatically adds them to the list."), 
+            "", StaticColors.getHexMsg("&eLeft-Click To Start Scanning")));
+
         inventory.setItem(35, InvUtils.createItemStacks(Material.BARRIER, StaticColors.getHexMsg("&cClose | Exit"), StaticColors.getHexMsg("&7Closes The Current Gui"), ""));
 
         ItemStack blueGlass = InvUtils.createItemStacks(Material.BLUE_STAINED_GLASS_PANE, " ", "", "");
-        for (int n : new int[]{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 17, 18, 26, 28, 29, 30, 31, 32, 33, 34}) {
+        for (int n : new int[]{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 17, 18, 26, 28, 29, 30, 32, 33, 34}) {
             inventory.setItem(n, blueGlass);
         }
         
@@ -87,34 +94,7 @@ public class PreRegionMenu implements Listener {
 
         switch (event.getRawSlot()) {
             case 11: // Teleport
-                String p1Str = config.getString(path + "pos1");
-                String p2Str = config.getString(path + "pos2");
-                if (p1Str != null && p2Str != null) {
-                    Location l1 = deserializeLoc(p1Str);
-                    Location l2 = deserializeLoc(p2Str);
-                    if (l1 != null && l2 != null) {
-                        double midX = (l1.getX() + l2.getX() + 1) / 2.0;
-                        double midZ = (l1.getZ() + l2.getZ() + 1) / 2.0;
-                        double midY = Math.min(l1.getY(), l2.getY());
-                        
-                        Location target = new Location(l1.getWorld(), midX, midY, midZ, player.getLocation().getYaw(), player.getLocation().getPitch());
-                        player.teleport(target);
-                        player.sendMessage(StaticColors.getHexMsg("&6&lSeriaFarm &8» &fTeleported to the center of &b" + regionName));
-                        return;
-                    }
-                }
-                
-                // Fallback to legacy teleport location if pos1/2 missing
-                String locStr = config.getString(path + "teleport-location");
-                if (locStr != null) {
-                    String[] p = locStr.split(";");
-                    if (p.length >= 4) {
-                        Location loc = new Location(Bukkit.getWorld(p[0]), Double.parseDouble(p[1]), Double.parseDouble(p[2]), Double.parseDouble(p[3]), 
-                                        p.length > 4 ? Float.parseFloat(p[4]) : 0, p.length > 5 ? Float.parseFloat(p[5]) : 0);
-                        player.teleport(loc);
-                        player.sendMessage(StaticColors.getHexMsg("&6&lSeriaFarm &8» &fTeleported to &b" + regionName));
-                    }
-                }
+                teleportLogic(player, config, path, regionName);
                 break;
             case 20: // Enabled
                 config.set(path + "enabled", !config.getBoolean(path + "enabled", true));
@@ -128,7 +108,7 @@ public class PreRegionMenu implements Listener {
                 config.set(path + "require-permission", !config.getBoolean(path + "require-permission", false));
                 saveAndRefresh(player, regionName);
                 break;
-            case 15: // Block Place
+            case 15: // Allow Block Place
                 config.set(path + "allow-block-place", !config.getBoolean(path + "allow-block-place", false));
                 saveAndRefresh(player, regionName);
                 break;
@@ -136,6 +116,93 @@ public class PreRegionMenu implements Listener {
                 YamlConfiguration matConfig = (YamlConfiguration) plugin.getConfigManager().getConfig("materials.yml");
                 player.openInventory(new BlockMenu(plugin).blockmenu(player, 1, matConfig, regionName));
                 break;
+            case 31: // SCAN REGION
+                performScan(player, config, path, regionName);
+                break;
+        }
+    }
+
+    private void teleportLogic(Player player, FileConfiguration config, String path, String regionName) {
+        String worldName = config.getString(path + "teleport-location", "world;0;0;0").split(";")[0];
+        org.bukkit.World world = Bukkit.getWorld(worldName);
+        if (world == null) {
+            player.sendMessage(StaticColors.getHexMsg("&6&lSeriaFarm &8» &cWorld '&f" + worldName + "&c' is not loaded!"));
+            return;
+        }
+
+        String p1Str = config.getString(path + "pos1");
+        String p2Str = config.getString(path + "pos2");
+        if (p1Str != null && p2Str != null) {
+            Location l1 = deserializeLoc(p1Str);
+            Location l2 = deserializeLoc(p2Str);
+            if (l1 != null && l2 != null) {
+                double midX = (l1.getX() + l2.getX() + 1) / 2.0;
+                double midZ = (l1.getZ() + l2.getZ() + 1) / 2.0;
+                double midY = Math.max(l1.getY(), l2.getY()) + 1; 
+                
+                Location target = new Location(world, midX, midY, midZ, player.getLocation().getYaw(), player.getLocation().getPitch());
+                player.teleport(target);
+                player.sendMessage(StaticColors.getHexMsg("&6&lSeriaFarm &8» &fTeleported to the center of &b" + regionName));
+            }
+        }
+    }
+
+    private void performScan(Player player, FileConfiguration config, String path, String regionName) {
+        String p1Str = config.getString(path + "pos1");
+        String p2Str = config.getString(path + "pos2");
+        if (p1Str == null || p2Str == null) {
+            player.sendMessage(StaticColors.getHexMsg("&6&lSeriaFarm &8» &cPos1 or Pos2 is not set for this region!"));
+            return;
+        }
+
+        Location l1 = deserializeLoc(p1Str);
+        Location l2 = deserializeLoc(p2Str);
+        if (l1 == null || l2 == null) {
+            player.sendMessage(StaticColors.getHexMsg("&6&lSeriaFarm &8» &cInvalid Pos1 or Pos2 data!"));
+            return;
+        }
+
+        player.sendMessage(StaticColors.getHexMsg("&6&lSeriaFarm &8» &bScanning region &f" + regionName + "&b..."));
+        
+        java.util.Set<Material> found = id.seria.farm.utils.LocationUtils.getUniqueMaterialsInRange(l1, l2);
+        java.util.Set<Material> ignored = new java.util.HashSet<>(java.util.Arrays.asList(
+            Material.AIR, Material.CAVE_AIR, Material.VOID_AIR, Material.BEDROCK, Material.BARRIER, Material.WATER, Material.LAVA
+        ));
+
+        YamlConfiguration matConfig = (YamlConfiguration) plugin.getConfigManager().getConfig("materials.yml");
+        String blocksPath = "blocks." + regionName;
+        int count = 0;
+
+        for (Material mat : found) {
+            if (ignored.contains(mat)) continue;
+            
+            boolean exists = false;
+            if (matConfig.contains(blocksPath)) {
+                for (String key : matConfig.getConfigurationSection(blocksPath).getKeys(false)) {
+                    if (matConfig.getString(blocksPath + "." + key + ".material", "").equalsIgnoreCase(mat.name())) {
+                        exists = true;
+                        break;
+                    }
+                }
+            }
+
+            if (!exists) {
+                String key = mat.name();
+                String fullPath = blocksPath + "." + key;
+                matConfig.set(fullPath + ".material", mat.name());
+                matConfig.set(fullPath + ".regen-delay", 10);
+                matConfig.set(fullPath + ".replace-blocks", java.util.Arrays.asList(mat.name()));
+                matConfig.set(fullPath + ".delay-blocks", java.util.Arrays.asList("BEDROCK"));
+                matConfig.set(fullPath + ".rewards.xp", 0);
+                count++;
+            }
+        }
+
+        if (count > 0) {
+            plugin.getConfigManager().saveConfig("materials.yml");
+            player.sendMessage(StaticColors.getHexMsg("&6&lSeriaFarm &8» &aSuccessfully added &f" + count + " &anew materials to the region!"));
+        } else {
+            player.sendMessage(StaticColors.getHexMsg("&6&lSeriaFarm &8» &eNo new materials found to add."));
         }
     }
 

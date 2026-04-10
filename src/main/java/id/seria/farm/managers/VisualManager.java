@@ -118,4 +118,44 @@ public class VisualManager {
     private void spawnEdgeParticle(Player player, Location loc) {
         player.spawnParticle(Particle.COMPOSTER, loc, 1, 0, 0, 0, 0);
     }
+
+    public void showGrowthInfo(Player player, id.seria.farm.models.RegenBlock regen) {
+        long now = System.currentTimeMillis();
+        long total = regen.getRestoreTime() - regen.getStartTime();
+        long passed = now - regen.getStartTime();
+        
+        // Safety check for total time
+        if (total <= 0) total = 1;
+
+        double progress = Math.min(1.0, (double) passed / total);
+        int percent = (int) (progress * 100);
+        long remainingSec = Math.max(0, (regen.getRestoreTime() - now) / 1000);
+
+        String bar = getProgressBar(percent, 10);
+        String msg = plugin.getConfigManager().getMessage("growth-info-actionbar")
+                .replace("%progress_bar%", bar)
+                .replace("%percent%", String.valueOf(percent))
+                .replace("%time%", String.valueOf(remainingSec));
+        
+        if (regen.getMaxStage() > 0) {
+            msg = msg.replace("%stage%", String.valueOf(regen.getCurrentStage()))
+                     .replace("%max_stage%", String.valueOf(regen.getMaxStage()));
+        } else {
+            // Clean up placeholders if not in vanilla mode
+            msg = msg.replace("%stage%", "").replace("%max_stage%", "");
+        }
+
+        // Send using Spigot ActionBar API
+        player.sendActionBar(org.bukkit.ChatColor.translateAlternateColorCodes('&', msg));
+    }
+
+    private String getProgressBar(int percent, int totalBars) {
+        int filled = Math.min(totalBars, percent / (100 / totalBars));
+        StringBuilder sb = new StringBuilder("&a");
+        for (int i = 0; i < totalBars; i++) {
+            if (i == filled) sb.append("&7"); // Color for the remaining bar
+            sb.append("|");
+        }
+        return sb.toString();
+    }
 }

@@ -15,6 +15,7 @@ public class SeriaFarmPlugin extends JavaPlugin {
     private FarmManager farmManager;
     private VisualManager visualManager;
     private HookManager hookManager;
+    private AuraSkillsManager auraSkillsManager;
     private RequirementEngine requirementEngine;
     public static org.bukkit.NamespacedKey key;
     public static org.bukkit.NamespacedKey chanceKey;
@@ -44,22 +45,28 @@ public class SeriaFarmPlugin extends JavaPlugin {
         regenManager = new RegenManager(this);
         farmManager = new FarmManager(this);
         visualManager = new VisualManager(this);
+        auraSkillsManager = new AuraSkillsManager(this);
 
         // Register Listeners
-        getServer().getPluginManager().registerEvents(new BlockBreakListener(this), this);
-        getServer().getPluginManager().registerEvents(new InteractListener(this), this);
-        getServer().getPluginManager().registerEvents(new ChatInputListener(), this);
-        getServer().getPluginManager().registerEvents(new WandListener(), this);
-        getServer().getPluginManager().registerEvents(new MainMenu(this), this);
-        getServer().getPluginManager().registerEvents(new id.seria.farm.inventory.maintree.ToggleMenu(), this);
-        getServer().getPluginManager().registerEvents(new id.seria.farm.inventory.addtree.AddMenu(), this);
-        getServer().getPluginManager().registerEvents(new id.seria.farm.inventory.addtree.AddBlocksMenu(), this);
-        getServer().getPluginManager().registerEvents(new id.seria.farm.inventory.edittree.RegionEdit.RegionSelectionMenu(this), this);
-        getServer().getPluginManager().registerEvents(new id.seria.farm.inventory.edittree.RegionEdit.PreRegionMenu(this), this);
-        getServer().getPluginManager().registerEvents(new id.seria.farm.inventory.edittree.BlockMenu(this), this);
-        getServer().getPluginManager().registerEvents(new id.seria.farm.inventory.edittree.EditMenu(this), this);
-        getServer().getPluginManager().registerEvents(new id.seria.farm.inventory.edittree.ReplaceBlockMenu(this), this);
-        getServer().getPluginManager().registerEvents(new RegionListener(this), this);
+        org.bukkit.plugin.PluginManager pm = getServer().getPluginManager();
+        pm.registerEvents(new BlockBreakListener(this), this);
+        pm.registerEvents(new InteractListener(this), this);
+        pm.registerEvents(new ChatInputListener(), this);
+        pm.registerEvents(new WandListener(), this);
+        pm.registerEvents(new MainMenu(this), this);
+        pm.registerEvents(new id.seria.farm.inventory.maintree.ToggleMenu(this), this);
+        pm.registerEvents(new id.seria.farm.inventory.addtree.AddMenu(), this);
+        pm.registerEvents(new id.seria.farm.inventory.addtree.AddBlocksMenu(), this);
+        pm.registerEvents(new id.seria.farm.inventory.edittree.RegionEdit.RegionSelectionMenu(this), this);
+        pm.registerEvents(new id.seria.farm.inventory.edittree.RegionEdit.PreRegionMenu(this), this);
+        pm.registerEvents(new id.seria.farm.inventory.edittree.BlockMenu(this), this);
+        pm.registerEvents(new id.seria.farm.inventory.edittree.EditMenu(this), this);
+        pm.registerEvents(new id.seria.farm.inventory.edittree.ReplaceBlockMenu(this), this);
+        pm.registerEvents(new id.seria.farm.inventory.edittree.DropsMenu(this), this);
+        pm.registerEvents(new id.seria.farm.inventory.maintree.GlobalBlocksMenu(this), this);
+        pm.registerEvents(new id.seria.farm.inventory.maintree.GlobalBlockEditMenu(this), this);
+        pm.registerEvents(new RegionListener(this), this);
+        pm.registerEvents(new GrowthListener(this), this);
 
         // Register Commands
         id.seria.farm.commands.SFarmCommand sfarmCommand = new id.seria.farm.commands.SFarmCommand(this);
@@ -82,5 +89,6 @@ public class SeriaFarmPlugin extends JavaPlugin {
     public FarmManager getFarmManager() { return farmManager; }
     public VisualManager getVisualManager() { return visualManager; }
     public HookManager getHookManager() { return hookManager; }
+    public AuraSkillsManager getAuraSkillsManager() { return auraSkillsManager; }
     public RequirementEngine getRequirementEngine() { return requirementEngine; }
 }

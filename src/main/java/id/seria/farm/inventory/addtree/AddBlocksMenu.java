@@ -13,6 +13,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
+import id.seria.farm.inventory.utils.LocalizedName;
 import java.util.Arrays;
 import java.util.List;
 import org.bukkit.event.inventory.InventoryCloseEvent;
@@ -24,7 +25,9 @@ public class AddBlocksMenu implements Listener {
         Inventory inventory = Bukkit.createInventory(player, 54, name);
         
         inventory.setItem(49, InvUtils.createItemStacks(Material.NETHER_STAR, StaticColors.getHexMsg("&fAdd Blocks"), StaticColors.getHexMsg("&7Drop All Blocks To Be Added Above"), StaticColors.getHexMsg("&7Click Here TO Continue")));
-        inventory.setItem(45, InvUtils.createItemStacks(Material.PLAYER_HEAD, StaticColors.getHexMsg("&#ffa500[" + target + "]"), StaticColors.getHexMsg("&7A Super Cool Farmer"), ""));
+        ItemStack info = InvUtils.createItemStacks(Material.PLAYER_HEAD, StaticColors.getHexMsg("&#ffa500[" + target + "]"), StaticColors.getHexMsg("&7A Super Cool Farmer"), "");
+        LocalizedName.set(info, target);
+        inventory.setItem(45, info);
         inventory.setItem(53, InvUtils.createItemStacks(Material.BARRIER, StaticColors.getHexMsg("&4Close | Exit"), StaticColors.getHexMsg("&7Closes The Current Gui"), ""));
 
         ItemStack orangeGlass = InvUtils.createItemStacks(Material.ORANGE_STAINED_GLASS_PANE, " ", "", "");
@@ -40,13 +43,8 @@ public class AddBlocksMenu implements Listener {
         if (!ChatColor.translateAlternateColorCodes('&', event.getView().getTitle()).equals(name)) return;
         
         int slot = event.getRawSlot();
-        int[] cancelledSlots = new int[]{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 17, 18, 26, 27, 35, 36, 44, 46, 47, 48, 50, 51, 52, 45, 49, 53};
-        
-        for (int s : cancelledSlots) {
-            if (s == slot) {
-                event.setCancelled(true);
-                break;
-            }
+        if (isBorder(slot)) {
+            event.setCancelled(true);
         }
 
         Player player = (Player) event.getWhoClicked();
@@ -56,20 +54,27 @@ public class AddBlocksMenu implements Listener {
         }
 
         if (slot == 49) {
-            String target = InvUtils.extractStr(event.getInventory().getItem(45).getItemMeta().getDisplayName());
+            event.setCancelled(true);
+            ItemStack targetItem = event.getInventory().getItem(45);
+            if (targetItem == null) return;
+            
+            String target = LocalizedName.get(targetItem);
             if (target == null) target = "global";
             
             org.bukkit.configuration.file.FileConfiguration config = SeriaFarmPlugin.getInstance().getConfigManager().getConfig("materials.yml");
             SeriaFarmPlugin plugin = SeriaFarmPlugin.getInstance();
             
             int added = 0;
-            for (int i = 10; i <= 43; i++) {
+            for (int i = 0; i < 54; i++) {
                 if (isBorder(i)) continue;
                 ItemStack item = event.getInventory().getItem(i);
                 if (item != null && item.getType() != org.bukkit.Material.AIR) {
                     String identifier = plugin.getHookManager().getItemIdentifier(item);
-                    String matKey = identifier.replace(":", "-").toLowerCase();
-                    String path = "blocks." + target + "." + matKey;
+                    // Use a safe key for YAML (replace : with - to avoid accidental nesting)
+                    String matKey = identifier.replace(":", "-").toUpperCase();
+                    
+                    String path = target.equalsIgnoreCase("global") ? "blocks.global." + matKey : "blocks." + target + "." + matKey;
+                    if (target.equalsIgnoreCase("legacy")) path = "blocks." + matKey;
                     
                     config.set(path + ".material", identifier);
                     config.set(path + ".regen-delay", 20);
