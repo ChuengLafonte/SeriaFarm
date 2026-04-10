@@ -28,20 +28,27 @@ public class EditMenu implements Listener {
 
     public Inventory emenu(Player player, YamlConfiguration config, String matName, File file, String regionName) {
         Inventory inventory = Bukkit.createInventory(player, 54, name);
-        String path = "Materials." + matName + ".";
+        String[] parts = matName.split(":");
+        String section = parts.length > 1 ? parts[0] : "legacy";
+        String materialKey = parts.length > 1 ? parts[1] : matName;
+        
+        String path = section.equalsIgnoreCase("legacy") ? "blocks." + materialKey + "." : "blocks." + section + "." + materialKey + ".";
+        
+        int delay = config.getInt(path + "regen-delay", 20);
+        int xp = config.getInt(path + "rewards.xp", 0);
 
         // Slot 45: Info Item
-        ItemStack info = InvUtils.createItemStacks(Material.getMaterial(InvUtils.getSingleCrop(matName)), 
-            StaticColors.getHexMsg("&#9370db[" + matName + "]"), "&7You are editing this block", "");
-        LocalizedName.set(info, regionName);
+        ItemStack icon = plugin.getHookManager().getItem(materialKey);
+        ItemStack info = InvUtils.applyMeta(icon, StaticColors.getHexMsg("&#9370db[" + materialKey + "]"), "&7You are editing this block", "");
+        LocalizedName.set(info, matName + ":" + regionName);
         inventory.setItem(45, info);
 
         inventory.setItem(53, InvUtils.createItemStacks(Material.BARRIER, StaticColors.getHexMsg("&cClose | Exit"), "&7Closes The Current Gui", ""));
         
         // Toggles & Settings
         inventory.setItem(10, InvUtils.createItemStacks(Material.GREEN_WOOL, StaticColors.getHexMsg("&#9370dbEnable | Disable"), "&7Click Here To Enable Or Disable", "&7Per Block Regeneration", "", "&eStatus: &aEnabled"));
-        inventory.setItem(12, InvUtils.createItemStacks(Material.CLOCK, StaticColors.getHexMsg("&#9370dbCustomize Delay"), "&7Change How Long A Block", "&7Should Regenerate", "", "&eCurrent: &f20"));
-        inventory.setItem(16, InvUtils.createItemStacks(Material.EXPERIENCE_BOTTLE, StaticColors.getHexMsg("&#9370dbCustomize XP Drops"), "&7Change How Much Xp Should Drop", "", "&eCurrent: &f20"));
+        inventory.setItem(12, InvUtils.createItemStacks(Material.CLOCK, StaticColors.getHexMsg("&#9370dbCustomize Delay"), "&7Change How Long A Block", "&7Should Regenerate", "", "&eCurrent: &f" + delay));
+        inventory.setItem(16, InvUtils.createItemStacks(Material.EXPERIENCE_BOTTLE, StaticColors.getHexMsg("&#9370dbCustomize XP Drops"), "&7Change How Much Xp Should Drop", "", "&eCurrent: &f" + xp));
         
         inventory.setItem(19, InvUtils.createItemStacks(Material.STONE, StaticColors.getHexMsg("&#9370dbCustomize Replace Block"), "&7Select Which Block Should Be Replaced", "&7After Regeneration", "", "&eClick to edit"));
         inventory.setItem(21, InvUtils.createItemStacks(Material.BEDROCK, StaticColors.getHexMsg("&#9370dbCustomize Delay Block"), "&7Select Which Block Should Be Replaced", "&7During Regeneration", "", "&eClick to edit"));
@@ -63,42 +70,75 @@ public class EditMenu implements Listener {
 
     @EventHandler
     public void oninvcclick(InventoryClickEvent event) {
-        if (!ChatColor.translateAlternateColorCodes('&', event.getView().getTitle()).equals(name)) return;
+        if (!event.getView().getTitle().contains("Edit Menu")) return;
         event.setCancelled(true);
         
         Player player = (Player) event.getWhoClicked();
+        ItemStack infoItem = event.getInventory().getItem(45);
+        if (infoItem == null) return;
+        
+        String data = LocalizedName.get(infoItem);
+        if (data == null || !data.contains(":")) return;
+        
+        String matName = data.split(":")[0];
+        String regionName = data.split(":")[1];
+        YamlConfiguration config = (YamlConfiguration) plugin.getConfigManager().getConfig("materials.yml");
+        File file = plugin.getConfigManager().getConfigFile("materials.yml");
+        String path = "blocks." + matName + ".";
+
         if (event.getRawSlot() == 53) {
-            String regionName = LocalizedName.get(event.getInventory().getItem(45));
-            // Back to BlockMenu (dummy for now as we don't have the config here)
-            player.sendMessage(StaticColors.getHexMsg("&6&lSeriaFarm &8» &fReturning to Block Menu..."));
-            player.closeInventory();
+            player.openInventory(new BlockMenu(plugin).blockmenu(player, 1, config, regionName));
             return;
         }
 
         if (event.getRawSlot() == 12) { // Delay
-            ChatInputListener.requestInput(player, "Customize Delay", "5 or 5-8 or 1,4-6", input -> {
-                player.sendMessage(StaticColors.getHexMsg("&6&lSeriaFarm &8» &aDelay updated to &f" + input));
-                // In a real scenario, this would save to the YAML file
-            }, () -> player.openInventory(emenu(player, null, "stone", null, "global")));
+            ChatInputListener.requestInput(player, "Customize Delay", "Integer value (e.g. 20)", input -> {
+                try {
+                    config.set(path + "regen-delay", Integer.parseInt(input));
+                    plugin.getConfigManager().saveConfig("materials.yml");
+                    player.sendMessage(StaticColors.getHexMsg("&6&lSeriaFarm &8» &aDelay updated to &f" + input));
+                } catch (NumberFormatException e) {
+                    player.sendMessage(StaticColors.getHexMsg("&6&lSeriaFarm &8» &cInvalid input. Please enter a number."));
+                }
+                player.openInventory(emenu(player, config, matName, file, regionName));
+            }, () -> player.openInventory(emenu(player, config, matName, file, regionName)));
+        } else if (event.getRawSlot() == 19) { // Replace Block
+            new ReplaceBlockMenu(plugin).open(player, matName, regionName);
         } else if (event.getRawSlot() == 16) { // XP
-            ChatInputListener.requestInput(player, "Customize XP Drops", "5-10 or 8", input -> {
-                player.sendMessage(StaticColors.getHexMsg("&6&lSeriaFarm &8» &aXP Drop updated to &f" + input));
-            }, () -> player.openInventory(emenu(player, null, "stone", null, "global")));
+            ChatInputListener.requestInput(player, "Customize XP Drops", "Integer value", input -> {
+                try {
+                    config.set(path + "rewards.xp", Integer.parseInt(input));
+                    plugin.getConfigManager().saveConfig("materials.yml");
+                    player.sendMessage(StaticColors.getHexMsg("&6&lSeriaFarm &8» &aXP Drop updated to &f" + input));
+                } catch (NumberFormatException e) {
+                    player.sendMessage(StaticColors.getHexMsg("&6&lSeriaFarm &8» &cInvalid input. Please enter a number."));
+                }
+                player.openInventory(emenu(player, config, matName, file, regionName));
+            }, () -> player.openInventory(emenu(player, config, matName, file, regionName)));
         } else if (event.getRawSlot() == 25) { // Required Tools
-            java.util.List<String> tools = new java.util.ArrayList<>();
+            java.util.List<String> tools = config.getStringList(path + "requirements.tools");
             ChatInputListener.requestListInput(player, "Required Tools", tools, "MATERIAL or MMOITEM:ID", list -> {
+                config.set(path + "requirements.tools", list);
+                plugin.getConfigManager().saveConfig("materials.yml");
                 player.sendMessage(StaticColors.getHexMsg("&6&lSeriaFarm &8» &aTools updated!"));
-            }, () -> player.openInventory(emenu(player, null, "stone", null, "global")));
+                player.openInventory(emenu(player, config, matName, file, regionName));
+            }, () -> player.openInventory(emenu(player, config, matName, file, regionName)));
         } else if (event.getRawSlot() == 28) { // AuraSkills
-            java.util.List<String> reqs = new java.util.ArrayList<>();
+            java.util.List<String> reqs = config.getStringList(path + "requirements.skills");
             ChatInputListener.requestListInput(player, "Skills Requirements", reqs, "skill ; operator ; level", list -> {
+                config.set(path + "requirements.skills", list);
+                plugin.getConfigManager().saveConfig("materials.yml");
                 player.sendMessage(StaticColors.getHexMsg("&6&lSeriaFarm &8» &aRequirements updated!"));
-            }, () -> player.openInventory(emenu(player, null, "stone", null, "global")));
+                player.openInventory(emenu(player, config, matName, file, regionName));
+            }, () -> player.openInventory(emenu(player, config, matName, file, regionName)));
         } else if (event.getRawSlot() == 30) { // Commands
-            java.util.List<String> currentCmds = new java.util.ArrayList<>();
+            java.util.List<String> currentCmds = config.getStringList(path + "rewards.commands");
             ChatInputListener.requestListInput(player, "Commands", currentCmds, "[Console/Player] ; cmd ; chance", list -> {
+                config.set(path + "rewards.commands", list);
+                plugin.getConfigManager().saveConfig("materials.yml");
                 player.sendMessage(StaticColors.getHexMsg("&6&lSeriaFarm &8» &aCommands updated!"));
-            }, () -> player.openInventory(emenu(player, null, "stone", null, "global")));
+                player.openInventory(emenu(player, config, matName, file, regionName));
+            }, () -> player.openInventory(emenu(player, config, matName, file, regionName)));
         }
     }
 }

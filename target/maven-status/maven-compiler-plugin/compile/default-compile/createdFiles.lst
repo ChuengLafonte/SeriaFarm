@@ -1,12 +1,15 @@
 id\seria\farm\inventory\edittree\RegionEdit\RegionSelectionMenu.class
 id\seria\farm\inventory\utils\InvUtils.class
 id\seria\farm\managers\ConfigManager.class
+id\seria\farm\utils\LocationUtils.class
+id\seria\farm\inventory\edittree\ReplaceBlockMenu.class
 id\seria\farm\managers\RequirementEngine.class
 id\seria\farm\inventory\edittree\EditMenu.class
 id\seria\farm\managers\DatabaseManager.class
 id\seria\farm\inventory\addtree\AddMenu.class
 id\seria\farm\SeriaFarmPlugin.class
 id\seria\farm\inventory\maintree\ToggleMenu.class
+id\seria\farm\managers\VisualManager.class
 id\seria\farm\commands\SFarmCommand.class
 id\seria\farm\models\RegenBlock.class
 id\seria\farm\commands\SFarmTabCompleter.class
@@ -17,6 +20,7 @@ id\seria\farm\listeners\WandListener.class
 id\seria\farm\listeners\BlockBreakListener.class
 id\seria\farm\utils\InventoryUtils.class
 id\seria\farm\inventory\MainMenu.class
+id\seria\farm\managers\VisualManager$1.class
 id\seria\farm\utils\ColorUtils.class
 id\seria\farm\inventory\edittree\BlockMenu.class
 id\seria\farm\managers\FarmManager.class
@@ -26,5 +30,6 @@ id\seria\farm\inventory\addtree\AddBlocksMenu.class
 id\seria\farm\inventory\edittree\RegionEdit\PreRegionMenu.class
 id\seria\farm\listeners\ChatInputListener$InputContext.class
 id\seria\farm\inventory\utils\PageUtil.class
+id\seria\farm\listeners\RegionListener.class
 id\seria\farm\models\Plant.class
 id\seria\farm\hooks\HookManager.class

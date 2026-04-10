@@ -41,7 +41,8 @@ public class BlockBreakListener implements Listener {
 
         // HANDLE REGENERATION (UBR STYLE)
         int delay = config.getInt("regen-delay", 10);
-        plugin.getRegenManager().scheduleRegeneration(block, delay);
+        java.util.List<String> replaceBlocks = config.getStringList("replace-blocks");
+        plugin.getRegenManager().scheduleRegeneration(block, delay, replaceBlocks);
         
         // Disable natural drops if we want custom drops
         event.setDropItems(false);
@@ -50,11 +51,38 @@ public class BlockBreakListener implements Listener {
 
     private ConfigurationSection findBlockConfig(Block block) {
         String matName = block.getType().name();
-        ConfigurationSection section = plugin.getConfigManager().getConfig("materials.yml").getConfigurationSection("blocks");
-        if (section != null) {
-            for (String key : section.getKeys(false)) {
-                if (section.getString(key + ".material", "").equalsIgnoreCase(matName)) {
-                    return section.getConfigurationSection(key);
+        String regionName = plugin.getRegenManager().getRegionAt(block.getLocation());
+        ConfigurationSection rootBlocks = plugin.getConfigManager().getConfig("materials.yml").getConfigurationSection("blocks");
+        if (rootBlocks == null) return null;
+
+        // 1. Check current region
+        if (regionName != null) {
+            ConfigurationSection regionSection = rootBlocks.getConfigurationSection(regionName);
+            if (regionSection != null) {
+                for (String key : regionSection.getKeys(false)) {
+                    if (regionSection.getString(key + ".material", "").equalsIgnoreCase(matName)) {
+                        return regionSection.getConfigurationSection(key);
+                    }
+                }
+            }
+        }
+
+        // 2. Check global section
+        ConfigurationSection globalSection = rootBlocks.getConfigurationSection("global");
+        if (globalSection != null) {
+            for (String key : globalSection.getKeys(false)) {
+                if (globalSection.getString(key + ".material", "").equalsIgnoreCase(matName)) {
+                    return globalSection.getConfigurationSection(key);
+                }
+            }
+        }
+
+        // 3. Fallback to legacy root-level blocks
+        for (String key : rootBlocks.getKeys(false)) {
+            if (rootBlocks.isConfigurationSection(key)) {
+                ConfigurationSection sec = rootBlocks.getConfigurationSection(key);
+                if (sec.getString("material", "").equalsIgnoreCase(matName)) {
+                    return sec;
                 }
             }
         }

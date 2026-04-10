@@ -12,8 +12,10 @@ public class InvUtils {
     public static ItemStack createItemStacks(Material material, String name, String... loreLines) {
         if (material == null) return new ItemStack(Material.BEDROCK);
         if (material.isAir()) material = Material.DRAGON_BREATH;
-        
-        ItemStack item = new ItemStack(getSingleMaterial(material), 1);
+        return applyMeta(new ItemStack(getSingleMaterial(material), 1), name, loreLines);
+    }
+
+    public static ItemStack applyMeta(ItemStack item, String name, String... loreLines) {
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
             meta.setDisplayName(StaticColors.getHexMsg(name));

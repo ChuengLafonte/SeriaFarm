@@ -15,6 +15,7 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import java.util.Arrays;
 import java.util.List;
+import org.bukkit.event.inventory.InventoryCloseEvent;
 
 public class AddBlocksMenu implements Listener {
     private static final String name = StaticColors.getHexMsg("&#ffa500&lAdd Regen Blocks Menu");
@@ -55,12 +56,63 @@ public class AddBlocksMenu implements Listener {
         }
 
         if (slot == 49) {
-            // Save logic
             String target = InvUtils.extractStr(event.getInventory().getItem(45).getItemMeta().getDisplayName());
-            // This is where UBR saves the blocks to materials.yml or regen blocks.
-            // For now, let's just return to MainMenu as a placeholder for the logic.
-            player.sendMessage(StaticColors.getHexMsg("&6&lSeriaFarm &8» &aBlocks added to [" + target + "]"));
+            if (target == null) target = "global";
+            
+            org.bukkit.configuration.file.FileConfiguration config = SeriaFarmPlugin.getInstance().getConfigManager().getConfig("materials.yml");
+            SeriaFarmPlugin plugin = SeriaFarmPlugin.getInstance();
+            
+            int added = 0;
+            for (int i = 10; i <= 43; i++) {
+                if (isBorder(i)) continue;
+                ItemStack item = event.getInventory().getItem(i);
+                if (item != null && item.getType() != org.bukkit.Material.AIR) {
+                    String identifier = plugin.getHookManager().getItemIdentifier(item);
+                    String matKey = identifier.replace(":", "-").toLowerCase();
+                    String path = "blocks." + target + "." + matKey;
+                    
+                    config.set(path + ".material", identifier);
+                    config.set(path + ".regen-delay", 20);
+                    added++;
+                    
+                    // Clear item so it's not returned on close
+                    event.getInventory().setItem(i, null);
+                }
+            }
+            
+            if (added > 0) {
+                SeriaFarmPlugin.getInstance().getConfigManager().saveConfig("materials.yml");
+                player.sendMessage(StaticColors.getHexMsg("&6&lSeriaFarm &8» &aSuccessfully added &f" + added + " &ablocks to &b" + target));
+            }
             player.openInventory(new MainMenu(SeriaFarmPlugin.getInstance()).mainmenu(player));
         }
+    }
+
+    @EventHandler
+    public void onInventoryClose(InventoryCloseEvent event) {
+        if (!ChatColor.translateAlternateColorCodes('&', event.getView().getTitle()).equals(name)) return;
+        
+        Inventory inv = event.getInventory();
+        Player player = (Player) event.getPlayer();
+        
+        for (int i = 0; i < 54; i++) {
+            if (isBorder(i)) continue;
+            ItemStack item = inv.getItem(i);
+            if (item != null && item.getType() != Material.AIR) {
+                java.util.Map<Integer, ItemStack> left = player.getInventory().addItem(item);
+                for (ItemStack remaining : left.values()) {
+                    player.getWorld().dropItemNaturally(player.getLocation(), remaining);
+                }
+                inv.setItem(i, null);
+            }
+        }
+    }
+
+    private boolean isBorder(int slot) {
+        int[] cancelledSlots = new int[]{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 17, 18, 26, 27, 35, 36, 44, 46, 47, 48, 50, 51, 52, 45, 49, 53};
+        for (int s : cancelledSlots) {
+            if (s == slot) return true;
+        }
+        return false;
     }
 }

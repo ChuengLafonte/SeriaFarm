@@ -18,11 +18,13 @@ import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 public class BlockMenu implements Listener {
     private final SeriaFarmPlugin plugin;
@@ -33,6 +35,7 @@ public class BlockMenu implements Listener {
     }
 
     public Inventory blockmenu(Player player, int page, YamlConfiguration config, String regionName) {
+        plugin.getVisualManager().setFocusedRegion(player, regionName);
         Inventory inventory = Bukkit.createInventory(player, 54, this.name);
         
         inventory.setItem(44, InvUtils.createItemStacks(Material.RED_STAINED_GLASS_PANE, StaticColors.getHexMsg("&aNext Page"), StaticColors.getHexMsg("&7Click To Go To The Next Page"), ""));
@@ -40,8 +43,34 @@ public class BlockMenu implements Listener {
         inventory.setItem(45, InvUtils.createItemStacks(Material.CHEST_MINECART, StaticColors.getHexMsg("&#6495ED[" + regionName + "]"), StaticColors.getHexMsg("&aA Super Cool Farmer"), ""));
         inventory.setItem(53, InvUtils.createItemStacks(Material.BARRIER, StaticColors.getHexMsg("&cClose | Exit"), StaticColors.getHexMsg("&7Closes The Current Gui"), ""));
 
-        ConfigurationSection section = config.getConfigurationSection("Materials");
-        List<String> materials = (section != null) ? new ArrayList<>(section.getKeys(false)) : new ArrayList<>();
+        ConfigurationSection blocksSection = config.getConfigurationSection("blocks");
+        List<String> materials = new ArrayList<>();
+        
+        if (blocksSection != null) {
+            // Include global blocks
+            ConfigurationSection global = blocksSection.getConfigurationSection("global");
+            if (global != null) {
+                global.getKeys(false).forEach(k -> materials.add("global:" + k));
+            }
+            
+            // Include region-specific blocks
+            if (!regionName.equalsIgnoreCase("global")) {
+                ConfigurationSection region = blocksSection.getConfigurationSection(regionName);
+                if (region != null) {
+                    region.getKeys(false).forEach(k -> materials.add(regionName + ":" + k));
+                }
+            }
+            
+            // Include legacy blocks (for backward compatibility)
+            List<String> regions = plugin.getRegenManager().getRegionNames();
+            for (String key : blocksSection.getKeys(false)) {
+                if (!key.equalsIgnoreCase("global") && !regions.contains(key)) {
+                    if (!blocksSection.isConfigurationSection(key)) continue;
+                    materials.add("legacy:" + key);
+                }
+            }
+        }
+        
         materials.sort(Comparator.naturalOrder());
 
         if (PageUtil.isPageValid(materials, page - 1, 28)) {
@@ -66,8 +95,13 @@ public class BlockMenu implements Listener {
             while (skipSlots.contains(slot)) slot++;
             if (slot >= 44) break;
 
-            Material mat = Material.getMaterial(InvUtils.getSingleCrop(matKey));
-            inventory.setItem(slot, InvUtils.createItemStacks(mat != null ? mat : Material.STONE, StaticColors.getHexMsg("&#6495ED[" + matKey + "]"), StaticColors.getHexMsg("&7Customize How Block Should Regenerate"), StaticColors.getHexMsg("&7According To This Regen"), "", StaticColors.getHexMsg("&7Shift Click To &cDelete"), StaticColors.getHexMsg("&7Click To &eEdit")));
+            String[] parts = matKey.split(":");
+            String displayKey = parts.length > 1 ? parts[1] : parts[0];
+            
+            ItemStack icon = plugin.getHookManager().getItem(displayKey);
+            ItemStack item = InvUtils.applyMeta(icon, StaticColors.getHexMsg("&#6495ED[" + displayKey + "]"), StaticColors.getHexMsg("&7Customize How Block Should Regenerate"), StaticColors.getHexMsg("&7According To This Regen"), "", StaticColors.getHexMsg("&7Shift Click To &cDelete"), StaticColors.getHexMsg("&7Click To &eEdit"));
+            LocalizedName.set(item, matKey);
+            inventory.setItem(slot, item);
             slot++;
         }
 
@@ -88,6 +122,7 @@ public class BlockMenu implements Listener {
         String regionName = InvUtils.extractStr(event.getInventory().getItem(45).getItemMeta().getDisplayName());
 
         if (event.getRawSlot() == 53) {
+            plugin.getVisualManager().setFocusedRegion(player, null);
             player.openInventory(new RegionSelectionMenu(plugin).reg_sel(player, 1));
             return;
         }
@@ -103,12 +138,16 @@ public class BlockMenu implements Listener {
         }
 
         if (event.getClick() == ClickType.SHIFT_LEFT || event.getClick() == ClickType.SHIFT_RIGHT) {
-            String matName = InvUtils.extractStr(clicked.getItemMeta().getDisplayName());
+            String matName = LocalizedName.get(clicked);
             player.sendMessage(StaticColors.getHexMsg("&6&lSeriaFarm &8» &cDeleted &f" + matName));
             // Add deletion logic here
         } else {
             // Open EditMenu
-            player.sendMessage(StaticColors.getHexMsg("&6&lSeriaFarm &8» &eOpening Edit Menu for &f" + InvUtils.extractStr(clicked.getItemMeta().getDisplayName())));
+            String matName = LocalizedName.get(clicked);
+            YamlConfiguration matConfig = (YamlConfiguration) plugin.getConfigManager().getConfig("materials.yml");
+            File matFile = plugin.getConfigManager().getConfigFile("materials.yml");
+            
+            player.openInventory(new EditMenu(plugin).emenu(player, matConfig, matName, matFile, regionName));
         }
     }
 }

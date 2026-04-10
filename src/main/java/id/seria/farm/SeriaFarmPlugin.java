@@ -13,14 +13,17 @@ public class SeriaFarmPlugin extends JavaPlugin {
     private DatabaseManager databaseManager;
     private RegenManager regenManager;
     private FarmManager farmManager;
+    private VisualManager visualManager;
     private HookManager hookManager;
     private RequirementEngine requirementEngine;
     public static org.bukkit.NamespacedKey key;
+    public static org.bukkit.NamespacedKey chanceKey;
 
     @Override
     public void onEnable() {
         instance = this;
         key = new org.bukkit.NamespacedKey(this, "localized_name");
+        chanceKey = new org.bukkit.NamespacedKey(this, "chance_value");
         saveDefaultConfig();
 
         getLogger().info("========================================");
@@ -40,6 +43,7 @@ public class SeriaFarmPlugin extends JavaPlugin {
 
         regenManager = new RegenManager(this);
         farmManager = new FarmManager(this);
+        visualManager = new VisualManager(this);
 
         // Register Listeners
         getServer().getPluginManager().registerEvents(new BlockBreakListener(this), this);
@@ -54,6 +58,8 @@ public class SeriaFarmPlugin extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new id.seria.farm.inventory.edittree.RegionEdit.PreRegionMenu(this), this);
         getServer().getPluginManager().registerEvents(new id.seria.farm.inventory.edittree.BlockMenu(this), this);
         getServer().getPluginManager().registerEvents(new id.seria.farm.inventory.edittree.EditMenu(this), this);
+        getServer().getPluginManager().registerEvents(new id.seria.farm.inventory.edittree.ReplaceBlockMenu(this), this);
+        getServer().getPluginManager().registerEvents(new RegionListener(this), this);
 
         // Register Commands
         id.seria.farm.commands.SFarmCommand sfarmCommand = new id.seria.farm.commands.SFarmCommand(this);
@@ -74,6 +80,7 @@ public class SeriaFarmPlugin extends JavaPlugin {
     public DatabaseManager getDatabaseManager() { return databaseManager; }
     public RegenManager getRegenManager() { return regenManager; }
     public FarmManager getFarmManager() { return farmManager; }
+    public VisualManager getVisualManager() { return visualManager; }
     public HookManager getHookManager() { return hookManager; }
     public RequirementEngine getRequirementEngine() { return requirementEngine; }
 }

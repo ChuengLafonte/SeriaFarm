@@ -18,7 +18,7 @@ public class ConfigManager {
     }
 
     public void loadConfigs() {
-        String[] files = {"config.yml", "materials.yml", "crops.yml", "gui.yml", "messages.yml"};
+        String[] files = {"config.yml", "materials.yml", "crops.yml", "gui.yml", "messages.yml", "regions.yml"};
         for (String fileName : files) {
             File file = new File(plugin.getDataFolder(), fileName);
             if (!file.exists()) {
@@ -31,6 +31,10 @@ public class ConfigManager {
 
     public FileConfiguration getConfig(String name) {
         return configs.get(name);
+    }
+
+    public File getConfigFile(String name) {
+        return configFiles.get(name);
     }
 
     public void saveConfig(String name) {

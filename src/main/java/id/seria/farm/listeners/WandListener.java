@@ -11,12 +11,15 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.EquipmentSlot;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
+import java.util.UUID;
 
 public class WandListener implements Listener {
 
-    public static Location Mpos1;
-    public static Location Mpos2;
+    public static final Map<UUID, Location> Mpos1 = new HashMap<>();
+    public static final Map<UUID, Location> Mpos2 = new HashMap<>();
 
     @EventHandler
     public void OnClick(PlayerInteractEvent event) {
@@ -31,12 +34,14 @@ public class WandListener implements Listener {
 
             if (event.getAction().equals(Action.LEFT_CLICK_BLOCK)) {
                 event.setCancelled(true);
-                Mpos1 = Objects.requireNonNull(event.getClickedBlock()).getLocation();
-                player.sendMessage(StaticColors.getHexMsg(prefix) + " " + ChatColor.WHITE + "Pos1 =" + ChatColor.RED + "[" + ChatColor.YELLOW + "X=" + ChatColor.WHITE + Mpos1.getBlockX() + ChatColor.RED + "," + ChatColor.YELLOW + "Y=" + ChatColor.WHITE + Mpos1.getBlockY() + ChatColor.RED + "," + ChatColor.YELLOW + "Z=" + ChatColor.WHITE + Mpos1.getBlockZ() + ChatColor.RED + "]");
+                Location loc = Objects.requireNonNull(event.getClickedBlock()).getLocation();
+                Mpos1.put(player.getUniqueId(), loc);
+                player.sendMessage(StaticColors.getHexMsg(prefix) + " " + ChatColor.WHITE + "Pos1 =" + ChatColor.RED + "[" + ChatColor.YELLOW + "X=" + ChatColor.WHITE + loc.getBlockX() + ChatColor.RED + "," + ChatColor.YELLOW + "Y=" + ChatColor.WHITE + loc.getBlockY() + ChatColor.RED + "," + ChatColor.YELLOW + "Z=" + ChatColor.WHITE + loc.getBlockZ() + ChatColor.RED + "]");
             } else if (event.getAction().equals(Action.RIGHT_CLICK_BLOCK) && event.getHand().equals(EquipmentSlot.HAND)) {
                 event.setCancelled(true);
-                Mpos2 = Objects.requireNonNull(event.getClickedBlock()).getLocation();
-                player.sendMessage(StaticColors.getHexMsg(prefix) + " " + ChatColor.WHITE + "Pos2 =" + ChatColor.RED + "[" + ChatColor.YELLOW + "X=" + ChatColor.WHITE + Mpos2.getBlockX() + ChatColor.RED + "," + ChatColor.YELLOW + "Y=" + ChatColor.WHITE + Mpos2.getBlockY() + ChatColor.RED + "," + ChatColor.YELLOW + "Z=" + ChatColor.WHITE + Mpos2.getBlockZ() + ChatColor.RED + "]");
+                Location loc = Objects.requireNonNull(event.getClickedBlock()).getLocation();
+                Mpos2.put(player.getUniqueId(), loc);
+                player.sendMessage(StaticColors.getHexMsg(prefix) + " " + ChatColor.WHITE + "Pos2 =" + ChatColor.RED + "[" + ChatColor.YELLOW + "X=" + ChatColor.WHITE + loc.getBlockX() + ChatColor.RED + "," + ChatColor.YELLOW + "Y=" + ChatColor.WHITE + loc.getBlockY() + ChatColor.RED + "," + ChatColor.YELLOW + "Z=" + ChatColor.WHITE + loc.getBlockZ() + ChatColor.RED + "]");
             }
         }
     }

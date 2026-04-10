@@ -13,6 +13,8 @@ import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.Location;
+import org.bukkit.configuration.file.FileConfiguration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -43,11 +45,11 @@ public class SFarmCommand implements CommandExecutor, TabCompleter {
         switch (sub) {
             case "menu":
             case "editor":
-                if (!player.hasPermission("sfarm.admin")) return noPerm(player);
+                if (!player.isOp()) return noPerm(player);
                 player.openInventory(new MainMenu(plugin).mainmenu(player));
                 break;
             case "wand":
-                if (!player.hasPermission("sfarm.admin")) return noPerm(player);
+                if (!player.isOp()) return noPerm(player);
                 ItemStack wand = new ItemStack(Material.STONE_AXE);
                 ItemMeta meta = wand.getItemMeta();
                 if (meta != null) {
@@ -59,32 +61,56 @@ public class SFarmCommand implements CommandExecutor, TabCompleter {
                 player.sendMessage(StaticColors.getHexMsg(prefix + " &fYou have received a selection wand!"));
                 break;
             case "pos1":
-                if (!player.hasPermission("sfarm.admin")) return noPerm(player);
-                WandListener.Mpos1 = player.getLocation();
-                player.sendMessage(StaticColors.getHexMsg(prefix) + " " + ChatColor.WHITE + "Pos1 =" + ChatColor.RED + "[" + ChatColor.YELLOW + "X=" + ChatColor.WHITE + WandListener.Mpos1.getBlockX() + ChatColor.RED + "," + ChatColor.YELLOW + "Y=" + ChatColor.WHITE + WandListener.Mpos1.getBlockY() + ChatColor.RED + "," + ChatColor.YELLOW + "Z=" + ChatColor.WHITE + WandListener.Mpos1.getBlockZ() + ChatColor.RED + "]");
+                if (!player.isOp()) return noPerm(player);
+                Location p1 = player.getLocation();
+                WandListener.Mpos1.put(player.getUniqueId(), p1);
+                player.sendMessage(StaticColors.getHexMsg(prefix) + " " + ChatColor.WHITE + "Pos1 =" + ChatColor.RED + "[" + ChatColor.YELLOW + "X=" + ChatColor.WHITE + p1.getBlockX() + ChatColor.RED + "," + ChatColor.YELLOW + "Y=" + ChatColor.WHITE + p1.getBlockY() + ChatColor.RED + "," + ChatColor.YELLOW + "Z=" + ChatColor.WHITE + p1.getBlockZ() + ChatColor.RED + "]");
                 break;
             case "pos2":
-                if (!player.hasPermission("sfarm.admin")) return noPerm(player);
-                WandListener.Mpos2 = player.getLocation();
-                player.sendMessage(StaticColors.getHexMsg(prefix) + " " + ChatColor.WHITE + "Pos2 =" + ChatColor.RED + "[" + ChatColor.YELLOW + "X=" + ChatColor.WHITE + WandListener.Mpos2.getBlockX() + ChatColor.RED + "," + ChatColor.YELLOW + "Y=" + ChatColor.WHITE + WandListener.Mpos2.getBlockY() + ChatColor.RED + "," + ChatColor.YELLOW + "Z=" + ChatColor.WHITE + WandListener.Mpos2.getBlockZ() + ChatColor.RED + "]");
+                if (!player.isOp()) return noPerm(player);
+                Location p2 = player.getLocation();
+                WandListener.Mpos2.put(player.getUniqueId(), p2);
+                player.sendMessage(StaticColors.getHexMsg(prefix) + " " + ChatColor.WHITE + "Pos2 =" + ChatColor.RED + "[" + ChatColor.YELLOW + "X=" + ChatColor.WHITE + p2.getBlockX() + ChatColor.RED + "," + ChatColor.YELLOW + "Y=" + ChatColor.WHITE + p2.getBlockY() + ChatColor.RED + "," + ChatColor.YELLOW + "Z=" + ChatColor.WHITE + p2.getBlockZ() + ChatColor.RED + "]");
                 break;
             case "create":
-                if (!player.hasPermission("sfarm.admin")) return noPerm(player);
+                if (!player.isOp()) return noPerm(player);
                 if (args.length < 2) {
                     player.sendMessage(StaticColors.getHexMsg(prefix + " &cUsage: /sfarm create <name>"));
                     return true;
                 }
-                if (WandListener.Mpos1 == null || WandListener.Mpos2 == null) {
+                Location pos1 = WandListener.Mpos1.get(player.getUniqueId());
+                Location pos2 = WandListener.Mpos2.get(player.getUniqueId());
+                if (pos1 == null || pos2 == null) {
                     player.sendMessage(StaticColors.getHexMsg(prefix + " &cPlease select Pos1 & Pos2 first."));
                     return true;
                 }
-                // Logical creation would go here
-                player.sendMessage(StaticColors.getHexMsg(prefix + " &aRegion &f" + args[1] + " &acreated!"));
+                
+                String regionName = args[1];
+                FileConfiguration regionConfig = plugin.getConfigManager().getConfig("regions.yml");
+                String path = "regions." + regionName + ".";
+                
+                regionConfig.set(path + "display-name", "&#ffa500" + regionName);
+                regionConfig.set(path + "enabled", true);
+                regionConfig.set(path + "per-region-regen", true);
+                regionConfig.set(path + "require-permission", false);
+                regionConfig.set(path + "allow-block-place", false);
+                regionConfig.set(path + "teleport-location", serializeLoc(player.getLocation()));
+                regionConfig.set(path + "pos1", serializeLoc(pos1));
+                regionConfig.set(path + "pos2", serializeLoc(pos2));
+                
+                plugin.getConfigManager().saveConfig("regions.yml");
+                player.sendMessage(StaticColors.getHexMsg(prefix + " &aRegion &f" + regionName + " &acreated and saved!"));
                 break;
             case "reload":
-                if (!player.hasPermission("sfarm.admin")) return noPerm(player);
+                if (!player.isOp()) return noPerm(player);
                 plugin.getConfigManager().reloadConfigs();
                 player.sendMessage(StaticColors.getHexMsg(prefix + " &aPlugin reloaded successfully!"));
+                break;
+            case "clear":
+                if (!player.isOp()) return noPerm(player);
+                WandListener.Mpos1.remove(player.getUniqueId());
+                WandListener.Mpos2.remove(player.getUniqueId());
+                player.sendMessage(StaticColors.getHexMsg(prefix + " &aSelection and particles cleared!"));
                 break;
             default:
                 sendHelp(player);
@@ -107,7 +133,13 @@ public class SFarmCommand implements CommandExecutor, TabCompleter {
         player.sendMessage(StaticColors.getHexMsg("&e/sfarm pos1 &7- Set Position 1"));
         player.sendMessage(StaticColors.getHexMsg("&e/sfarm pos2 &7- Set Position 2"));
         player.sendMessage(StaticColors.getHexMsg("&e/sfarm create <name> &7- Create Region"));
+        player.sendMessage(StaticColors.getHexMsg("&e/sfarm clear &7- Clear Selection"));
         player.sendMessage(StaticColors.getHexMsg("&e/sfarm reload &7- Reload Configs"));
+    }
+
+    private String serializeLoc(Location loc) {
+        if (loc == null) return "world;0;0;0;0;0";
+        return loc.getWorld().getName() + ";" + loc.getX() + ";" + loc.getY() + ";" + loc.getZ() + ";" + loc.getYaw() + ";" + loc.getPitch();
     }
 
     @Override
@@ -120,6 +152,7 @@ public class SFarmCommand implements CommandExecutor, TabCompleter {
             subs.add("pos1");
             subs.add("pos2");
             subs.add("create");
+            subs.add("clear");
             subs.add("delete");
             subs.add("reload");
             return subs.stream().filter(s -> s.startsWith(args[0].toLowerCase())).collect(Collectors.toList());

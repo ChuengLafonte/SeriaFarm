@@ -15,6 +15,9 @@ import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import id.seria.farm.listeners.ChatInputListener;
+import id.seria.farm.inventory.addtree.AddMenu;
+import id.seria.farm.inventory.edittree.RegionEdit.RegionSelectionMenu;
+import id.seria.farm.inventory.maintree.ToggleMenu;
 
 public class MainMenu implements Listener {
 
@@ -68,6 +71,9 @@ public class MainMenu implements Listener {
         Player player = (Player) event.getWhoClicked();
         
         switch (event.getRawSlot()) {
+            case 11: // Toggle
+                player.openInventory(new ToggleMenu().togglemenu(player));
+                break;
             case 13: // Prefix
                 player.closeInventory();
                 ChatInputListener.requestInput(player, "Enter Prefix", null, input -> {
@@ -75,6 +81,9 @@ public class MainMenu implements Listener {
                     plugin.saveConfig();
                     player.openInventory(mainmenu(player));
                 }, () -> player.openInventory(mainmenu(player)));
+                break;
+            case 15: // Add
+                player.openInventory(new AddMenu().addmenu(player, 1));
                 break;
             case 20: // Wand
                 ItemStack wand = new ItemStack(Material.STONE_AXE, 1);
@@ -90,6 +99,9 @@ public class MainMenu implements Listener {
             case 22: // Reload
                 plugin.getConfigManager().reloadConfigs();
                 player.sendMessage(StaticColors.getHexMsg("&6&lSeriaFarm &8» &fPlugin Reloaded"));
+                break;
+            case 24: // Edit
+                player.openInventory(new RegionSelectionMenu(plugin).reg_sel(player, 1));
                 break;
             case 35: // Close
                 player.closeInventory();
