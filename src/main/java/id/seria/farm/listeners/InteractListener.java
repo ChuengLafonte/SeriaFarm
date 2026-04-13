@@ -44,6 +44,11 @@ public class InteractListener implements Listener {
         if (block == null) return;
         
         Player player = event.getPlayer();
+  
+        // REDIRECT TO ROOT FOR BAMBOO
+        if (block.getType() == Material.BAMBOO || block.getType() == Material.BAMBOO_SAPLING) {
+            block = plugin.getRegenManager().getBambooRoot(block);
+        }
  
         // 1. REGENERATION CHECK (Notification Bug Fix)
         // Check this FIRST so growth info works for both global and regional blocks
@@ -57,7 +62,7 @@ public class InteractListener implements Listener {
                     // Allow admin to use bonemeal (bypass cancel)
                     return; 
                 }
-                player.sendMessage(StaticColors.getHexMsg("&8[&bDebug&8] &7Blok ditemukan di map. isGrowth: &f" + (regen != null ? regen.isGrowth() : "NULL") + " &7| Key: &f" + plugin.getRegenManager().toKey(block.getLocation())));
+                player.sendMessage(StaticColors.getHexMsg("&8[&bDebug&8] &7Blok ditemukan di map (Akar/Block). isGrowth: &f" + (regen != null ? regen.isGrowth() : "NULL") + " &7| Key: &f" + plugin.getRegenManager().toKey(regen != null ? regen.getLocation() : block.getLocation())));
             }
  
             if (regen != null && regen.isGrowth()) {
@@ -119,6 +124,14 @@ public class InteractListener implements Listener {
         }
         if (block.getType().name().contains("AMETHYST")) {
             return block.getType() == Material.AMETHYST_CLUSTER;
+        }
+        if (block.getType() == Material.BAMBOO) {
+            String key = plugin.getRegenManager().findBlockKey(block, null);
+            if (key != null) {
+                int max = plugin.getConfigManager().getConfig("materials.yml").getInt("blocks." + key + ".bamboo-max-height", 12);
+                int current = plugin.getRegenManager().getBambooHeight(block);
+                return current >= max;
+            }
         }
         return true;
     }

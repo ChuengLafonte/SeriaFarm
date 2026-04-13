@@ -35,6 +35,7 @@ id\seria\farm\inventory\MainMenu.class
 id\seria\farm\utils\ColorUtils.class
 id\seria\farm\inventory\utils\StaticColors.class
 id\seria\farm\managers\RegenManager.class
+id\seria\farm\inventory\edittree\BambooMenu.class
 id\seria\farm\inventory\addtree\AddBlocksMenu.class
 id\seria\farm\inventory\edittree\RegionEdit\PreRegionMenu.class
 id\seria\farm\inventory\maintree\GlobalBlockEditMenu.class

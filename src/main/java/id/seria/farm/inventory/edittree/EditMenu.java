@@ -59,6 +59,12 @@ public class EditMenu implements Listener, InventoryHolder {
         inventory.setItem(30, InvUtils.createItemStacks(Material.COMMAND_BLOCK_MINECART, StaticColors.getHexMsg("&#9370dbAdd Commands"), "&7Add A List Of Commands", "&7Which Runs When Player Mines", "", "&eClick to edit"));
 
         ItemStack glass = InvUtils.createItemStacks(Material.PURPLE_STAINED_GLASS_PANE, " ", "", "");
+        
+        // Bamboo Specific Button
+        if (materialKey.equalsIgnoreCase("BAMBOO")) {
+            inventory.setItem(32, InvUtils.createItemStacks(Material.BAMBOO, StaticColors.getHexMsg("&#228B22&lBamboo Settings"), "&7Special settings for Bamboo", "&7(Max growth height, etc.)", "", "&eClick to edit"));
+        }
+
         for (int n : new int[]{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 17, 18, 26, 27, 35, 36, 44, 46, 47, 49, 48, 50, 51, 52}) {
             if (inventory.getItem(n) == null) inventory.setItem(n, glass);
         }
@@ -89,6 +95,9 @@ public class EditMenu implements Listener, InventoryHolder {
         
         Player player = (Player) event.getWhoClicked();
         Inventory inv = event.getInventory();
+        ItemStack clicked = event.getCurrentItem();
+        if (clicked == null || clicked.getType() == Material.AIR) return;
+        
         ItemStack infoItem = inv.getItem(45);
         if (infoItem == null) return;
         
@@ -160,6 +169,8 @@ public class EditMenu implements Listener, InventoryHolder {
                 player.sendMessage(StaticColors.getHexMsg("&6&lSeriaFarm &8» &aCommands updated!"));
                 player.openInventory(emenu(player, config, finalMatName, file, finalRegionName));
             }, () -> player.openInventory(emenu(player, config, finalMatName, file, finalRegionName)));
+        } else if (event.getRawSlot() == 32 && clicked.getType() == Material.BAMBOO) {
+            new BambooMenu(plugin).open(player, finalMatName, finalRegionName);
         }
 
 

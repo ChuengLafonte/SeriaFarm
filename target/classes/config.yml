@@ -1,11 +1,15 @@
 # SeriaFarm General Configuration
 settings:
   database-type: SQLITE
-  debug: false
+  debug: true
   action-bar: true
   show-growth-actionbar: true
   harvest-click: true # Right-click to harvest
   worldguard-bypass: true
+  # Growth Settings
+  # INSTANT: Block restores immediately after delay (default for most blocks)
+  # VANILLA: Block grows in phases (Ageable crops, Amethyst, Bamboo)
+  crop-growth-mode: VANILLA
 
 # Integration settings
 hooks:

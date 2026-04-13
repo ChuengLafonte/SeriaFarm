@@ -77,10 +77,23 @@ public class BlockBreakListener implements Listener {
  
         // --- REGIONAL BLOCK LOGIC ONLY FROM HERE ---
  
-        // 1. Prevent breaking blocks that are already regenerating
+        // 1. CANCEL IF REGENERATING (Protection)
         if (plugin.getRegenManager().isRegenerating(block.getLocation())) {
             event.setCancelled(true);
             return;
+        }
+
+        // AGGRESSIVE PROTECTION FOR BAMBOO STALKS
+        // If child block of bamboo is broken, check if root is regenerating
+        if (block.getType() == org.bukkit.Material.BAMBOO) {
+            org.bukkit.block.Block root = block;
+            while (root.getRelative(0, -1, 0).getType() == org.bukkit.Material.BAMBOO) {
+                root = root.getRelative(0, -1, 0);
+            }
+            if (plugin.getRegenManager().isRegenerating(root.getLocation())) {
+                event.setCancelled(true);
+                return;
+            }
         }
  
         // 2.2 GROWTH STAGE VALIDATION
@@ -116,7 +129,7 @@ public class BlockBreakListener implements Listener {
             }
         }
         
-        // 8. REGIONAL REGENERATION
+        // 8. REGENERATION PARAMETERS
         int delay = config.getInt("regen-delay", 10);
         java.util.List<String> replaceBlocks = config.getStringList("replace-blocks");
         java.util.List<String> delayBlocks = config.getStringList("delay-blocks");
@@ -124,7 +137,33 @@ public class BlockBreakListener implements Listener {
         String fallbackMatStr = config.getString("material", block.getType().name());
         org.bukkit.Material fallbackMat = org.bukkit.Material.matchMaterial(fallbackMatStr);
         if (fallbackMat == null) fallbackMat = org.bukkit.Material.WHEAT;
-        
+
+        // 9. BAMBOO SPECIAL HANDLING
+        if (block.getType() == org.bukkit.Material.BAMBOO || block.getType() == org.bukkit.Material.BAMBOO_SAPLING) {
+            org.bukkit.block.Block root = plugin.getRegenManager().getBambooRoot(block);
+            
+            if (plugin.getRegenManager().isRegenerating(root.getLocation())) {
+                event.setCancelled(true);
+                return;
+            }
+
+            // Clear stalk upwards (excluding root for a moment to preserve its identity during scheduling)
+            org.bukkit.block.Block stalk = root.getRelative(0, 1, 0);
+            while (stalk.getType() == org.bukkit.Material.BAMBOO || stalk.getType() == org.bukkit.Material.BAMBOO_SAPLING) {
+                stalk.getWorld().dropItemNaturally(stalk.getLocation(), new ItemStack(org.bukkit.Material.BAMBOO));
+                stalk.setType(org.bukkit.Material.AIR);
+                stalk = stalk.getRelative(0, 1, 0);
+            }
+            
+            // Re-fetch config and key for the ROOT (Important for Regional isolation)
+            String rootKey = plugin.getRegenManager().findBlockKey(root, player);
+            if (rootKey == null) rootKey = blockKey; // Fallback
+            
+            plugin.getRegenManager().scheduleRegeneration(root, delay, replaceBlocks, delayBlocks, org.bukkit.Material.BAMBOO, rootKey);
+            return;
+        }
+
+        // 10. REGIONAL REGENERATION
         plugin.getRegenManager().scheduleRegeneration(block, delay, replaceBlocks, delayBlocks, fallbackMat, blockKey);
     }
  

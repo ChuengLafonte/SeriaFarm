@@ -32,6 +32,7 @@ D:\Project Plugin\SeriaFarm\src\main\java\id\seria\farm\listeners\WandListener.j
 D:\Project Plugin\SeriaFarm\src\main\java\id\seria\farm\inventory\edittree\DropsMenu.java
 D:\Project Plugin\SeriaFarm\src\main\java\id\seria\farm\models\Plant.java
 D:\Project Plugin\SeriaFarm\src\main\java\id\seria\farm\managers\DatabaseManager.java
+D:\Project Plugin\SeriaFarm\src\main\java\id\seria\farm\inventory\edittree\BambooMenu.java
 D:\Project Plugin\SeriaFarm\src\main\java\id\seria\farm\hooks\HookManager.java
 D:\Project Plugin\SeriaFarm\src\main\java\id\seria\farm\utils\LocationUtils.java
 D:\Project Plugin\SeriaFarm\src\main\java\id\seria\farm\inventory\maintree\GlobalBlockEditMenu.java
