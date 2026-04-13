@@ -7,9 +7,10 @@ import id.seria.farm.inventory.utils.LocalizedName;
 import id.seria.farm.inventory.utils.PageUtil;
 import id.seria.farm.inventory.utils.StaticColors;
 import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
 import org.bukkit.Material;
+import net.kyori.adventure.text.Component;
 import org.bukkit.configuration.ConfigurationSection;
+import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -17,69 +18,90 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
+import org.jetbrains.annotations.NotNull;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
-import java.util.stream.Collectors;
 
-public class BlockMenu implements Listener {
+public class BlockMenu implements Listener, InventoryHolder {
+    private static final Component NAME = StaticColors.getHexMsg("&#6495ED&lBlock Menu");
     private final SeriaFarmPlugin plugin;
-    private final String name = StaticColors.getHexMsg("&#6495ED&lBlock Menu");
+    private int page;
+    private String regionName;
 
     public BlockMenu(SeriaFarmPlugin plugin) {
         this.plugin = plugin;
     }
 
-    public Inventory blockmenu(Player player, int page, YamlConfiguration config, String regionName) {
-        plugin.getVisualManager().setFocusedRegion(player, regionName);
-        Inventory inventory = Bukkit.createInventory(player, 54, this.name);
-        
-        inventory.setItem(44, InvUtils.createItemStacks(Material.RED_STAINED_GLASS_PANE, StaticColors.getHexMsg("&aNext Page"), StaticColors.getHexMsg("&7Click To Go To The Next Page"), ""));
-        inventory.setItem(36, InvUtils.createItemStacks(Material.RED_STAINED_GLASS_PANE, StaticColors.getHexMsg("&aPrevious Page"), StaticColors.getHexMsg("&7Click To Go To The Previous Page"), ""));
-        inventory.setItem(45, InvUtils.createItemStacks(Material.CHEST_MINECART, StaticColors.getHexMsg("&#6495ED[" + regionName + "]"), StaticColors.getHexMsg("&aA Super Cool Farmer"), ""));
-        inventory.setItem(53, InvUtils.createItemStacks(Material.BARRIER, StaticColors.getHexMsg("&cClose | Exit"), StaticColors.getHexMsg("&7Closes The Current Gui"), ""));
+    public int getPage() { return page; }
+    public String getRegionName() { return regionName; }
 
+    public Inventory blockmenu(Player player, int page, YamlConfiguration config, String regionName) {
+        this.page = page;
+        this.regionName = regionName;
+        plugin.getVisualManager().setFocusedRegion(player, regionName);
+        
         ConfigurationSection blocksSection = config.getConfigurationSection("blocks");
         List<String> materials = new ArrayList<>();
         
         if (blocksSection != null) {
-            // Include global blocks
-            ConfigurationSection global = blocksSection.getConfigurationSection("global");
-            if (global != null) {
-                global.getKeys(false).forEach(k -> materials.add("global:" + k));
-            }
-            
-            // Include region-specific blocks
+            // ONLY Include region-specific blocks
             if (!regionName.equalsIgnoreCase("global")) {
                 ConfigurationSection region = blocksSection.getConfigurationSection(regionName);
                 if (region != null) {
                     region.getKeys(false).forEach(k -> materials.add(regionName + ":" + k));
                 }
             }
-            
-            // Include legacy blocks (for backward compatibility)
-            List<String> regions = plugin.getRegenManager().getRegionNames();
-            for (String key : blocksSection.getKeys(false)) {
-                if (!key.equalsIgnoreCase("global") && !regions.contains(key)) {
-                    if (!blocksSection.isConfigurationSection(key)) continue;
-                    materials.add("legacy:" + key);
-                }
-            }
         }
         
         materials.sort(Comparator.naturalOrder());
 
+        Component title = NAME.append(StaticColors.getHexMsg(" &7(" + materials.size() + ")"));
+        Inventory inventory = Bukkit.createInventory(this, 54, title);
+
+        // Navigation & Info (Dashboard Style)
+        inventory.setItem(48, InvUtils.createItemStacks(Material.ARROW, StaticColors.getHexMsg("&#6495ED&l« Previous Page"), "&7Go back", ""));
+        
+        // Slot 49: Summary Book
+        FileConfiguration regConfig = plugin.getConfigManager().getConfig("regions.yml");
+        String regPath = "regions." + regionName + ".";
+        boolean isEnabled = regConfig.getBoolean(regPath + "enabled", true);
+        boolean isPerRegion = regConfig.getBoolean(regPath + "per-region-regen", true);
+
+        inventory.setItem(49, InvUtils.createItemStacks(Material.BOOK, StaticColors.getHexMsg("&#6495ED&lRegion Summary"), 
+            "&7Region: &f" + regionName,
+            "&7Status: " + (isEnabled ? "&aActive" : "&cPaused"),
+            "&7Mode: " + (isPerRegion ? "&bRegional" : "&6Global-Only"),
+            "",
+            "&7Regional Overrides: &f" + materials.size(),
+            "&8&o(Global blocks managed in Global Menu)"));
+
+
+        inventory.setItem(50, InvUtils.createItemStacks(Material.ARROW, StaticColors.getHexMsg("&#6495ED&lNext Page »"), "&7Go forward", ""));
+        
+        inventory.setItem(45, InvUtils.createItemStacks(Material.CHEST_MINECART, StaticColors.getHexMsg("&#6495ED&lRegion Selection"), 
+            "&7Viewing: &b" + regionName,
+            "",
+            "&eClick to return to list."));
+            
+        inventory.setItem(53, InvUtils.createItemStacks(Material.BARRIER, StaticColors.getHexMsg("&cBack to Regions"), "&7Return to the main list.", ""));
+
+        // Initialize pagination slots even if invalid (so they can be safely meta-updated)
+        inventory.setItem(36, InvUtils.createItemStacks(Material.RED_STAINED_GLASS_PANE, StaticColors.getHexMsg("&cNo Previous Page"), "", ""));
+        inventory.setItem(44, InvUtils.createItemStacks(Material.RED_STAINED_GLASS_PANE, StaticColors.getHexMsg("&cNo Next Page"), "", ""));
+
         if (PageUtil.isPageValid(materials, page - 1, 28)) {
-            Objects.requireNonNull(inventory.getItem(36)).setType(Material.GREEN_STAINED_GLASS_PANE);
+            inventory.setItem(36, InvUtils.createItemStacks(Material.GREEN_STAINED_GLASS_PANE, StaticColors.getHexMsg("&#6495ED&l« Previous Page"), "&7Back to page " + (page - 1), ""));
         }
         LocalizedName.set(Objects.requireNonNull(inventory.getItem(36)), String.valueOf(page - 1));
 
         if (PageUtil.isPageValid(materials, page + 1, 28)) {
-            Objects.requireNonNull(inventory.getItem(44)).setType(Material.GREEN_STAINED_GLASS_PANE);
+            inventory.setItem(44, InvUtils.createItemStacks(Material.GREEN_STAINED_GLASS_PANE, StaticColors.getHexMsg("&#6495ED&lNext Page »"), "&7Advance to page " + (page + 1), ""));
         }
         LocalizedName.set(Objects.requireNonNull(inventory.getItem(44)), String.valueOf(page + 1));
 
@@ -96,10 +118,25 @@ public class BlockMenu implements Listener {
             if (slot >= 44) break;
 
             String[] parts = matKey.split(":");
-            String displayKey = parts.length > 1 ? parts[1] : parts[0];
+            String source = parts[0];
+            String displayKey = parts[1];
             
+            String path = "blocks." + source + "." + displayKey;
+            int xp = config.getInt(path + ".rewards.xp", 0);
+            int delay = config.getInt(path + ".regen-delay", 20);
+            boolean isGlobal = source.equalsIgnoreCase("global");
+
             ItemStack icon = plugin.getHookManager().getItem(displayKey);
-            ItemStack item = InvUtils.applyMeta(icon, StaticColors.getHexMsg("&#6495ED[" + displayKey + "]"), StaticColors.getHexMsg("&7Customize How Block Should Regenerate"), StaticColors.getHexMsg("&7According To This Regen"), "", StaticColors.getHexMsg("&7Shift Click To &cDelete"), StaticColors.getHexMsg("&7Click To &eEdit"));
+            ItemStack item = InvUtils.applyMeta(icon, 
+                StaticColors.getHexMsg("&#6495ED&l" + displayKey.replace("_", " ")), 
+                isGlobal ? "&8Inherited from Global" : "&bRegional Override Settings",
+                "",
+                StaticColors.getHexMsg("&#E7CBB3Regen Delay: &f" + delay + "s"),
+                StaticColors.getHexMsg("&#E7CBB3XP Reward: &f" + xp),
+                "", 
+                "&eClick to Edit Settings", 
+                "&cShift-Click to Remove Override");
+            
             LocalizedName.set(item, matKey);
             inventory.setItem(slot, item);
             slot++;
@@ -108,9 +145,14 @@ public class BlockMenu implements Listener {
         return inventory;
     }
 
+    @Override
+    public @NotNull Inventory getInventory() {
+        return null; // Holder identification only
+    }
+
     @EventHandler
     public void oninvcclick(InventoryClickEvent event) {
-        if (!ChatColor.translateAlternateColorCodes('&', event.getView().getTitle()).equals(this.name)) return;
+        if (!(event.getInventory().getHolder() instanceof BlockMenu)) return;
         event.setCancelled(true);
         
         if (event.getRawSlot() >= 54) return;
@@ -118,31 +160,51 @@ public class BlockMenu implements Listener {
         if (clicked == null || clicked.getType() == Material.AIR) return;
 
         Player player = (Player) event.getWhoClicked();
-        int currentPage = Integer.parseInt(LocalizedName.get(event.getInventory().getItem(44))) - 1;
-        String regionName = InvUtils.extractStr(event.getInventory().getItem(45).getItemMeta().getDisplayName());
+        BlockMenu holder = (BlockMenu) event.getInventory().getHolder();
+        int currentPage = holder.getPage();
+        String regionName = holder.getRegionName();
+        YamlConfiguration config = (YamlConfiguration) plugin.getConfigManager().getConfig("materials.yml");
 
         if (event.getRawSlot() == 53) {
             plugin.getVisualManager().setFocusedRegion(player, null);
-            player.openInventory(new RegionSelectionMenu(plugin).reg_sel(player, 1));
+            Bukkit.getScheduler().runTask(plugin, () -> player.openInventory(new RegionSelectionMenu(plugin).reg_sel(player, 1)));
             return;
         }
 
-        if (event.getRawSlot() == 36 && clicked.getType() == Material.GREEN_STAINED_GLASS_PANE) {
-            YamlConfiguration matConfig = (YamlConfiguration) plugin.getConfigManager().getConfig("materials.yml");
-            player.openInventory(blockmenu(player, currentPage - 1, matConfig, regionName));
+        if (event.getRawSlot() == 45) {
+            Bukkit.getScheduler().runTask(plugin, () -> player.openInventory(new RegionSelectionMenu(plugin).reg_sel(player, 1)));
             return;
         }
 
-        if (event.getRawSlot() == 44 && clicked.getType() == Material.GREEN_STAINED_GLASS_PANE) {
-            YamlConfiguration matConfig = (YamlConfiguration) plugin.getConfigManager().getConfig("materials.yml");
-            player.openInventory(blockmenu(player, currentPage + 1, matConfig, regionName));
+        if (event.getRawSlot() == 48 && clicked.getType() == Material.ARROW) {
+            Bukkit.getScheduler().runTask(plugin, () -> player.openInventory(blockmenu(player, Math.max(1, currentPage - 1), config, regionName)));
+            return;
+        }
+
+        if (event.getRawSlot() == 50 && clicked.getType() == Material.ARROW) {
+            Bukkit.getScheduler().runTask(plugin, () -> player.openInventory(blockmenu(player, currentPage + 1, config, regionName)));
             return;
         }
 
         if (event.getClick() == ClickType.SHIFT_LEFT || event.getClick() == ClickType.SHIFT_RIGHT) {
-            String matName = LocalizedName.get(clicked);
-            player.sendMessage(StaticColors.getHexMsg("&6&lSeriaFarm &8» &cDeleted &f" + matName));
-            // Deletion logic would go here
+            String matKey = LocalizedName.get(clicked); // Format is "region:key" or "global:key"
+            if (matKey != null && matKey.contains(":")) {
+                String[] parts = matKey.split(":");
+                String targetRegion = parts[0];
+                String actualKey = parts[1];
+                
+                String path = "blocks." + targetRegion + "." + actualKey;
+                if (targetRegion.equalsIgnoreCase("legacy")) path = "blocks." + actualKey;
+                
+                plugin.getConfigManager().getConfig("materials.yml").set(path, null);
+                plugin.getConfigManager().saveConfig("materials.yml");
+                
+                player.sendMessage(StaticColors.getHexMsg("&6&lSeriaFarm &8» &cDeleted &f" + actualKey));
+                
+                // Refresh the menu
+                YamlConfiguration matConfig = (YamlConfiguration) plugin.getConfigManager().getConfig("materials.yml");
+                player.openInventory(blockmenu(player, currentPage, matConfig, regionName));
+            }
         } else if (isMatItem(event.getRawSlot())) {
             // Open EditMenu
             String matName = LocalizedName.get(clicked);

@@ -5,8 +5,8 @@ import id.seria.farm.inventory.utils.InvUtils;
 import id.seria.farm.inventory.utils.LocalizedName;
 import id.seria.farm.inventory.utils.PageUtil;
 import id.seria.farm.inventory.utils.StaticColors;
+import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -14,18 +14,16 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.meta.ItemMeta;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
-import java.util.stream.Collectors;
 
 public class AddMenu implements Listener {
-    private final String name = StaticColors.getHexMsg("&#ffa500&lAdd Menu");
+    private final Component name = StaticColors.getHexMsg("&#ffa500&lAdd Menu");
 
     public Inventory addmenu(Player player, int page) {
-        Inventory inventory = Bukkit.createInventory(player, 54, this.name);
+        Inventory inventory = Bukkit.createInventory(null, 54, this.name);
 
         inventory.setItem(44, InvUtils.createItemStacks(Material.RED_STAINED_GLASS_PANE,
                 StaticColors.getHexMsg("&aNext Page"), StaticColors.getHexMsg("&7Click To Go To The Next Page"), ""));
@@ -39,10 +37,11 @@ public class AddMenu implements Listener {
                 StaticColors.getHexMsg("&7Closes The Current Gui"), ""));
 
         // Slot 10: Global
-        inventory.setItem(10,
-                InvUtils.createItemStacks(Material.MINECART, StaticColors.getHexMsg("&#ffa500Global Setting"),
+        ItemStack globalItem = InvUtils.createItemStacks(Material.MINECART, StaticColors.getHexMsg("&#ffa500Global Setting"),
                         StaticColors.getHexMsg("&7Add Blocks To Global Regeneration"),
-                        StaticColors.getHexMsg("&7Regeneration Should Be Set To Global")));
+                        StaticColors.getHexMsg("&7Regeneration Should Be Set To Global"));
+        LocalizedName.set(globalItem, "global");
+        inventory.setItem(10, globalItem);
 
         List<String> list = SeriaFarmPlugin.getInstance().getRegenManager().getRegionNames();
         list.sort(Comparator.naturalOrder());
@@ -50,12 +49,14 @@ public class AddMenu implements Listener {
         int itemsPerPage = (page == 1) ? 27 : 28;
 
         if (PageUtil.isPageValid(list, page - 1, itemsPerPage)) {
-            Objects.requireNonNull(inventory.getItem(36)).setType(Material.GREEN_STAINED_GLASS_PANE);
+            ItemStack item = inventory.getItem(36);
+            if (item != null) inventory.setItem(36, item.withType(Material.GREEN_STAINED_GLASS_PANE));
         }
         LocalizedName.set(Objects.requireNonNull(inventory.getItem(36)), String.valueOf(page - 1));
 
         if (PageUtil.isPageValid(list, page + 1, itemsPerPage)) {
-            Objects.requireNonNull(inventory.getItem(44)).setType(Material.GREEN_STAINED_GLASS_PANE);
+            ItemStack item = inventory.getItem(44);
+            if (item != null) inventory.setItem(44, item.withType(Material.GREEN_STAINED_GLASS_PANE));
         }
         LocalizedName.set(Objects.requireNonNull(inventory.getItem(44)), String.valueOf(page + 1));
 
@@ -76,11 +77,12 @@ public class AddMenu implements Listener {
             if (slot >= 54)
                 break;
 
-            inventory.setItem(slot,
-                    InvUtils.createItemStacks(Material.CHEST_MINECART,
+            ItemStack regionItem = InvUtils.createItemStacks(Material.CHEST_MINECART,
                             StaticColors.getHexMsg("&#ffa500Region Setting : [" + regionName + "]"),
                             StaticColors.getHexMsg("&7Add Blocks To Region Regeneration"),
-                            StaticColors.getHexMsg("&7Regeneration Should Be Set To Regional")));
+                            StaticColors.getHexMsg("&7Regeneration Should Be Set To Regional"));
+            LocalizedName.set(regionItem, regionName);
+            inventory.setItem(slot, regionItem);
             slot++;
         }
 
@@ -89,7 +91,7 @@ public class AddMenu implements Listener {
 
     @EventHandler
     public void oninvcclick(InventoryClickEvent event) {
-        if (!ChatColor.translateAlternateColorCodes('&', event.getView().getTitle()).equals(this.name))
+        if (!event.getView().title().equals(this.name))
             return;
         event.setCancelled(true);
 
@@ -112,13 +114,10 @@ public class AddMenu implements Listener {
             player.openInventory(addmenu(player, currentPage - 1));
         } else if (event.getRawSlot() == 44 && clicked.getType() == Material.GREEN_STAINED_GLASS_PANE) {
             player.openInventory(addmenu(player, currentPage + 1));
-        } else if (event.getRawSlot() == 10 && currentPage == 1) {
-            // Open AddBlocksMenu for global
-            player.openInventory(new AddBlocksMenu().addblocks_menu(player, "global"));
         } else {
-            String regionName = InvUtils.extractStr(clicked.getItemMeta().getDisplayName());
-            if (regionName != null) {
-                player.openInventory(new AddBlocksMenu().addblocks_menu(player, regionName));
+            String target = LocalizedName.get(clicked);
+            if (target != null) {
+                player.openInventory(new AddBlocksMenu().addblocks_menu(player, target));
             }
         }
     }

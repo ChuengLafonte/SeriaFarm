@@ -3,15 +3,14 @@ package id.seria.farm.inventory;
 import id.seria.farm.SeriaFarmPlugin;
 import id.seria.farm.inventory.utils.InvUtils;
 import id.seria.farm.inventory.utils.StaticColors;
+import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.Inventory;
-import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import id.seria.farm.listeners.ChatInputListener;
@@ -21,7 +20,7 @@ import id.seria.farm.inventory.maintree.ToggleMenu;
 
 public class MainMenu implements Listener {
 
-    private final String name = StaticColors.getHexMsg("&#c8a100&lSeriaFarm Menu");
+    private final Component name = StaticColors.getHexMsg("&#fbca00&lSeriaFarm Menu");
     private final SeriaFarmPlugin plugin;
 
     public MainMenu(SeriaFarmPlugin plugin) {
@@ -29,7 +28,7 @@ public class MainMenu implements Listener {
     }
 
     public Inventory mainmenu(Player player) {
-        Inventory inventory = Bukkit.createInventory(player, 36, this.name);
+        Inventory inventory = Bukkit.createInventory(null, 36, this.name);
         
         // Toggle (Slot 11)
         boolean enabled = plugin.getConfigManager().getConfig("config.yml").getBoolean("settings.enabled", true);
@@ -40,7 +39,13 @@ public class MainMenu implements Listener {
             "&eStatus: " + (enabled ? "&aEnabled" : "&cDisabled")));
         
         // Prefix (Slot 13)
-        inventory.setItem(13, InvUtils.createItemStacks(Material.NAME_TAG, StaticColors.getHexMsg("&#fbca00Plugin Prefix"), "&7Set the prefix for messages.", "&7You can use color codes.", "", "&eCurrent: " + StaticColors.getHexMsg("&6&lSeriaFarm &8»")));
+        Component prefixLabel = StaticColors.getHexMsg("&#fbca00Plugin Prefix");
+        Component prefixInfo = StaticColors.getHexMsg("&6&lSeriaFarm &8»");
+        inventory.setItem(13, InvUtils.createItemStacks(Material.NAME_TAG, prefixLabel, 
+            "&7Set the prefix for messages.", 
+            "&7You can use color codes.", 
+            "", 
+            Component.text("").append(StaticColors.getHexMsg("&eCurrent: ")).append(prefixInfo)));
         
         // Add (Slot 15)
         inventory.setItem(15, InvUtils.createItemStacks(Material.NETHER_STAR, StaticColors.getHexMsg("&#fbca00Add More Blocks"), "&7Add more blocks to regeneration.", "&7Choose which region blocks should be added."));
@@ -70,7 +75,7 @@ public class MainMenu implements Listener {
 
     @EventHandler
     public void oninvcclick(InventoryClickEvent event) {
-        if (!ChatColor.translateAlternateColorCodes('&', event.getView().getTitle()).equals(this.name)) return;
+        if (!event.getView().title().equals(this.name)) return;
         
         event.setCancelled(true);
         Player player = (Player) event.getWhoClicked();
@@ -94,7 +99,7 @@ public class MainMenu implements Listener {
                 ItemStack wand = new ItemStack(Material.STONE_AXE, 1);
                 ItemMeta meta = wand.getItemMeta();
                 if (meta != null) {
-                    meta.setDisplayName(ChatColor.YELLOW + "REGEN WAND");
+                    meta.displayName(StaticColors.getHexMsg("&eREGEN WAND"));
                     meta.setCustomModelData(20);
                     wand.setItemMeta(meta);
                 }

@@ -1,6 +1,8 @@
 package id.seria.farm.managers;
 
 import id.seria.farm.SeriaFarmPlugin;
+import id.seria.farm.inventory.utils.StaticColors;
+import net.kyori.adventure.text.Component;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import java.io.File;
@@ -52,7 +54,7 @@ public class ConfigManager {
     }
 
     // Helper to get formatted messages
-    public String getMessage(String path) {
+    public Component getMessage(String path) {
         FileConfiguration msgConfig = getConfig("messages.yml");
         String msg = msgConfig.getString(path);
         
@@ -67,6 +69,6 @@ public class ConfigManager {
             }
         }
         
-        return org.bukkit.ChatColor.translateAlternateColorCodes('&', msg);
+        return StaticColors.getHexMsg(msg);
     }
 }

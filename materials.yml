@@ -1,0 +1,681 @@
+Materials:
+  OAK_LOG:
+    Enabled: true
+    Delay: 1
+    Drop_Xp: 1
+    Tool_Damage: 0
+    Money_Reward: 0
+    Cost: 0
+    isCrop: false
+    isStem: false
+    DelayBlock:
+      - BEDROCK ; 1
+    ReplaceBlock:
+      - OAK_LOG ; 1
+    Drops: []
+    Commands: []
+    Sounds: []
+    Req_Tools: []
+  SPRUCE_LOG:
+    Enabled: true
+    Delay: 1
+    Drop_Xp: 1
+    Tool_Damage: 0
+    Money_Reward: 0
+    Cost: 0
+    isCrop: false
+    isStem: false
+    DelayBlock:
+      - BEDROCK ; 1
+    ReplaceBlock:
+      - SPRUCE_LOG ; 1
+    Drops: []
+    Commands: []
+    Sounds: []
+    Req_Tools: []
+  BIRCH_LOG:
+    Enabled: true
+    Delay: 1
+    Drop_Xp: 1
+    Tool_Damage: 0
+    Money_Reward: 0
+    Cost: 0
+    isCrop: false
+    isStem: false
+    DelayBlock:
+      - BEDROCK ; 1
+    ReplaceBlock:
+      - BIRCH_LOG ; 1
+    Drops: []
+    Commands: []
+    Sounds: []
+    Req_Tools: []
+  JUNGLE_LOG:
+    Enabled: true
+    Delay: 1
+    Drop_Xp: 1
+    Tool_Damage: 0
+    Money_Reward: 0
+    Cost: 0
+    isCrop: false
+    isStem: false
+    DelayBlock:
+      - BEDROCK ; 1
+    ReplaceBlock:
+      - JUNGLE_LOG ; 1
+    Drops: []
+    Commands: []
+    Sounds: []
+    Req_Tools: []
+  ACACIA_LOG:
+    Enabled: true
+    Delay: 1
+    Drop_Xp: 1
+    Tool_Damage: 0
+    Money_Reward: 0
+    Cost: 0
+    isCrop: false
+    isStem: false
+    DelayBlock:
+      - BEDROCK ; 1
+    ReplaceBlock:
+      - ACACIA_LOG ; 1
+    Drops: []
+    Commands: []
+    Sounds: []
+    Req_Tools: []
+  DARK_OAK_LOG:
+    Enabled: true
+    Delay: 1
+    Drop_Xp: 1
+    Tool_Damage: 0
+    Money_Reward: 0
+    Cost: 0
+    isCrop: false
+    isStem: false
+    DelayBlock:
+      - BEDROCK ; 1
+    ReplaceBlock:
+      - DARK_OAK_LOG ; 1
+    Drops: []
+    Commands: []
+    Sounds: []
+    Req_Tools: []
+  CRIMSON_STEM:
+    Enabled: true
+    Delay: 1
+    Drop_Xp: 1
+    Tool_Damage: 0
+    Money_Reward: 0
+    Cost: 0
+    isCrop: false
+    isStem: false
+    DelayBlock:
+      - BEDROCK ; 1
+    ReplaceBlock:
+      - CRIMSON_STEM ; 1
+    Drops: []
+    Commands: []
+    Sounds: []
+    Req_Tools: []
+  WARPED_STEM:
+    Enabled: true
+    Delay: 1
+    Drop_Xp: 1
+    Tool_Damage: 0
+    Money_Reward: 0
+    Cost: 0
+    isCrop: false
+    isStem: false
+    DelayBlock:
+      - BEDROCK ; 1
+    ReplaceBlock:
+      - WARPED_STEM ; 1
+    Drops: []
+    Commands: []
+    Sounds: []
+    Req_Tools: []
+  COAL_ORE:
+    Enabled: true
+    Delay: 1
+    Drop_Xp: 1
+    Tool_Damage: 0
+    Money_Reward: 0
+    Cost: 0
+    isCrop: false
+    isStem: false
+    DelayBlock:
+      - BEDROCK ; 1
+    ReplaceBlock:
+      - COAL_ORE ; 1
+    Drops: []
+    Commands: []
+    Sounds: []
+    Req_Tools: []
+  IRON_ORE:
+    Enabled: true
+    Delay: 1
+    Drop_Xp: 1
+    Tool_Damage: 0
+    Money_Reward: 0
+    Cost: 0
+    isCrop: false
+    isStem: false
+    DelayBlock:
+      - BEDROCK ; 1
+    ReplaceBlock:
+      - IRON_ORE ; 1
+    Drops: []
+    Commands: []
+    Sounds: []
+    Req_Tools: []
+  REDSTONE_ORE:
+    Enabled: true
+    Delay: 1
+    Drop_Xp: 1
+    Tool_Damage: 0
+    Money_Reward: 0
+    Cost: 0
+    isCrop: false
+    isStem: false
+    DelayBlock:
+      - BEDROCK ; 1
+    ReplaceBlock:
+      - REDSTONE_ORE ; 1
+    Drops: []
+    Commands: []
+    Sounds: []
+    Req_Tools: []
+  LAPIS_ORE:
+    Enabled: true
+    Delay: 1
+    Drop_Xp: 1
+    Tool_Damage: 0
+    Money_Reward: 0
+    Cost: 0
+    isCrop: false
+    isStem: false
+    DelayBlock:
+      - BEDROCK ; 1
+    ReplaceBlock:
+      - LAPIS_ORE ; 1
+    Drops: []
+    Commands: []
+    Sounds: []
+    Req_Tools: []
+  GOLD_ORE:
+    Enabled: true
+    Delay: 1
+    Drop_Xp: 1
+    Tool_Damage: 0
+    Money_Reward: 0
+    Cost: 0
+    isCrop: false
+    isStem: false
+    DelayBlock:
+      - BEDROCK ; 1
+    ReplaceBlock:
+      - GOLD_ORE ; 1
+    Drops: []
+    Commands: []
+    Sounds: []
+    Req_Tools: []
+  DIAMOND_ORE:
+    Enabled: true
+    Delay: 1
+    Drop_Xp: 1
+    Tool_Damage: 0
+    Money_Reward: 0
+    Cost: 0
+    isCrop: false
+    isStem: false
+    DelayBlock:
+      - BEDROCK ; 1
+    ReplaceBlock:
+      - DIAMOND_ORE ; 1
+    Drops: []
+    Commands: []
+    Sounds: []
+    Req_Tools: []
+  EMERALD_ORE:
+    Enabled: true
+    Delay: 1
+    Drop_Xp: 1
+    Tool_Damage: 0
+    Money_Reward: 0
+    Cost: 0
+    isCrop: false
+    isStem: false
+    DelayBlock:
+      - BEDROCK ; 1
+    ReplaceBlock:
+      - EMERALD_ORE ; 1
+    Drops: []
+    Commands: []
+    Sounds: []
+    Req_Tools: []
+  ANCIENT_DEBRIS:
+    Enabled: true
+    Delay: 1
+    Drop_Xp: 1
+    Tool_Damage: 0
+    Money_Reward: 0
+    Cost: 0
+    isCrop: false
+    isStem: false
+    DelayBlock:
+      - BEDROCK ; 1
+    ReplaceBlock:
+      - ANCIENT_DEBRIS ; 1
+    Drops: []
+    Commands: []
+    Sounds: []
+    Req_Tools: []
+  GRASS_BLOCK:
+    Enabled: true
+    Delay: 1
+    Drop_Xp: 1
+    Tool_Damage: 0
+    Money_Reward: 0
+    Cost: 0
+    isCrop: false
+    isStem: false
+    DelayBlock:
+      - BEDROCK ; 1
+    ReplaceBlock:
+      - GRASS_BLOCK ; 1
+    Drops: []
+    Commands: []
+    Sounds: []
+    Req_Tools: []
+  STONE:
+    Enabled: true
+    Delay: 1
+    Drop_Xp: 1
+    Tool_Damage: 0
+    Money_Reward: 0
+    Cost: 0
+    isCrop: false
+    isStem: false
+    DelayBlock:
+      - BEDROCK ; 1
+    ReplaceBlock:
+      - STONE ; 1
+    Drops: []
+    Commands: []
+    Sounds: []
+    Req_Tools: []
+  COBBLESTONE:
+    Enabled: true
+    Delay: 1
+    Drop_Xp: 1
+    Tool_Damage: 0
+    Money_Reward: 0
+    Cost: 0
+    isCrop: false
+    isStem: false
+    DelayBlock:
+      - BEDROCK ; 1
+    ReplaceBlock:
+      - COBBLESTONE ; 1
+    Drops: []
+    Commands: []
+    Sounds: []
+    Req_Tools: []
+  WHEAT:
+    Enabled: true
+    Delay: 1
+    Drop_Xp: 1
+    Tool_Damage: 0
+    Money_Reward: 0
+    Cost: 0
+    isCrop: true
+    isStem: false
+    DelayBlock:
+      - AIR ; 0.2
+    ReplaceBlock:
+      - WHEAT ; 1
+    Drops: []
+    Commands: []
+    Sounds: []
+    Req_Tools: []
+  BEETROOTS:
+    Enabled: true
+    Delay: 1
+    Drop_Xp: 1
+    Tool_Damage: 0
+    Money_Reward: 0
+    Cost: 0
+    isCrop: true
+    isStem: false
+    DelayBlock:
+      - AIR ; 0.2
+    ReplaceBlock:
+      - BEETROOTS ; 1
+    Drops:
+      - DIAMOND ; 1
+    Commands: [ ]
+    Sounds: [ ]
+    Req_Tools: [ ]
+  POTATOES:
+    Enabled: true
+    Delay: 1
+    Drop_Xp: 1
+    Tool_Damage: 0
+    Money_Reward: 0
+    Cost: 0
+    isCrop: true
+    isStem: false
+    DelayBlock:
+      - AIR ; 0.2
+    ReplaceBlock:
+      - POTATOES ; 1
+    Drops: []
+    Commands: []
+    Sounds: []
+    Req_Tools: []
+  CARROTS:
+    Enabled: true
+    Delay: 1
+    Drop_Xp: 1
+    Tool_Damage: 0
+    Money_Reward: 0
+    Cost: 0
+    isCrop: true
+    isStem: false
+    DelayBlock:
+      - AIR ; 0.2
+    ReplaceBlock:
+      - CARROTS ; 1
+    Drops: []
+    Commands: []
+    Sounds: []
+    Req_Tools: []
+  MELON:
+    Enabled: true
+    Delay: 1
+    Drop_Xp: 1
+    Tool_Damage: 0
+    Money_Reward: 0
+    Cost: 0
+    isCrop: false
+    isStem: false
+    DelayBlock:
+      - BEDROCK ; 1
+    ReplaceBlock:
+      - MELON ; 1
+    Drops: []
+    Commands: []
+    Sounds: []
+    Req_Tools: []
+  PUMPKIN:
+    Enabled: true
+    Delay: 1
+    Drop_Xp: 1
+    Tool_Damage: 0
+    Money_Reward: 0
+    Cost: 0
+    isCrop: false
+    isStem: false
+    DelayBlock:
+      - BEDROCK ; 1
+    ReplaceBlock:
+      - PUMPKIN ; 1
+    Drops: []
+    Commands: []
+    Sounds: []
+    Req_Tools: []
+  NETHERRACK:
+    Enabled: true
+    Delay: 1
+    Drop_Xp: 1
+    Tool_Damage: 0
+    Money_Reward: 0
+    Cost: 0
+    isCrop: false
+    isStem: false
+    DelayBlock:
+      - BEDROCK ; 1
+    ReplaceBlock:
+      - NETHERRACK ; 1
+    Drops: []
+    Commands: []
+    Sounds: []
+    Req_Tools: []
+  OAK_WOOD:
+    Enabled: true
+    Delay: 1
+    Drop_Xp: 1
+    Tool_Damage: 0
+    Money_Reward: 0
+    Cost: 0
+    isCrop: false
+    isStem: false
+    DelayBlock:
+      - BEDROCK ; 1
+    ReplaceBlock:
+      - OAK_WOOD ; 1
+    Drops: []
+    Commands: []
+    Sounds: []
+    Req_Tools: []
+  SPRUCE_WOOD:
+    Enabled: true
+    Delay: 1
+    Drop_Xp: 1
+    Tool_Damage: 0
+    Money_Reward: 0
+    Cost: 0
+    isCrop: false
+    isStem: false
+    DelayBlock:
+      - BEDROCK ; 1
+    ReplaceBlock:
+      - SPRUCE_WOOD ; 1
+    Drops: []
+    Commands: []
+    Sounds: []
+    Req_Tools: []
+  BIRCH_WOOD:
+    Enabled: true
+    Delay: 1
+    Drop_Xp: 1
+    Tool_Damage: 0
+    Money_Reward: 0
+    Cost: 0
+    isCrop: false
+    isStem: false
+    DelayBlock:
+      - BEDROCK ; 1
+    ReplaceBlock:
+      - BIRCH_WOOD ; 1
+    Drops: []
+    Commands: []
+    Sounds: []
+    Req_Tools: []
+  JUNGLE_WOOD:
+    Enabled: true
+    Delay: 1
+    Drop_Xp: 1
+    Tool_Damage: 0
+    Money_Reward: 0
+    Cost: 0
+    isCrop: false
+    isStem: false
+    DelayBlock:
+      - BEDROCK ; 1
+    ReplaceBlock:
+      - JUNGLE_WOOD ; 1
+    Drops: []
+    Commands: []
+    Sounds: []
+    Req_Tools: []
+  ACACIA_WOOD:
+    Enabled: true
+    Delay: 1
+    Drop_Xp: 1
+    Tool_Damage: 0
+    Money_Reward: 0
+    Cost: 0
+    isCrop: false
+    isStem: false
+    DelayBlock:
+      - BEDROCK ; 1
+    ReplaceBlock:
+      - ACACIA_WOOD ; 1
+    Drops: []
+    Commands: []
+    Sounds: []
+    Req_Tools: []
+  DARK_OAK_WOOD:
+    Enabled: true
+    Delay: 1
+    Drop_Xp: 1
+    Tool_Damage: 0
+    Money_Reward: 0
+    Cost: 0
+    isCrop: false
+    isStem: false
+    DelayBlock:
+      - BEDROCK ; 1
+    ReplaceBlock:
+      - DARK_OAK_WOOD ; 1
+    Drops: []
+    Commands: []
+    Sounds: []
+    Req_Tools: []
+  GOLD_BLOCK:
+    Enabled: true
+    Delay: 1
+    Drop_Xp: 1
+    Tool_Damage: 0
+    Money_Reward: 0
+    Cost: 0
+    isCrop: false
+    isStem: false
+    DelayBlock:
+      - BEDROCK ; 1
+    ReplaceBlock:
+      - GOLD_BLOCK ; 1
+    Drops: []
+    Commands: []
+    Sounds: []
+    Req_Tools: []
+  REDSTONE_BLOCK:
+    Enabled: true
+    Delay: 1
+    Drop_Xp: 1
+    Tool_Damage: 0
+    Money_Reward: 0
+    Cost: 0
+    isCrop: false
+    isStem: false
+    DelayBlock:
+      - BEDROCK ; 1
+    ReplaceBlock:
+      - REDSTONE_BLOCK ; 1
+    Drops: []
+    Commands: []
+    Sounds: []
+    Req_Tools: []
+  IRON_BLOCK:
+    Enabled: true
+    Delay: 1
+    Drop_Xp: 1
+    Tool_Damage: 0
+    Money_Reward: 0
+    Cost: 0
+    isCrop: false
+    isStem: false
+    DelayBlock:
+      - BEDROCK ; 1
+    ReplaceBlock:
+      - IRON_BLOCK ; 1
+    Drops: []
+    Commands: []
+    Sounds: []
+    Req_Tools: []
+  DIAMOND_BLOCK:
+    Enabled: true
+    Delay: 1
+    Drop_Xp: 1
+    Tool_Damage: 0
+    Money_Reward: 0
+    Cost: 0
+    isCrop: false
+    isStem: false
+    DelayBlock:
+      - BEDROCK ; 1
+    ReplaceBlock:
+      - DIAMOND_BLOCK ; 1
+    Drops: []
+    Commands: []
+    Sounds: []
+    Req_Tools: []
+  LAPIS_BLOCK:
+    Enabled: true
+    Delay: 1
+    Drop_Xp: 1
+    Tool_Damage: 0
+    Money_Reward: 0
+    Cost: 0
+    isCrop: false
+    isStem: false
+    DelayBlock:
+      - BEDROCK ; 1
+    ReplaceBlock:
+      - LAPIS_BLOCK ; 1
+    Drops: []
+    Commands: []
+    Sounds: []
+    Req_Tools: []
+  COAL_BLOCK:
+    Enabled: true
+    Delay: 1
+    Drop_Xp: 1
+    Tool_Damage: 0
+    Money_Reward: 0
+    Cost: 0
+    isCrop: false
+    isStem: false
+    DelayBlock:
+      - BEDROCK ; 1
+    ReplaceBlock:
+      - COAL_BLOCK ; 1
+    Drops: []
+    Commands: []
+    Sounds: []
+    Req_Tools: []
+  NETHER_GOLD_ORE:
+    Enabled: true
+    Delay: 20
+    Drop_Xp: 20
+    Tool_Damage: 0
+    Money_Reward: 0
+    Cost: 0
+    DelayBlock:
+      - BEDROCK
+    ReplaceBlock:
+      - NETHER_GOLD_ORE
+  NETHER_QUARTZ_ORE:
+    Enabled: true
+    Delay: 20
+    Drop_Xp: 20
+    Tool_Damage: 0
+    Money_Reward: 0
+    Cost: 0
+    DelayBlock:
+      - BEDROCK
+    ReplaceBlock:
+      - NETHER_QUARTZ_ORE
+  MANGROVE_LOG:
+    Enabled: true
+    Delay: 20
+    Drop_Xp: 20
+    Tool_Damage: 0
+    Money_Reward: 0
+    Cost: 0
+    DelayBlock:
+      - BEDROCK
+    ReplaceBlock:
+      - MANGROVE_LOG

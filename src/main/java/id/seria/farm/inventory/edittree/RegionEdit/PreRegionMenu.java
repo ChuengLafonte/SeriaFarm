@@ -4,8 +4,8 @@ import id.seria.farm.SeriaFarmPlugin;
 import id.seria.farm.inventory.utils.InvUtils;
 import id.seria.farm.inventory.utils.StaticColors;
 import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
 import org.bukkit.Material;
+import net.kyori.adventure.text.Component;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -16,19 +16,25 @@ import id.seria.farm.inventory.utils.LocalizedName;
 import org.bukkit.Location;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
+import org.jetbrains.annotations.NotNull;
 
-public class PreRegionMenu implements Listener {
+public class PreRegionMenu implements Listener, InventoryHolder {
     private final SeriaFarmPlugin plugin;
-    private static final String name = StaticColors.getHexMsg("&9&lRegion Info Menu");
+    private static final Component name = StaticColors.getHexMsg("&9&lRegion Info Menu");
+    private String regionName;
 
     public PreRegionMenu(SeriaFarmPlugin plugin) {
         this.plugin = plugin;
     }
 
+    public String getRegionName() { return regionName; }
+
     public Inventory preregenmenu(Player player, String string) {
+        this.regionName = string;
         plugin.getVisualManager().setFocusedRegion(player, string);
-        Inventory inventory = Bukkit.createInventory(player, 36, name);
+        Inventory inventory = Bukkit.createInventory(this, 36, name);
         FileConfiguration config = plugin.getConfigManager().getConfig("regions.yml");
         String path = "regions." + string + ".";
 
@@ -74,25 +80,47 @@ public class PreRegionMenu implements Listener {
         return inventory;
     }
 
+    @Override
+    public @NotNull Inventory getInventory() {
+        return null; // Holder identification only
+    }
+
     @EventHandler
     public void oninvcclick(InventoryClickEvent event) {
-        if (!ChatColor.translateAlternateColorCodes('&', event.getView().getTitle()).equals(name)) return;
-        event.setCancelled(true);
-        
-        Player player = (Player) event.getWhoClicked();
-        ItemStack infoItem = event.getInventory().getItem(11);
-        if (infoItem == null) return;
-        String regionName = LocalizedName.get(infoItem);
-        FileConfiguration config = plugin.getConfigManager().getConfig("regions.yml");
-        String path = "regions." + regionName + ".";
+        String title = SeriaFarmPlugin.MINI_MESSAGE.serialize(event.getView().title());
+        boolean isHolder = event.getInventory().getHolder() instanceof PreRegionMenu;
+        boolean isTitle = title.contains("Region Info Menu");
 
-        if (event.getRawSlot() == 35) {
-            plugin.getVisualManager().setFocusedRegion(player, null);
-            player.openInventory(new RegionSelectionMenu(plugin).reg_sel(player, 1));
+        if (!isHolder && !isTitle) return;
+
+        event.setCancelled(true);
+        Player player = (Player) event.getWhoClicked();
+        
+        // Debug Logging
+        Bukkit.getLogger().info("[SeriaFarm Debug] Click detected in PreRegionMenu. Slot: " + event.getRawSlot() + " | Title Match: " + isTitle + " | Holder Match: " + isHolder);
+
+        PreRegionMenu holder;
+        if (isHolder) {
+            holder = (PreRegionMenu) event.getInventory().getHolder();
+        } else {
+            // Cannot reliably proceed without holder state in this architecture
+            return; 
+        }
+
+        final String regionName = holder.getRegionName();
+        if (regionName == null || regionName.isEmpty()) {
+            Bukkit.getLogger().warning("[SeriaFarm Debug] regionName is null in PreRegionMenu!");
             return;
         }
 
+        FileConfiguration config = plugin.getConfigManager().getConfig("regions.yml");
+        String path = "regions." + regionName + ".";
+
         switch (event.getRawSlot()) {
+            case 35: // Back
+                Bukkit.getScheduler().runTask(plugin, () -> player.openInventory(new RegionSelectionMenu(plugin).reg_sel(player, 1)));
+                plugin.getVisualManager().setFocusedRegion(player, null);
+                break;
             case 11: // Teleport
                 teleportLogic(player, config, path, regionName);
                 break;
@@ -113,8 +141,8 @@ public class PreRegionMenu implements Listener {
                 saveAndRefresh(player, regionName);
                 break;
             case 24: // Edit Blocks
-                YamlConfiguration matConfig = (YamlConfiguration) plugin.getConfigManager().getConfig("materials.yml");
-                player.openInventory(new BlockMenu(plugin).blockmenu(player, 1, matConfig, regionName));
+                YamlConfiguration mConfig = (YamlConfiguration) plugin.getConfigManager().getConfig("materials.yml");
+                Bukkit.getScheduler().runTask(plugin, () -> player.openInventory(new id.seria.farm.inventory.edittree.BlockMenu(plugin).blockmenu(player, 1, mConfig, regionName)));
                 break;
             case 31: // SCAN REGION
                 performScan(player, config, path, regionName);
@@ -179,7 +207,9 @@ public class PreRegionMenu implements Listener {
             boolean exists = false;
             if (matConfig.contains(blocksPath)) {
                 for (String key : matConfig.getConfigurationSection(blocksPath).getKeys(false)) {
-                    if (matConfig.getString(blocksPath + "." + key + ".material", "").equalsIgnoreCase(mat.name())) {
+                    String configMat = matConfig.getString(blocksPath + "." + key + ".material", "");
+                    // Use robust fuzzy match from RegenManager
+                    if (plugin.getRegenManager().isMatch(mat.name(), configMat, key)) {
                         exists = true;
                         break;
                     }

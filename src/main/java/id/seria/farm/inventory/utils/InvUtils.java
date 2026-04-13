@@ -9,23 +9,34 @@ import java.util.Map;
 
 public class InvUtils {
 
-    public static ItemStack createItemStacks(Material material, String name, String... loreLines) {
+    public static ItemStack createItemStacks(Material material, Object name, Object... loreLines) {
         if (material == null) return new ItemStack(Material.BEDROCK);
         if (material.isAir()) material = Material.DRAGON_BREATH;
         return applyMeta(new ItemStack(getSingleMaterial(material), 1), name, loreLines);
     }
 
-    public static ItemStack applyMeta(ItemStack item, String name, String... loreLines) {
+    public static ItemStack applyMeta(ItemStack item, Object name, Object... loreLines) {
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
-            meta.setDisplayName(StaticColors.getHexMsg(name));
-            List<String> lore = new ArrayList<>();
-            for (String line : loreLines) {
-                if (line != null && !line.isEmpty()) {
-                    lore.add(StaticColors.getHexMsg(line));
+            if (name instanceof net.kyori.adventure.text.Component) {
+                meta.displayName((net.kyori.adventure.text.Component) name);
+            } else if (name instanceof String) {
+                meta.displayName(StaticColors.getHexMsg((String) name));
+            }
+ 
+            List<net.kyori.adventure.text.Component> lore = new ArrayList<>();
+            for (Object line : loreLines) {
+                if (line == null) continue;
+                if (line instanceof net.kyori.adventure.text.Component) {
+                    lore.add((net.kyori.adventure.text.Component) line);
+                } else if (line instanceof String) {
+                    String str = (String) line;
+                    if (!str.isEmpty()) {
+                        lore.add(StaticColors.getHexMsg(str));
+                    }
                 }
             }
-            meta.setLore(lore);
+            meta.lore(lore);
             item.setItemMeta(meta);
         }
         return item;

@@ -1,7 +1,9 @@
 package id.seria.farm.listeners;
 
 import id.seria.farm.SeriaFarmPlugin;
+import org.bukkit.Location;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockGrowEvent;
 
@@ -17,12 +19,24 @@ public class GrowthListener implements Listener {
         this.plugin = plugin;
     }
 
-    @EventHandler
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onBlockGrow(BlockGrowEvent event) {
-        // If the block is currently in the middle of a plugin-managed regeneration/growth cycle,
-        // cancel the natural Minecraft growth tick.
-        if (plugin.getRegenManager().isRegenerating(event.getBlock().getLocation())) {
+        Location loc = event.getBlock().getLocation();
+        
+        // 1. If currently regenerating/growing via plugin, block vanilla growth
+        if (plugin.getRegenManager().isRegenerating(loc)) {
             event.setCancelled(true);
+            return;
+        }
+
+        // 2. If it's a managed block in a region, block vanilla growth 
+        // to prevent vanilla rules from overriding regen-delay.
+        if (plugin.getRegenManager().getRegionAt(loc) != null) {
+            // Check if this material is managed in THIS region
+            // (Heuristic: most crops in regions are managed)
+            if (event.getBlock().getBlockData() instanceof org.bukkit.block.data.Ageable) {
+                event.setCancelled(true);
+            }
         }
     }
 }

@@ -9,11 +9,9 @@ import java.util.Map;
 
 public class AuraSkillsManager {
 
-    private final SeriaFarmPlugin plugin;
     private final Map<Material, SkillXP> xpMapping = new HashMap<>();
 
     public AuraSkillsManager(SeriaFarmPlugin plugin) {
-        this.plugin = plugin;
         loadMapping();
     }
 

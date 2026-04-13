@@ -4,6 +4,7 @@ import id.seria.farm.SeriaFarmPlugin;
 import id.seria.farm.inventory.utils.InvUtils;
 import id.seria.farm.inventory.utils.LocalizedName;
 import id.seria.farm.inventory.utils.StaticColors;
+import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -12,20 +13,22 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
+import org.jetbrains.annotations.NotNull;
 import java.io.File;
 import id.seria.farm.listeners.ChatInputListener;
 
-public class EditMenu implements Listener {
+public class EditMenu implements Listener, InventoryHolder {
+    private static final Component NAME = StaticColors.getHexMsg("&#9370db&lEdit Menu");
     private final SeriaFarmPlugin plugin;
-    private static final String name = StaticColors.getHexMsg("&#9370db&lEdit Menu");
 
     public EditMenu(SeriaFarmPlugin plugin) {
         this.plugin = plugin;
     }
 
     public Inventory emenu(Player player, YamlConfiguration config, String matName, File file, String regionName) {
-        Inventory inventory = Bukkit.createInventory(player, 54, name);
+        Inventory inventory = Bukkit.createInventory(this, 54, NAME);
         String path = getConfigPath(matName);
         String materialKey = matName.contains(":") ? matName.split(":")[1] : matName;
         
@@ -74,13 +77,19 @@ public class EditMenu implements Listener {
         }
     }
 
+    @Override
+    public @NotNull Inventory getInventory() {
+        return null; // Holder identification only
+    }
+
     @EventHandler
     public void oninvcclick(InventoryClickEvent event) {
-        if (!event.getView().getTitle().contains("Edit Menu")) return;
+        if (!(event.getInventory().getHolder() instanceof EditMenu)) return;
         event.setCancelled(true);
         
         Player player = (Player) event.getWhoClicked();
-        ItemStack infoItem = event.getInventory().getItem(45);
+        Inventory inv = event.getInventory();
+        ItemStack infoItem = inv.getItem(45);
         if (infoItem == null) return;
         
         String data = LocalizedName.get(infoItem);

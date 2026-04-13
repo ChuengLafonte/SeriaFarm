@@ -12,6 +12,7 @@ public class RegenBlock {
     private final long restoreTime;
     private final List<String> replaceBlocks;
     private final List<String> delayBlocks;
+    private final String materialKey;
 
     // Growth Metadata
     private boolean isGrowth = false;
@@ -22,13 +23,14 @@ public class RegenBlock {
     private long lastStepTime = 0;
     private long startTime = 0;
 
-    public RegenBlock(Location location, Material originalMaterial, BlockData originalData, long restoreTime, List<String> replaceBlocks, List<String> delayBlocks) {
+    public RegenBlock(Location location, Material originalMaterial, BlockData originalData, long restoreTime, List<String> replaceBlocks, List<String> delayBlocks, String materialKey) {
         this.location = location;
         this.originalMaterial = originalMaterial;
         this.originalData = originalData;
         this.restoreTime = restoreTime;
         this.replaceBlocks = replaceBlocks;
         this.delayBlocks = delayBlocks;
+        this.materialKey = materialKey;
     }
 
     // Getters and Setters for Growth
@@ -53,4 +55,5 @@ public class RegenBlock {
     public long getRestoreTime() { return restoreTime; }
     public List<String> getReplaceBlocks() { return replaceBlocks; }
     public List<String> getDelayBlocks() { return delayBlocks; }
+    public String getMaterialKey() { return materialKey; }
 }

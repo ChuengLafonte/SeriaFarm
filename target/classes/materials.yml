@@ -86,3 +86,32 @@ blocks:
     regen-delay: 15
     rewards:
       xp: 10
+
+  test1:
+    OAK_SLAB:
+      material: OAK_SLAB
+      regen-delay: 10
+      replace-blocks:
+      - OAK_SLAB
+      delay-blocks:
+      - BEDROCK
+      rewards:
+        xp: 0
+    FARMLAND:
+      material: FARMLAND
+      regen-delay: 10
+      replace-blocks:
+      - FARMLAND
+      delay-blocks:
+      - BEDROCK
+      rewards:
+        xp: 0
+    BUDDING_AMETHYST:
+      material: BUDDING_AMETHYST
+      regen-delay: 10
+      replace-blocks:
+      - BUDDING_AMETHYST
+      delay-blocks:
+      - BEDROCK
+      rewards:
+        xp: 0

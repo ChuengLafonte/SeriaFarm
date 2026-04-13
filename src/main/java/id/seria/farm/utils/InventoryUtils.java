@@ -12,14 +12,14 @@ public class InventoryUtils {
         ItemStack item = new ItemStack(material);
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
-            meta.setDisplayName(ColorUtils.color(name));
-            List<String> coloredLore = new ArrayList<>();
+            meta.displayName(id.seria.farm.inventory.utils.StaticColors.getHexMsg(name));
+            List<net.kyori.adventure.text.Component> coloredLore = new ArrayList<>();
             for (String line : lore) {
                 if (line != null && !line.isEmpty()) {
-                    coloredLore.add(ColorUtils.color(line));
+                    coloredLore.add(id.seria.farm.inventory.utils.StaticColors.getHexMsg(line));
                 }
             }
-            meta.setLore(coloredLore);
+            meta.lore(coloredLore);
             item.setItemMeta(meta);
         }
         return item;

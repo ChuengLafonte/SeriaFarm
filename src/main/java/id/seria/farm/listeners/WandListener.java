@@ -2,7 +2,7 @@ package id.seria.farm.listeners;
 
 import id.seria.farm.SeriaFarmPlugin;
 import id.seria.farm.inventory.utils.StaticColors;
-import org.bukkit.ChatColor;
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
@@ -26,7 +26,7 @@ public class WandListener implements Listener {
         Player player = event.getPlayer();
         if (player.getInventory().getItemInMainHand().getType() != Material.AIR 
             && player.getInventory().getItemInMainHand().hasItemMeta()
-            && player.getInventory().getItemInMainHand().getItemMeta().getDisplayName().equals(ChatColor.YELLOW + "REGEN WAND") 
+            && PlainTextComponentSerializer.plainText().serialize(player.getInventory().getItemInMainHand().getItemMeta().displayName()).equals("REGEN WAND") 
             && player.getInventory().getItemInMainHand().getItemMeta().hasCustomModelData()
             && player.getInventory().getItemInMainHand().getItemMeta().getCustomModelData() == 20) {
             
@@ -36,12 +36,12 @@ public class WandListener implements Listener {
                 event.setCancelled(true);
                 Location loc = Objects.requireNonNull(event.getClickedBlock()).getLocation();
                 Mpos1.put(player.getUniqueId(), loc);
-                player.sendMessage(StaticColors.getHexMsg(prefix) + " " + ChatColor.WHITE + "Pos1 =" + ChatColor.RED + "[" + ChatColor.YELLOW + "X=" + ChatColor.WHITE + loc.getBlockX() + ChatColor.RED + "," + ChatColor.YELLOW + "Y=" + ChatColor.WHITE + loc.getBlockY() + ChatColor.RED + "," + ChatColor.YELLOW + "Z=" + ChatColor.WHITE + loc.getBlockZ() + ChatColor.RED + "]");
+                player.sendMessage(StaticColors.getHexMsg(prefix + " &fPos1 = &c[&eX=&f" + loc.getBlockX() + "&c,&eY=&f" + loc.getBlockY() + "&c,&eZ=&f" + loc.getBlockZ() + "&c]"));
             } else if (event.getAction().equals(Action.RIGHT_CLICK_BLOCK) && event.getHand().equals(EquipmentSlot.HAND)) {
                 event.setCancelled(true);
                 Location loc = Objects.requireNonNull(event.getClickedBlock()).getLocation();
                 Mpos2.put(player.getUniqueId(), loc);
-                player.sendMessage(StaticColors.getHexMsg(prefix) + " " + ChatColor.WHITE + "Pos2 =" + ChatColor.RED + "[" + ChatColor.YELLOW + "X=" + ChatColor.WHITE + loc.getBlockX() + ChatColor.RED + "," + ChatColor.YELLOW + "Y=" + ChatColor.WHITE + loc.getBlockY() + ChatColor.RED + "," + ChatColor.YELLOW + "Z=" + ChatColor.WHITE + loc.getBlockZ() + ChatColor.RED + "]");
+                player.sendMessage(StaticColors.getHexMsg(prefix + " &fPos2 = &c[&eX=&f" + loc.getBlockX() + "&c,&eY=&f" + loc.getBlockY() + "&c,&eZ=&f" + loc.getBlockZ() + "&c]"));
             }
         }
     }

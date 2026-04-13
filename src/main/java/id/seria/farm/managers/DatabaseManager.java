@@ -3,7 +3,6 @@ package id.seria.farm.managers;
 import id.seria.farm.SeriaFarmPlugin;
 import java.io.File;
 import java.sql.*;
-import java.util.UUID;
 
 public class DatabaseManager {
 

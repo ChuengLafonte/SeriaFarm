@@ -2,14 +2,11 @@ package id.seria.farm.hooks;
 
 import id.seria.farm.SeriaFarmPlugin;
 import org.bukkit.Bukkit;
-import org.bukkit.Location;
-import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 
 public class HookManager {
 
-    private final SeriaFarmPlugin plugin;
     private boolean worldGuardEnabled = false;
     private boolean mmoItemsEnabled = false;
     private boolean auraSkillsEnabled = false;
@@ -18,7 +15,6 @@ public class HookManager {
     private boolean nexoEnabled = false;
 
     public HookManager(SeriaFarmPlugin plugin) {
-        this.plugin = plugin;
         this.worldGuardEnabled = Bukkit.getPluginManager().isPluginEnabled("WorldGuard");
         this.mmoItemsEnabled = Bukkit.getPluginManager().isPluginEnabled("MMOItems");
         this.auraSkillsEnabled = Bukkit.getPluginManager().isPluginEnabled("AuraSkills");
@@ -45,8 +41,23 @@ public class HookManager {
             if (parts.length >= 2) return getMMOItemStack(parts[0], parts[1]);
         }
 
-        org.bukkit.Material mat = org.bukkit.Material.matchMaterial(identifier.toUpperCase());
-        return new ItemStack(mat != null ? mat : org.bukkit.Material.STONE);
+        String finalId = identifier.toUpperCase();
+        
+        // Manual mapping for common blocks that aren't items in modern Bukkit
+        if (finalId.equals("POTATOES")) finalId = "POTATO";
+        else if (finalId.equals("CARROTS")) finalId = "CARROT";
+        else if (finalId.equals("BEETROOTS")) finalId = "BEETROOT";
+        else if (finalId.equals("WHEAT")) finalId = "WHEAT_SEEDS";
+        else if (finalId.equals("COCOA")) finalId = "COCOA_BEANS";
+
+        org.bukkit.Material mat = org.bukkit.Material.matchMaterial(finalId);
+        if (mat == null) mat = org.bukkit.Material.matchMaterial(identifier.toUpperCase());
+        
+        if (mat == null || !mat.isItem()) {
+            return new ItemStack(org.bukkit.Material.STONE);
+        }
+        
+        return new ItemStack(mat);
     }
 
     public String getItemIdentifier(ItemStack item) {

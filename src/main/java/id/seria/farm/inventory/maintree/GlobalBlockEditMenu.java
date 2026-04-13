@@ -13,21 +13,27 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
-import java.io.File;
+import org.bukkit.inventory.InventoryHolder;
 import id.seria.farm.listeners.ChatInputListener;
 import id.seria.farm.inventory.edittree.ReplaceBlockMenu;
 import id.seria.farm.inventory.edittree.DropsMenu;
 
-public class GlobalBlockEditMenu implements Listener {
+public class GlobalBlockEditMenu implements Listener, InventoryHolder {
     private final SeriaFarmPlugin plugin;
-    private static final String name = StaticColors.getHexMsg("&#9370db&lPlant Editor");
+    private String matName;
+    private static final net.kyori.adventure.text.Component name = StaticColors.getHexMsg("&#9370db&lPlant Editor");
 
     public GlobalBlockEditMenu(SeriaFarmPlugin plugin) {
         this.plugin = plugin;
     }
 
+    @Override
+    public org.bukkit.inventory.Inventory getInventory() { return null; }
+    public String getMatName() { return matName; }
+
     public Inventory open(Player player, String matName) {
-        Inventory inventory = Bukkit.createInventory(player, 27, name); // 3 Rows as per Wiki
+        this.matName = matName;
+        Inventory inventory = Bukkit.createInventory(this, 27, name); // 3 Rows as per Wiki
         YamlConfiguration config = (YamlConfiguration) plugin.getConfigManager().getConfig("materials.yml");
         String path = "blocks.global." + matName.replace("global:", "");
         String displayMaterial = matName.replace("global:", "");
@@ -97,13 +103,12 @@ public class GlobalBlockEditMenu implements Listener {
 
     @EventHandler
     public void oninvcclick(InventoryClickEvent event) {
-        if (!event.getView().getTitle().equals(name)) return;
+        if (!(event.getInventory().getHolder() instanceof GlobalBlockEditMenu)) return;
         event.setCancelled(true);
         
         Player player = (Player) event.getWhoClicked();
-        ItemStack metaItem = event.getInventory().getItem(26);
-        if (metaItem == null) return;
-        String matName = LocalizedName.get(metaItem);
+        GlobalBlockEditMenu holder = (GlobalBlockEditMenu) event.getInventory().getHolder();
+        String matName = holder.getMatName();
         String path = "blocks.global." + matName.replace("global:", "");
 
         YamlConfiguration config = (YamlConfiguration) plugin.getConfigManager().getConfig("materials.yml");

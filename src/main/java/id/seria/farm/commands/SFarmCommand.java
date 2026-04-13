@@ -4,7 +4,6 @@ import id.seria.farm.SeriaFarmPlugin;
 import id.seria.farm.inventory.MainMenu;
 import id.seria.farm.inventory.utils.StaticColors;
 import id.seria.farm.listeners.WandListener;
-import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
@@ -52,7 +51,7 @@ public class SFarmCommand implements CommandExecutor, TabCompleter {
                 ItemStack wand = new ItemStack(Material.STONE_AXE);
                 ItemMeta meta = wand.getItemMeta();
                 if (meta != null) {
-                    meta.setDisplayName(ChatColor.YELLOW + "REGEN WAND");
+                    meta.displayName(StaticColors.getHexMsg("&eREGEN WAND"));
                     meta.setCustomModelData(20);
                     wand.setItemMeta(meta);
                 }
@@ -63,13 +62,13 @@ public class SFarmCommand implements CommandExecutor, TabCompleter {
                 if (!player.isOp()) return noPerm(player);
                 Location p1 = player.getLocation();
                 WandListener.Mpos1.put(player.getUniqueId(), p1);
-                player.sendMessage(StaticColors.getHexMsg(prefix) + " " + ChatColor.WHITE + "Pos1 =" + ChatColor.RED + "[" + ChatColor.YELLOW + "X=" + ChatColor.WHITE + p1.getBlockX() + ChatColor.RED + "," + ChatColor.YELLOW + "Y=" + ChatColor.WHITE + p1.getBlockY() + ChatColor.RED + "," + ChatColor.YELLOW + "Z=" + ChatColor.WHITE + p1.getBlockZ() + ChatColor.RED + "]");
+                player.sendMessage(StaticColors.getHexMsg(prefix + " &fPos1 = &c[&eX=&f" + p1.getBlockX() + "&c,&eY=&f" + p1.getBlockY() + "&c,&eZ=&f" + p1.getBlockZ() + "&c]"));
                 break;
             case "pos2":
                 if (!player.isOp()) return noPerm(player);
                 Location p2 = player.getLocation();
                 WandListener.Mpos2.put(player.getUniqueId(), p2);
-                player.sendMessage(StaticColors.getHexMsg(prefix) + " " + ChatColor.WHITE + "Pos2 =" + ChatColor.RED + "[" + ChatColor.YELLOW + "X=" + ChatColor.WHITE + p2.getBlockX() + ChatColor.RED + "," + ChatColor.YELLOW + "Y=" + ChatColor.WHITE + p2.getBlockY() + ChatColor.RED + "," + ChatColor.YELLOW + "Z=" + ChatColor.WHITE + p2.getBlockZ() + ChatColor.RED + "]");
+                player.sendMessage(StaticColors.getHexMsg(prefix + " &fPos2 = &c[&eX=&f" + p2.getBlockX() + "&c,&eY=&f" + p2.getBlockY() + "&c,&eZ=&f" + p2.getBlockZ() + "&c]"));
                 break;
             case "create":
                 if (!player.isOp()) return noPerm(player);

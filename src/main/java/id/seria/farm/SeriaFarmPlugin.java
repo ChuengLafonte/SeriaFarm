@@ -1,5 +1,6 @@
 package id.seria.farm;
 
+import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.plugin.java.JavaPlugin;
 import id.seria.farm.managers.*;
 import id.seria.farm.hooks.HookManager;
@@ -9,6 +10,7 @@ import id.seria.farm.inventory.MainMenu;
 public class SeriaFarmPlugin extends JavaPlugin {
 
     public static SeriaFarmPlugin instance;
+    public static final MiniMessage MINI_MESSAGE = MiniMessage.miniMessage();
     private ConfigManager configManager;
     private DatabaseManager databaseManager;
     private RegenManager regenManager;
@@ -67,6 +69,7 @@ public class SeriaFarmPlugin extends JavaPlugin {
         pm.registerEvents(new id.seria.farm.inventory.maintree.GlobalBlockEditMenu(this), this);
         pm.registerEvents(new RegionListener(this), this);
         pm.registerEvents(new GrowthListener(this), this);
+        pm.registerEvents(new BlockPlaceListener(this), this);
 
         // Register Commands
         id.seria.farm.commands.SFarmCommand sfarmCommand = new id.seria.farm.commands.SFarmCommand(this);

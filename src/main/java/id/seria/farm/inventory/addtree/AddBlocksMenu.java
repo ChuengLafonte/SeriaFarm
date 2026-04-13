@@ -5,7 +5,6 @@ import id.seria.farm.inventory.MainMenu;
 import id.seria.farm.inventory.utils.InvUtils;
 import id.seria.farm.inventory.utils.StaticColors;
 import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -14,15 +13,13 @@ import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import id.seria.farm.inventory.utils.LocalizedName;
-import java.util.Arrays;
-import java.util.List;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 
 public class AddBlocksMenu implements Listener {
-    private static final String name = StaticColors.getHexMsg("&#ffa500&lAdd Regen Blocks Menu");
+    private static final net.kyori.adventure.text.Component name = StaticColors.getHexMsg("&#ffa500&lAdd Regen Blocks Menu");
 
     public Inventory addblocks_menu(Player player, String target) {
-        Inventory inventory = Bukkit.createInventory(player, 54, name);
+        Inventory inventory = Bukkit.createInventory(null, 54, name);
         
         inventory.setItem(49, InvUtils.createItemStacks(Material.NETHER_STAR, StaticColors.getHexMsg("&fAdd Blocks"), StaticColors.getHexMsg("&7Drop All Blocks To Be Added Above"), StaticColors.getHexMsg("&7Click Here TO Continue")));
         ItemStack info = InvUtils.createItemStacks(Material.PLAYER_HEAD, StaticColors.getHexMsg("&#ffa500[" + target + "]"), StaticColors.getHexMsg("&7A Super Cool Farmer"), "");
@@ -40,7 +37,7 @@ public class AddBlocksMenu implements Listener {
 
     @EventHandler
     public void oninvcclick(InventoryClickEvent event) {
-        if (!ChatColor.translateAlternateColorCodes('&', event.getView().getTitle()).equals(name)) return;
+        if (!event.getView().title().equals(name)) return;
         
         int slot = event.getRawSlot();
         if (isBorder(slot)) {
@@ -95,7 +92,7 @@ public class AddBlocksMenu implements Listener {
 
     @EventHandler
     public void onInventoryClose(InventoryCloseEvent event) {
-        if (!ChatColor.translateAlternateColorCodes('&', event.getView().getTitle()).equals(name)) return;
+        if (!event.getView().title().equals(name)) return;
         
         Inventory inv = event.getInventory();
         Player player = (Player) event.getPlayer();

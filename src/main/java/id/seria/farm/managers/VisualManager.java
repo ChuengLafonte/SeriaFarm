@@ -1,12 +1,17 @@
 package id.seria.farm.managers;
 
 import id.seria.farm.SeriaFarmPlugin;
+import id.seria.farm.inventory.utils.StaticColors;
 import id.seria.farm.listeners.WandListener;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.title.Title;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Particle;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.scheduler.BukkitRunnable;
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -120,42 +125,61 @@ public class VisualManager {
     }
 
     public void showGrowthInfo(Player player, id.seria.farm.models.RegenBlock regen) {
-        long now = System.currentTimeMillis();
-        long total = regen.getRestoreTime() - regen.getStartTime();
-        long passed = now - regen.getStartTime();
+        String region = plugin.getRegenManager().getRegionAt(regen.getLocation());
         
-        // Safety check for total time
-        if (total <= 0) total = 1;
+        // Debug Logging
+        Bukkit.getLogger().info("[SeriaFarm Debug] showGrowthInfo called for " + regen.getLocation() + " | Region: " + region);
 
-        double progress = Math.min(1.0, (double) passed / total);
-        int percent = (int) (progress * 100);
-        long remainingSec = Math.max(0, (regen.getRestoreTime() - now) / 1000);
-
-        String bar = getProgressBar(percent, 10);
-        String msg = plugin.getConfigManager().getMessage("growth-info-actionbar")
-                .replace("%progress_bar%", bar)
-                .replace("%percent%", String.valueOf(percent))
-                .replace("%time%", String.valueOf(remainingSec));
-        
-        if (regen.getMaxStage() > 0) {
-            msg = msg.replace("%stage%", String.valueOf(regen.getCurrentStage()))
-                     .replace("%max_stage%", String.valueOf(regen.getMaxStage()));
-        } else {
-            // Clean up placeholders if not in vanilla mode
-            msg = msg.replace("%stage%", "").replace("%max_stage%", "");
+        // Check if inside a region
+        if (region != null) {
+            return; // No progress display for regions as requested
         }
 
-        // Send using Spigot ActionBar API
-        player.sendActionBar(org.bukkit.ChatColor.translateAlternateColorCodes('&', msg));
+        long now = System.currentTimeMillis();
+        long remainingSec = Math.max(0, (regen.getRestoreTime() - now) / 1000);
+        long minutes = remainingSec / 60;
+        long seconds = remainingSec % 60;
+        String timeStr = String.format("%02dm:%02ds", minutes, seconds);
+
+        // Title format using requested HEX color #54F47F
+        Component title = StaticColors.getHexMsg("&#54F47FTime " + timeStr);
+        
+        // Subtitle: Material display name
+        Component subtitle = getMaterialDisplayName(regen.getMaterialKey());
+
+        // Send Title and Subtitle (Stay for 1 second, no fade for snappiness)
+        player.showTitle(Title.title(title, subtitle, Title.Times.times(Duration.ZERO, Duration.ofSeconds(1), Duration.ofMillis(250))));
     }
 
-    private String getProgressBar(int percent, int totalBars) {
-        int filled = Math.min(totalBars, percent / (100 / totalBars));
-        StringBuilder sb = new StringBuilder("&a");
-        for (int i = 0; i < totalBars; i++) {
-            if (i == filled) sb.append("&7"); // Color for the remaining bar
-            sb.append("|");
+    private Component getMaterialDisplayName(String materialKey) {
+        if (materialKey == null) return Component.text("Unknown");
+        
+        // 1. Check config (materials.yml) for custom display-name
+        org.bukkit.configuration.ConfigurationSection config = plugin.getConfigManager().getConfig("materials.yml").getConfigurationSection("blocks." + materialKey);
+        if (config != null && config.contains("display-name")) {
+            return StaticColors.getHexMsg(config.getString("display-name"));
         }
-        return sb.toString();
+
+        // 2. Extract identifier for HookManager (e.g., global.wheat -> wheat)
+        String id = materialKey;
+        if (id.contains(".")) {
+            id = id.substring(id.lastIndexOf(".") + 1);
+        }
+
+        // 3. Check HookManager for custom items (MMOItems, ItemsAdder, etc.)
+        ItemStack item = plugin.getHookManager().getItem(id);
+        if (item != null && item.hasItemMeta() && item.getItemMeta().hasDisplayName()) {
+            return item.getItemMeta().displayName();
+        }
+
+        // 4. Fallback for vanilla: Prettify key
+        String name = id.replace("_", " ").toLowerCase();
+        StringBuilder sb = new StringBuilder();
+        for (String word : name.split(" ")) {
+            if (word.length() > 0) {
+                sb.append(Character.toUpperCase(word.charAt(0))).append(word.substring(1)).append(" ");
+            }
+        }
+        return Component.text(sb.toString().trim());
     }
 }

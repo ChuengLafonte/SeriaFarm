@@ -5,8 +5,8 @@ import id.seria.farm.inventory.MainMenu;
 import id.seria.farm.inventory.utils.InvUtils;
 import id.seria.farm.inventory.utils.StaticColors;
 import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
 import org.bukkit.Material;
+import net.kyori.adventure.text.Component;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -17,7 +17,7 @@ import org.bukkit.inventory.ItemStack;
 
 public class ToggleMenu implements Listener {
 
-    private final String name = StaticColors.getHexMsg("&#cf8ff7&lToggle Menu");
+    private final Component name = StaticColors.getHexMsg("&#cf8ff7&lToggle Menu");
     private final SeriaFarmPlugin plugin;
 
     public ToggleMenu(SeriaFarmPlugin plugin) {
@@ -25,7 +25,7 @@ public class ToggleMenu implements Listener {
     }
 
     public Inventory togglemenu(Player player) {
-        Inventory inventory = Bukkit.createInventory(player, 54, this.name);
+        Inventory inventory = Bukkit.createInventory(null, 54, this.name);
         FileConfiguration config = plugin.getConfigManager().getConfig("config.yml");
 
         // Slot 11: Enable / Disable
@@ -55,10 +55,28 @@ public class ToggleMenu implements Listener {
             "", 
             "&eCurrent: " + (growthMode.equalsIgnoreCase("INSTANT") ? "&b&lINSTANT" : "&e&lVANILLA")));
 
+        // Slot 19: Global Right-Click Harvest
+        boolean globalRightClick = config.getBoolean("settings.global-right-click-harvest", true);
+        inventory.setItem(19, InvUtils.createItemStacks(Material.WOODEN_HOE, 
+            StaticColors.getHexMsg("&#cf8ff7Global Right-Click Harvest"), 
+            "&7Enable harvesting by right-click", 
+            "&7on blocks outside regions.", 
+            "", 
+            "&eStatus: " + (globalRightClick ? "&aEnabled" : "&cDisabled")));
+
+        // Slot 21: Global Replant
+        boolean globalReplant = config.getBoolean("settings.global-replant", true);
+        inventory.setItem(21, InvUtils.createItemStacks(Material.DIAMOND_HOE, 
+            StaticColors.getHexMsg("&#cf8ff7Global Replant"), 
+            "&7Automatically replant crops", 
+            "&7outside regions after harvest.", 
+            "", 
+            "&eStatus: " + (globalReplant ? "&aEnabled" : "&cDisabled")));
+
         inventory.setItem(53, InvUtils.createItemStacks(Material.BARRIER, "&cClose | Exit", "", "&7Closes the current GUI"));
 
         ItemStack purpleGlass = InvUtils.createItemStacks(Material.PURPLE_STAINED_GLASS_PANE, " ", "", "");
-        for (int n : new int[]{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 17, 18, 26, 27, 35, 36, 44, 46, 47, 48, 49, 50, 51, 52}) {
+        for (int n : new int[]{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 17, 18, 20, 26, 27, 35, 36, 44, 46, 47, 48, 49, 50, 51, 52}) {
             inventory.setItem(n, purpleGlass);
         }
         
@@ -67,7 +85,7 @@ public class ToggleMenu implements Listener {
 
     @EventHandler
     public void oninvcclick(InventoryClickEvent event) {
-        if (!ChatColor.translateAlternateColorCodes('&', event.getView().getTitle()).equals(this.name)) return;
+        if (!event.getView().title().equals(this.name)) return;
         
         event.setCancelled(true);
         Player player = (Player) event.getWhoClicked();
@@ -91,6 +109,16 @@ public class ToggleMenu implements Listener {
                 String current = config.getString("settings.crop-growth-mode", "INSTANT");
                 String next = current.equalsIgnoreCase("INSTANT") ? "VANILLA" : "INSTANT";
                 config.set("settings.crop-growth-mode", next);
+                plugin.getConfigManager().saveConfig("config.yml");
+                player.openInventory(togglemenu(player));
+                break;
+            case 19:
+                config.set("settings.global-right-click-harvest", !config.getBoolean("settings.global-right-click-harvest", true));
+                plugin.getConfigManager().saveConfig("config.yml");
+                player.openInventory(togglemenu(player));
+                break;
+            case 21:
+                config.set("settings.global-replant", !config.getBoolean("settings.global-replant", true));
                 plugin.getConfigManager().saveConfig("config.yml");
                 player.openInventory(togglemenu(player));
                 break;

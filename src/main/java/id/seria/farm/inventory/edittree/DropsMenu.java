@@ -16,6 +16,8 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
+import net.kyori.adventure.text.Component;
+import static id.seria.farm.SeriaFarmPlugin.MINI_MESSAGE;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -32,7 +34,7 @@ public class DropsMenu implements Listener {
     }
 
     public void open(Player player, String matName, String regionName, String fullPath) {
-        Inventory inv = Bukkit.createInventory(player, 54, StaticColors.getHexMsg("&#9370db&lCustom Drops Editor"));
+        Inventory inv = Bukkit.createInventory(null, 54, StaticColors.getHexMsg("&#9370db&lCustom Drops Editor"));
         
         // Setup border and controls
         ItemStack glass = InvUtils.createItemStacks(Material.PURPLE_STAINED_GLASS_PANE, " ", "");
@@ -85,17 +87,17 @@ public class DropsMenu implements Listener {
     private void updateLore(ItemStack item, double chance) {
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
-            List<String> lore = meta.hasLore() ? meta.getLore() : new ArrayList<>();
+            List<Component> lore = meta.hasLore() ? meta.lore() : new ArrayList<>();
             // Clean up old chance lore if exists
-            lore.removeIf(line -> line.contains("Chance:"));
-            lore.removeIf(line -> line.contains("Click to"));
+            lore.removeIf(line -> MINI_MESSAGE.serialize(line).contains("Chance:"));
+            lore.removeIf(line -> MINI_MESSAGE.serialize(line).contains("Click to"));
             
-            lore.add("");
+            lore.add(Component.empty());
             lore.add(StaticColors.getHexMsg("&eChance: &f" + chance + "%"));
-            lore.add("");
+            lore.add(Component.empty());
             lore.add(StaticColors.getHexMsg("&7Click to &6Change Chance"));
             lore.add(StaticColors.getHexMsg("&7Right Click to &cRemove"));
-            meta.setLore(lore);
+            meta.lore(lore);
             meta.getPersistentDataContainer().set(SeriaFarmPlugin.chanceKey, PersistentDataType.DOUBLE, chance);
             item.setItemMeta(meta);
         }
@@ -103,7 +105,7 @@ public class DropsMenu implements Listener {
 
     @EventHandler
     public void onInventoryClick(InventoryClickEvent event) {
-        if (!event.getView().getTitle().contains("Drops Editor")) return;
+        if (!MINI_MESSAGE.serialize(event.getView().title()).contains("Drops Editor")) return;
         
         int slot = event.getRawSlot();
         ItemStack clicked = event.getCurrentItem();
@@ -161,9 +163,14 @@ public class DropsMenu implements Listener {
         String[] parts = data.split("\\|");
         String matName = parts[0];
         String regionName = parts[1];
-        YamlConfiguration config = (YamlConfiguration) plugin.getConfigManager().getConfig("materials.yml");
-        File file = plugin.getConfigManager().getConfigFile("materials.yml");
-        player.openInventory(new EditMenu(plugin).emenu(player, config, matName, file, regionName));
+        
+        if (regionName.equalsIgnoreCase("global")) {
+            player.openInventory(new id.seria.farm.inventory.maintree.GlobalBlockEditMenu(plugin).open(player, matName));
+        } else {
+            YamlConfiguration config = (YamlConfiguration) plugin.getConfigManager().getConfig("materials.yml");
+            File file = plugin.getConfigManager().getConfigFile("materials.yml");
+            player.openInventory(new EditMenu(plugin).emenu(player, config, matName, file, regionName));
+        }
     }
 
     private void saveData(Player player, Inventory inv) {
@@ -184,12 +191,12 @@ public class DropsMenu implements Listener {
                             .getOrDefault(SeriaFarmPlugin.chanceKey, PersistentDataType.DOUBLE, 100.0);
                     
                     // Cleanup lore for storage
-                    List<String> lore = meta.getLore();
+                    List<Component> lore = meta.hasLore() ? meta.lore() : new ArrayList<>();
                     if (lore != null) {
-                        lore.removeIf(line -> line.contains("Chance:"));
-                        lore.removeIf(line -> line.contains("Click to"));
-                        if (lore.size() > 0 && lore.get(lore.size()-1).isEmpty()) lore.remove(lore.size()-1);
-                        meta.setLore(lore);
+                        lore.removeIf(line -> MINI_MESSAGE.serialize(line).contains("Chance:"));
+                        lore.removeIf(line -> MINI_MESSAGE.serialize(line).contains("Click to"));
+                        if (lore.size() > 0 && MINI_MESSAGE.serialize(lore.get(lore.size()-1)).isEmpty()) lore.remove(lore.size()-1);
+                        meta.lore(lore);
                         item.setItemMeta(meta);
                     }
                 }

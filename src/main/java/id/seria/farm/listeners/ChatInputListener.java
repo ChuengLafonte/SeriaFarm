@@ -3,12 +3,12 @@ package id.seria.farm.listeners;
 import id.seria.farm.SeriaFarmPlugin;
 import id.seria.farm.inventory.utils.StaticColors;
 import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
+import io.papermc.paper.event.player.AsyncChatEvent;
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.event.Listener;
-import org.bukkit.event.player.AsyncPlayerChatEvent;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -33,7 +33,6 @@ public class ChatInputListener implements Listener {
 
     public static void requestInput(Player player, String title, String format, Consumer<String> callback, Runnable onCancel) {
         player.closeInventory();
-        String prefix = SeriaFarmPlugin.getInstance().getConfig().getString("settings.prefix", "&6&lSeriaFarm &8»");
         
         player.sendMessage(StaticColors.getHexMsg("\n&e&l" + title));
         player.sendMessage(StaticColors.getHexMsg("&7Type &c&lCancel &7to exit."));
@@ -47,22 +46,21 @@ public class ChatInputListener implements Listener {
     }
 
     @EventHandler(priority = EventPriority.LOWEST)
-    public void onChat(AsyncPlayerChatEvent event) {
+    public void onChat(AsyncChatEvent event) {
         Player player = event.getPlayer();
         if (inputQueue.containsKey(player.getUniqueId())) {
             event.setCancelled(true);
-            String message = event.getMessage();
+            String message = PlainTextComponentSerializer.plainText().serialize(event.originalMessage());
             
             if (message.equalsIgnoreCase("cancel")) {
                 InputContext ctx = inputQueue.remove(player.getUniqueId());
-                String prefix = SeriaFarmPlugin.getInstance().getConfig().getString("settings.prefix", "&6&lSeriaFarm &8»");
-                player.sendMessage(StaticColors.getHexMsg(prefix + " &cInput cancelled."));
+                player.sendMessage(StaticColors.getHexMsg("&cInput cancelled."));
                 if (ctx.onCancel != null) {
                     Bukkit.getScheduler().runTask(SeriaFarmPlugin.getInstance(), ctx.onCancel);
                 }
                 return;
             }
-
+ 
             InputContext ctx = inputQueue.remove(player.getUniqueId());
             Bukkit.getScheduler().runTask(SeriaFarmPlugin.getInstance(), () -> ctx.callback.accept(message));
         }

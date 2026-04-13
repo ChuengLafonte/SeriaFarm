@@ -16,6 +16,8 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
+import net.kyori.adventure.text.Component;
+import static id.seria.farm.SeriaFarmPlugin.MINI_MESSAGE;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -31,7 +33,7 @@ public class ReplaceBlockMenu implements Listener {
 
     public void open(Player player, String matName, String regionName, String configKey, String fullPath) {
         String displayTitle = configKey.contains("delay") ? "Delay Block Editor" : "Replace Block Editor";
-        Inventory inv = Bukkit.createInventory(player, 54, StaticColors.getHexMsg("&#9370db&l" + displayTitle));
+        Inventory inv = Bukkit.createInventory(null, 54, StaticColors.getHexMsg("&#9370db&l" + displayTitle));
         
         // Setup border and controls
         ItemStack glass = InvUtils.createItemStacks(Material.PURPLE_STAINED_GLASS_PANE, " ", "");
@@ -83,13 +85,13 @@ public class ReplaceBlockMenu implements Listener {
     private void updateLore(ItemStack item, double chance) {
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
-            List<String> lore = new ArrayList<>();
-            lore.add("");
+            List<Component> lore = new ArrayList<>();
+            lore.add(Component.empty());
             lore.add(StaticColors.getHexMsg("&eChance: &f" + chance + "%"));
-            lore.add("");
+            lore.add(Component.empty());
             lore.add(StaticColors.getHexMsg("&7Click to &6Change Chance"));
             lore.add(StaticColors.getHexMsg("&7Right Click to &cRemove"));
-            meta.setLore(lore);
+            meta.lore(lore);
             meta.getPersistentDataContainer().set(SeriaFarmPlugin.chanceKey, PersistentDataType.DOUBLE, chance);
             item.setItemMeta(meta);
         }
@@ -97,7 +99,7 @@ public class ReplaceBlockMenu implements Listener {
 
     @EventHandler
     public void onInventoryClick(InventoryClickEvent event) {
-        if (!event.getView().getTitle().contains("Editor")) return;
+        if (!MINI_MESSAGE.serialize(event.getView().title()).contains("Editor")) return;
         
         int slot = event.getRawSlot();
         ItemStack clicked = event.getCurrentItem();
@@ -154,9 +156,14 @@ public class ReplaceBlockMenu implements Listener {
         String[] parts = data.split("\\|");
         String matName = parts[0];
         String regionName = parts[1];
-        YamlConfiguration config = (YamlConfiguration) plugin.getConfigManager().getConfig("materials.yml");
-        File file = plugin.getConfigManager().getConfigFile("materials.yml");
-        player.openInventory(new EditMenu(plugin).emenu(player, config, matName, file, regionName));
+        
+        if (regionName.equalsIgnoreCase("global")) {
+            player.openInventory(new id.seria.farm.inventory.maintree.GlobalBlockEditMenu(plugin).open(player, matName));
+        } else {
+            YamlConfiguration config = (YamlConfiguration) plugin.getConfigManager().getConfig("materials.yml");
+            File file = plugin.getConfigManager().getConfigFile("materials.yml");
+            player.openInventory(new EditMenu(plugin).emenu(player, config, matName, file, regionName));
+        }
     }
 
     private void saveData(Player player, Inventory inv) {

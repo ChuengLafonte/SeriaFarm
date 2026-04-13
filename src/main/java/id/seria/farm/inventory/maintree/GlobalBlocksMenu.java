@@ -7,8 +7,8 @@ import id.seria.farm.inventory.utils.PageUtil;
 import id.seria.farm.inventory.utils.StaticColors;
 import id.seria.farm.inventory.MainMenu;
 import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
 import org.bukkit.Material;
+import net.kyori.adventure.text.Component;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
@@ -17,31 +17,57 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
+import org.jetbrains.annotations.NotNull;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 
-public class GlobalBlocksMenu implements Listener {
+public class GlobalBlocksMenu implements Listener, InventoryHolder {
     private final SeriaFarmPlugin plugin;
-    private final String name = StaticColors.getHexMsg("&#fbca00&lPlant Catalog");
+    private final Component name = StaticColors.getHexMsg("&#2ecc71&lFarm Species Wiki");
+    private int page;
 
     public GlobalBlocksMenu(SeriaFarmPlugin plugin) {
         this.plugin = plugin;
     }
 
+    public int getPage() { return page; }
+
     public Inventory blockmenu(Player player, int page) {
-        Inventory inventory = Bukkit.createInventory(player, 54, this.name);
+        this.page = page;
+        Inventory inventory = Bukkit.createInventory(this, 54, this.name);
         YamlConfiguration config = (YamlConfiguration) plugin.getConfigManager().getConfig("materials.yml");
         
-        // Navigation & Admin Icons (LiteFarm Style)
-        inventory.setItem(48, InvUtils.createItemStacks(Material.ARROW, StaticColors.getHexMsg("&aPrevious Page"), "&7Go back", ""));
-        inventory.setItem(49, InvUtils.createItemStacks(Material.BOOK, StaticColors.getHexMsg("&#fbca00&lCatalog Information"), "&7Viewing: &fGlobal Materials", "&7Total Plants: &f" + getGlobalCount(config)));
-        inventory.setItem(50, InvUtils.createItemStacks(Material.ARROW, StaticColors.getHexMsg("&aNext Page"), "&7Go forward", ""));
+        // Navigation & Info (Modern Wiki Style)
+        inventory.setItem(48, InvUtils.createItemStacks(Material.ARROW, StaticColors.getHexMsg("&#2ecc71&l« Previous"), "&7Go back to the last page.", ""));
         
-        inventory.setItem(45, InvUtils.createItemStacks(Material.WRITABLE_BOOK, StaticColors.getHexMsg("&#93cfec&lAdd New Plant"), "&7Click to register a new", "&7global farming material.", "", "&eRight-click to browse templates"));
-        inventory.setItem(53, InvUtils.createItemStacks(Material.BARRIER, StaticColors.getHexMsg("&cBack"), "&7Return to Region Menu", ""));
+        ItemStack info = InvUtils.createItemStacks(Material.KNOWLEDGE_BOOK, StaticColors.getHexMsg("&#2ecc71&lFarm Wiki Info"), 
+            "&7Viewing: &fGlobal Species", 
+            "&7Registered Plants: &f" + getGlobalCount(config),
+            "&7Current Page: &f#" + page,
+            "",
+            "&7Discover all the plants and their",
+            "&7growth properties in this catalog.");
+        inventory.setItem(49, info);
+        
+        inventory.setItem(50, InvUtils.createItemStacks(Material.ARROW, StaticColors.getHexMsg("&#2ecc71&lNext »"), "&7Advance to the next page.", ""));
+        
+        if (player.hasPermission("seriafarm.admin")) {
+            inventory.setItem(45, InvUtils.createItemStacks(Material.WRITABLE_BOOK, StaticColors.getHexMsg("&#93cfec&lAdd New Species"), 
+                "&7Click to register a new", 
+                "&7global farming material.", 
+                "", 
+                "&eAdmin Feature"));
+        } else {
+            inventory.setItem(45, InvUtils.createItemStacks(Material.SUNFLOWER, StaticColors.getHexMsg("&#fbca00&lFarm Statistics"), 
+                "&7Total Varieties: &f" + getGlobalCount(config),
+                "&7Global Market Root: &fOnline"));
+        }
+        
+        inventory.setItem(53, InvUtils.createItemStacks(Material.BARRIER, StaticColors.getHexMsg("&cClose Menu"), "&7Exit the wiki", ""));
 
         ConfigurationSection globalSection = config.getConfigurationSection("blocks.global");
         List<String> materials = new ArrayList<>();
@@ -51,8 +77,8 @@ public class GlobalBlocksMenu implements Listener {
         
         materials.sort(Comparator.naturalOrder());
 
-        // Fillers (Orange/Gold for Catalog)
-        ItemStack glass = InvUtils.createItemStacks(Material.ORANGE_STAINED_GLASS_PANE, " ", "", "");
+        // Fillers (Sleek Green/Emerald theme for Farm Wiki)
+        ItemStack glass = InvUtils.createItemStacks(Material.LIME_STAINED_GLASS_PANE, " ", "", "");
         for (int n : new int[]{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 17, 18, 26, 27, 35, 36, 44, 46, 47, 51, 52}) {
             inventory.setItem(n, glass);
         }
@@ -61,23 +87,56 @@ public class GlobalBlocksMenu implements Listener {
         int slot = 10;
         List<Integer> skipSlots = Arrays.asList(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 17, 18, 26, 27, 35, 36, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53);
         
-        for (String matKey : PageUtil.getpageitems(materials, page, 21)) { // Adjusted for a cleaner grid
+        for (String matKey : PageUtil.getpageitems(materials, page, 21)) {
             while (skipSlots.contains(slot)) slot++;
             if (slot >= 44) break;
 
             String materialKey = matKey.split(":")[1];
-            int xp = config.getInt("blocks.global." + materialKey + ".rewards.xp", 0);
+            String path = "blocks.global." + materialKey;
             
+            int xp = config.getInt(path + ".rewards.xp", 0);
+            int delay = config.getInt(path + ".regen-delay", 20);
+            ConfigurationSection rewards = config.getConfigurationSection(path + ".rewards");
+            int dropsCount = (rewards != null) ? rewards.getKeys(false).size() : 0;
+            if (rewards != null && rewards.contains("xp")) dropsCount--;
+
+            // Rarity Logic
+            String rarity = "&#2ecc71Common";
+            if (delay >= 120) rarity = "&#f1c40fLegendary";
+            else if (delay >= 60) rarity = "&#9b59b6Epic";
+            else if (delay >= 30) rarity = "&#3498dbRare";
+
+            // Popularity Logic (Dummy based on material name hash for variety)
+            int popularityScore = Math.abs(materialKey.hashCode() % 100);
+            String popularity = popularityScore > 80 ? "&aHighly Popular" : (popularityScore > 40 ? "&eTrending" : "&7Stable");
+
             ItemStack icon = plugin.getHookManager().getItem(materialKey);
+            if (icon.getType() == Material.STONE && !materialKey.equalsIgnoreCase("STONE")) {
+                // Warning lore if material is invalid
+                icon = new ItemStack(Material.BARRIER);
+            }
+            List<Object> lore = new ArrayList<>(Arrays.asList(
+                "&8World Species • Wiki",
+                "",
+                StaticColors.getHexMsg("&#E7CBB3Rarity: " + rarity),
+                StaticColors.getHexMsg("&#E7CBB3Popularity: " + popularity),
+                "",
+                StaticColors.getHexMsg("&#E7CBB3Growth Duration: &f" + delay + "s"),
+                StaticColors.getHexMsg("&#E7CBB3XP Reward: &f" + xp),
+                StaticColors.getHexMsg("&#E7CBB3Unique Drops: &f" + Math.max(0, dropsCount)),
+                ""
+            ));
+
+            if (player.hasPermission("seriafarm.admin")) {
+                lore.add("&eClick to Edit Settings");
+                lore.add("&cShift-Click to Remove");
+            } else {
+                lore.add("&7Discover this plant in the fields!");
+            }
+
             ItemStack item = InvUtils.applyMeta(icon, 
-                StaticColors.getHexMsg("&#fbca00" + materialKey.replace("_", " ")), 
-                StaticColors.getHexMsg("&#E7CBB3Level: &f1"), // Placeholder for growth level
-                StaticColors.getHexMsg("&#E7CBB3Harvested: &f0"), // Placeholder for stats
-                StaticColors.getHexMsg("&#E7CBB3Chance: &f100%"), // Placeholder for chance
-                StaticColors.getHexMsg("&#E7CBB3EXP: &f" + xp),
-                "", 
-                "&7Click to &eEdit Settings", 
-                "&7Shift-Click to &cRemove");
+                StaticColors.getHexMsg("&#2ecc71&l" + materialKey.replace("_", " ")), 
+                lore.toArray());
             
             LocalizedName.set(item, matKey);
             inventory.setItem(slot, item);
@@ -93,24 +152,57 @@ public class GlobalBlocksMenu implements Listener {
     }
 
 
+    @Override
+    public @NotNull Inventory getInventory() {
+        return null; // Holder identification only
+    }
+
     @EventHandler
     public void oninvcclick(InventoryClickEvent event) {
-        if (!ChatColor.translateAlternateColorCodes('&', event.getView().getTitle()).equals(this.name)) return;
+        String title = SeriaFarmPlugin.MINI_MESSAGE.serialize(event.getView().title());
+        boolean isHolder = event.getInventory().getHolder() instanceof GlobalBlocksMenu;
+        boolean isTitle = title.contains("Farm Species Wiki");
+
+        if (!isHolder && !isTitle) return;
+
         event.setCancelled(true);
+        Player player = (Player) event.getWhoClicked();
         
+        // Debug Logging
+        Bukkit.getLogger().info("[SeriaFarm Debug] Click detected in GlobalBlocksMenu. Slot: " + event.getRawSlot() + " | Title Match: " + isTitle + " | Holder Match: " + isHolder);
+
         if (event.getRawSlot() >= 54) return;
         ItemStack clicked = event.getCurrentItem();
-        if (clicked == null || clicked.getType() == Material.AIR || clicked.getType() == Material.ORANGE_STAINED_GLASS_PANE) return;
-
-        Player player = (Player) event.getWhoClicked();
+        if (clicked == null || clicked.getType() == Material.AIR || clicked.getType() == Material.LIME_STAINED_GLASS_PANE) return;
 
         if (event.getRawSlot() == 53) {
-            player.openInventory(new MainMenu(plugin).mainmenu(player));
+            // Close the menu or go back to main menu
+            player.closeInventory();
+            return;
+        }
+
+        if (event.getRawSlot() == 45 && player.hasPermission("seriafarm.admin")) {
+            // Open standard AddBlocksMenu for global
+            Bukkit.getScheduler().runTask(plugin, () -> player.openInventory(new id.seria.farm.inventory.addtree.AddBlocksMenu().addblocks_menu(player, "global")));
+            return;
+        }
+
+        // Pagination handling
+        GlobalBlocksMenu holder = (GlobalBlocksMenu) event.getInventory().getHolder();
+        int currentPage = holder.getPage();
+        if (event.getRawSlot() == 48) {
+            Bukkit.getScheduler().runTask(plugin, () -> player.openInventory(blockmenu(player, Math.max(1, currentPage - 1))));
+            return;
+        }
+        if (event.getRawSlot() == 50) {
+            Bukkit.getScheduler().runTask(plugin, () -> player.openInventory(blockmenu(player, currentPage + 1)));
             return;
         }
 
         String matName = LocalizedName.get(clicked);
         if (matName != null && matName.startsWith("global:")) {
+            if (!player.hasPermission("seriafarm.admin")) return;
+
             YamlConfiguration matConfig = (YamlConfiguration) plugin.getConfigManager().getConfig("materials.yml");
             
             if (event.getClick() == ClickType.SHIFT_LEFT || event.getClick() == ClickType.SHIFT_RIGHT) {
@@ -119,10 +211,10 @@ public class GlobalBlocksMenu implements Listener {
                 matConfig.set("blocks.global." + subKey, null);
                 plugin.getConfigManager().saveConfig("materials.yml");
                 player.sendMessage(StaticColors.getHexMsg("&6&lSeriaFarm &8» &cDeleted Global &f" + subKey));
-                player.openInventory(blockmenu(player, 1));
+                Bukkit.getScheduler().runTask(plugin, () -> player.openInventory(blockmenu(player, 1)));
             } else {
                 // Edit Logic (Wiki Adaptation)
-                player.openInventory(new id.seria.farm.inventory.maintree.GlobalBlockEditMenu(plugin).open(player, matName));
+                Bukkit.getScheduler().runTask(plugin, () -> player.openInventory(new id.seria.farm.inventory.maintree.GlobalBlockEditMenu(plugin).open(player, matName)));
             }
         }
     }

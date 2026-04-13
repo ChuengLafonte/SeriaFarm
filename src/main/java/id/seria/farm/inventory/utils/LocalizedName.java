@@ -20,6 +20,7 @@ public class LocalizedName {
     }
 
     public static String get(ItemStack itemStack) {
+        if (itemStack == null) return "0";
         PersistentDataContainer persistentDataContainer;
         String string = "0";
         NamespacedKey namespacedKey = SeriaFarmPlugin.key;
