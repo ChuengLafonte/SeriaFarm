@@ -97,7 +97,7 @@ public class PreRegionMenu implements Listener, InventoryHolder {
         Player player = (Player) event.getWhoClicked();
         
         // Debug Logging
-        Bukkit.getLogger().info("[SeriaFarm Debug] Click detected in PreRegionMenu. Slot: " + event.getRawSlot() + " | Title Match: " + isTitle + " | Holder Match: " + isHolder);
+        
 
         PreRegionMenu holder;
         if (isHolder) {
@@ -109,7 +109,7 @@ public class PreRegionMenu implements Listener, InventoryHolder {
 
         final String regionName = holder.getRegionName();
         if (regionName == null || regionName.isEmpty()) {
-            Bukkit.getLogger().warning("[SeriaFarm Debug] regionName is null in PreRegionMenu!");
+        
             return;
         }
 
@@ -141,7 +141,7 @@ public class PreRegionMenu implements Listener, InventoryHolder {
                 saveAndRefresh(player, regionName);
                 break;
             case 24: // Edit Blocks
-                YamlConfiguration mConfig = (YamlConfiguration) plugin.getConfigManager().getConfig("materials.yml");
+                YamlConfiguration mConfig = (YamlConfiguration) plugin.getConfigManager().getConfig("crops.yml");
                 Bukkit.getScheduler().runTask(plugin, () -> player.openInventory(new id.seria.farm.inventory.edittree.BlockMenu(plugin).blockmenu(player, 1, mConfig, regionName)));
                 break;
             case 31: // SCAN REGION
@@ -197,8 +197,8 @@ public class PreRegionMenu implements Listener, InventoryHolder {
             Material.AIR, Material.CAVE_AIR, Material.VOID_AIR, Material.BEDROCK, Material.BARRIER, Material.WATER, Material.LAVA
         ));
 
-        YamlConfiguration matConfig = (YamlConfiguration) plugin.getConfigManager().getConfig("materials.yml");
-        String blocksPath = "blocks." + regionName;
+        YamlConfiguration matConfig = (YamlConfiguration) plugin.getConfigManager().getConfig("crops.yml");
+        String blocksPath = "crops." + regionName;
         int count = 0;
 
         for (Material mat : found) {
@@ -229,7 +229,7 @@ public class PreRegionMenu implements Listener, InventoryHolder {
         }
 
         if (count > 0) {
-            plugin.getConfigManager().saveConfig("materials.yml");
+            plugin.getConfigManager().saveConfig("crops.yml");
             player.sendMessage(StaticColors.getHexMsg("&6&lSeriaFarm &8» &aSuccessfully added &f" + count + " &anew materials to the region!"));
         } else {
             player.sendMessage(StaticColors.getHexMsg("&6&lSeriaFarm &8» &eNo new materials found to add."));

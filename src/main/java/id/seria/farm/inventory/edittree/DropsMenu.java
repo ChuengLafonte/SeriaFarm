@@ -25,7 +25,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class DropsMenu implements Listener {
+import org.bukkit.inventory.InventoryHolder;
+import org.jetbrains.annotations.NotNull;
+
+public class DropsMenu implements Listener, InventoryHolder {
 
     private final SeriaFarmPlugin plugin;
 
@@ -34,7 +37,7 @@ public class DropsMenu implements Listener {
     }
 
     public void open(Player player, String matName, String regionName, String fullPath) {
-        Inventory inv = Bukkit.createInventory(null, 54, StaticColors.getHexMsg("&#9370db&lCustom Drops Editor"));
+        Inventory inv = Bukkit.createInventory(this, 54, StaticColors.getHexMsg("&#9370db&lCustom Drops Editor"));
         
         // Setup border and controls
         ItemStack glass = InvUtils.createItemStacks(Material.PURPLE_STAINED_GLASS_PANE, " ", "");
@@ -51,7 +54,7 @@ public class DropsMenu implements Listener {
         inv.setItem(49, info);
 
         // Load existing data
-        YamlConfiguration config = (YamlConfiguration) plugin.getConfigManager().getConfig("materials.yml");
+        YamlConfiguration config = (YamlConfiguration) plugin.getConfigManager().getConfig("crops.yml");
         List<?> drops = config.getList(fullPath + ".rewards.drops");
         
         int slot = 10;
@@ -66,7 +69,8 @@ public class DropsMenu implements Listener {
                         while (isBorder(slot)) slot++;
                         if (slot >= 44) break;
                         
-                        updateLore(item, chance);
+                        String weight = map.containsKey("weight") ? String.valueOf(map.get("weight")) : null;
+                        updateLore(item, chance, weight);
                         inv.setItem(slot, item);
                         slot++;
                     }
@@ -84,74 +88,149 @@ public class DropsMenu implements Listener {
         return false;
     }
 
-    private void updateLore(ItemStack item, double chance) {
+    private void updateLore(ItemStack item, double chance, String weight) {
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
             List<Component> lore = meta.hasLore() ? meta.lore() : new ArrayList<>();
-            // Clean up old chance lore if exists
+            // Clean up old chance/weight lore if exists
             lore.removeIf(line -> MINI_MESSAGE.serialize(line).contains("Chance:"));
+            lore.removeIf(line -> MINI_MESSAGE.serialize(line).contains("Weight:"));
             lore.removeIf(line -> MINI_MESSAGE.serialize(line).contains("Click to"));
             
             lore.add(Component.empty());
             lore.add(StaticColors.getHexMsg("&eChance: &f" + chance + "%"));
+            if (weight != null) {
+                lore.add(StaticColors.getHexMsg("&bWeight: &f" + weight));
+            }
             lore.add(Component.empty());
-            lore.add(StaticColors.getHexMsg("&7Click to &6Change Chance"));
-            lore.add(StaticColors.getHexMsg("&7Right Click to &cRemove"));
+            lore.add(StaticColors.getHexMsg("&7Left Click: &6Change Chance"));
+            lore.add(StaticColors.getHexMsg("&7Shift-Left Click: &bSet Weight"));
+            lore.add(StaticColors.getHexMsg("&7Right Click: &cRemove"));
             meta.lore(lore);
             meta.getPersistentDataContainer().set(SeriaFarmPlugin.chanceKey, PersistentDataType.DOUBLE, chance);
+            if (weight != null) {
+                meta.getPersistentDataContainer().set(SeriaFarmPlugin.weightKey, PersistentDataType.STRING, weight);
+            } else {
+                meta.getPersistentDataContainer().remove(SeriaFarmPlugin.weightKey);
+            }
             item.setItemMeta(meta);
         }
     }
 
+    @Override
+    public @NotNull Inventory getInventory() {
+        return Bukkit.createInventory(this, 54, StaticColors.getHexMsg("&#9370db&lDrops Editor"));
+    }
+
     @EventHandler
     public void onInventoryClick(InventoryClickEvent event) {
-        if (!MINI_MESSAGE.serialize(event.getView().title()).contains("Drops Editor")) return;
+        if (!(event.getInventory().getHolder() instanceof DropsMenu)) return;
         
+        Inventory topInv = event.getInventory();
         int slot = event.getRawSlot();
         ItemStack clicked = event.getCurrentItem();
         Player player = (Player) event.getWhoClicked();
 
-        // Handle buttons
-        if (slot == 50) { // Cancel
+        // 1. Handle Shift Click (Bottom to Top)
+        if (event.isShiftClick() && event.getClickedInventory() == event.getView().getBottomInventory()) {
+            if (clicked != null && clicked.getType() != Material.AIR) {
+                int firstEmpty = -1;
+                for (int i = 10; i < 44; i++) {
+                    if (isBorder(i)) continue;
+                    ItemStack existing = topInv.getItem(i);
+                    if (existing == null || existing.getType() == Material.AIR) {
+                        firstEmpty = i;
+                        break;
+                    }
+                }
+                if (firstEmpty != -1) {
+                    ItemStack dropItem = clicked.clone();
+                    updateLore(dropItem, 100.0, null);
+                    topInv.setItem(firstEmpty, dropItem);
+                    clicked.setAmount(clicked.getAmount() - 1);
+                }
+            }
             event.setCancelled(true);
-            refreshEditMenu(player);
-            return;
-        }
-        
-        if (slot == 48) { // Save
-            event.setCancelled(true);
-            saveData(player, event.getInventory());
-            refreshEditMenu(player);
             return;
         }
 
-        if (isBorder(slot)) {
-            // Allow clicking on player inventory to drag N drop (handled by default but we check slot)
-            if (slot == 49) event.setCancelled(true);
-            return;
+        // 2. Handle Player Inventory Click (Allow)
+        if (event.getClickedInventory() == event.getView().getBottomInventory()) {
+            return; // Standard behavior
         }
 
-        // Interaction logic
-        if (clicked != null && clicked.getType() != Material.AIR && slot < 54) {
-            if (event.isRightClick()) {
-                event.getInventory().setItem(slot, null);
+        // 3. Handle Top Inventory Click
+        if (event.getClickedInventory() == topInv) {
+            // Protect borders and buttons
+            if (isBorder(slot) || slot == 49 || slot >= 54) {
                 event.setCancelled(true);
+                if (slot == 50) refreshEditMenu(player); // Cancel
+                if (slot == 48) { saveData(player, topInv); refreshEditMenu(player); } // Save
                 return;
             }
-            
-            // Left click to change chance
-            event.setCancelled(true);
-            
-            ChatInputListener.requestInput(player, "Set Drop Chance (%)", "Enter a number 0-100", input -> {
-                try {
-                    double chance = Double.parseDouble(input);
-                    updateLore(clicked, chance);
-                    player.openInventory(event.getInventory());
-                } catch (Exception e) {
-                    player.sendMessage(StaticColors.getHexMsg("&6&lSeriaFarm &8» &cInvalid number."));
-                    player.openInventory(event.getInventory());
+
+            // Handle Drag N Drop placement (from cursor)
+            ItemStack cursor = event.getCursor();
+            if (cursor != null && cursor.getType() != Material.AIR) {
+                // Allow placement, but format the item 1 tick later
+                Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                    ItemStack inSlot = topInv.getItem(slot);
+                    if (inSlot != null && inSlot.getType() != Material.AIR) {
+                        double chance = 100.0;
+                        if (inSlot.hasItemMeta()) {
+                            chance = inSlot.getItemMeta().getPersistentDataContainer()
+                                    .getOrDefault(SeriaFarmPlugin.chanceKey, PersistentDataType.DOUBLE, 100.0);
+                        }
+                        updateLore(inSlot, chance, null);
+                    }
+                }, 1L);
+                event.setCancelled(false); // Let the placement happen
+            } else {
+                // Picking up or clicking existing items
+                if (clicked != null && clicked.getType() != Material.AIR) {
+                    if (event.isRightClick()) {
+                        topInv.setItem(slot, null);
+                        event.setCancelled(true);
+                        return;
+                    }
+                    
+                    // Strip lore when picking up
+                    if (event.getAction().name().contains("PICKUP") || event.getAction().name().contains("MOVE_TO_OTHER_INVENTORY")) {
+                        InvUtils.stripTechnicalLore(clicked);
+                        // Let it happen
+                    } else {
+                        event.setCancelled(true);
+                    }
+                    
+                    if (event.isShiftClick() && event.isLeftClick()) {
+                        event.setCancelled(true);
+                        ChatInputListener.requestInput(player, "Set Weight Range (e.g. 0.1-1.0)", "Type 'none' to disable rarity", input -> {
+                            String weight = input.equalsIgnoreCase("none") ? null : input;
+                            double chance = clicked.getItemMeta().getPersistentDataContainer()
+                                    .getOrDefault(SeriaFarmPlugin.chanceKey, PersistentDataType.DOUBLE, 100.0);
+                            updateLore(clicked, chance, weight);
+                            player.openInventory(topInv);
+                        }, () -> player.openInventory(topInv));
+                        return;
+                    }
+                    
+                    if (event.isLeftClick()) {
+                        event.setCancelled(true);
+                        ChatInputListener.requestInput(player, "Set Drop Chance (%)", "Enter a number 0-100", input -> {
+                            try {
+                                double chance = Double.parseDouble(input);
+                                String weight = clicked.getItemMeta().getPersistentDataContainer()
+                                        .get(SeriaFarmPlugin.weightKey, PersistentDataType.STRING);
+                                updateLore(clicked, chance, weight);
+                                player.openInventory(topInv);
+                            } catch (Exception e) {
+                                player.sendMessage(StaticColors.getHexMsg("&6&lSeriaFarm &8» &cInvalid number."));
+                                player.openInventory(topInv);
+                            }
+                        }, () -> player.openInventory(topInv));
+                    }
                 }
-            }, () -> player.openInventory(event.getInventory()));
+            }
         }
     }
 
@@ -167,8 +246,8 @@ public class DropsMenu implements Listener {
         if (regionName.equalsIgnoreCase("global")) {
             player.openInventory(new id.seria.farm.inventory.maintree.GlobalBlockEditMenu(plugin).open(player, matName));
         } else {
-            YamlConfiguration config = (YamlConfiguration) plugin.getConfigManager().getConfig("materials.yml");
-            File file = plugin.getConfigManager().getConfigFile("materials.yml");
+            YamlConfiguration config = (YamlConfiguration) plugin.getConfigManager().getConfig("crops.yml");
+            File file = plugin.getConfigManager().getConfigFile("crops.yml");
             player.openInventory(new EditMenu(plugin).emenu(player, config, matName, file, regionName));
         }
     }
@@ -186,15 +265,22 @@ public class DropsMenu implements Listener {
             if (item != null && item.getType() != Material.AIR) {
                 ItemMeta meta = item.getItemMeta();
                 double chance = 100.0;
+                String weight = null;
                 if (meta != null) {
                     chance = meta.getPersistentDataContainer()
                             .getOrDefault(SeriaFarmPlugin.chanceKey, PersistentDataType.DOUBLE, 100.0);
+                    weight = meta.getPersistentDataContainer()
+                            .get(SeriaFarmPlugin.weightKey, PersistentDataType.STRING);
                     
                     // Cleanup lore for storage
                     List<Component> lore = meta.hasLore() ? meta.lore() : new ArrayList<>();
                     if (lore != null) {
                         lore.removeIf(line -> MINI_MESSAGE.serialize(line).contains("Chance:"));
+                        lore.removeIf(line -> MINI_MESSAGE.serialize(line).contains("Weight:"));
                         lore.removeIf(line -> MINI_MESSAGE.serialize(line).contains("Click to"));
+                        lore.removeIf(line -> MINI_MESSAGE.serialize(line).contains("Left Click:"));
+                        lore.removeIf(line -> MINI_MESSAGE.serialize(line).contains("Shift-Left Click:"));
+                        lore.removeIf(line -> MINI_MESSAGE.serialize(line).contains("Right Click:"));
                         if (lore.size() > 0 && MINI_MESSAGE.serialize(lore.get(lore.size()-1)).isEmpty()) lore.remove(lore.size()-1);
                         meta.lore(lore);
                         item.setItemMeta(meta);
@@ -204,13 +290,14 @@ public class DropsMenu implements Listener {
                 Map<String, Object> entry = new HashMap<>();
                 entry.put("item", item);
                 entry.put("chance", chance);
+                if (weight != null) entry.put("weight", weight);
                 dropsList.add(entry);
             }
         }
         
-        YamlConfiguration config = (YamlConfiguration) plugin.getConfigManager().getConfig("materials.yml");
+        YamlConfiguration config = (YamlConfiguration) plugin.getConfigManager().getConfig("crops.yml");
         config.set(fullPath + ".rewards.drops", dropsList);
-        plugin.getConfigManager().saveConfig("materials.yml");
+        plugin.getConfigManager().saveConfig("crops.yml");
         player.sendMessage(StaticColors.getHexMsg("&6&lSeriaFarm &8» &aCustom drops saved successfully!"));
     }
 }

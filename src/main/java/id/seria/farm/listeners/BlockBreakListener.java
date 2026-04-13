@@ -1,22 +1,27 @@
 package id.seria.farm.listeners;
  
 import id.seria.farm.SeriaFarmPlugin;
+import id.seria.farm.inventory.maintree.ToggleMenu;
+import id.seria.farm.inventory.utils.StaticColors;
+import id.seria.farm.inventory.utils.InvUtils;
+import id.seria.farm.utils.RarityUtils;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
+import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.inventory.ItemStack;
 import java.util.List;
-import java.util.HashMap;
 import java.util.Random;
  
 public class BlockBreakListener implements Listener {
  
     private final SeriaFarmPlugin plugin;
- 
+    private final Random random = new Random();
+
     public BlockBreakListener(SeriaFarmPlugin plugin) {
         this.plugin = plugin;
     }
@@ -36,6 +41,12 @@ public class BlockBreakListener implements Listener {
         ConfigurationSection config = getBlockConfig(block, blockKey);
         if (config == null) return;
  
+        // 1.1 Strict Growth Check for Crops (Apply to Global and Regional)
+        if (!isFullyGrown(block)) {
+            event.setCancelled(true);
+            return;
+        }
+
         // 2. REFINED GLOBAL HANDLING (Left-Click / Break)
         if (blockKey.startsWith("global.")) {
             // Cancel any active growth timer at this location upon break
@@ -96,12 +107,7 @@ public class BlockBreakListener implements Listener {
             }
         }
  
-        // 2.2 GROWTH STAGE VALIDATION
-        if (!isFullyGrown(block)) {
-            player.sendMessage(plugin.getConfigManager().getMessage("not-fully-grown"));
-            event.setCancelled(true);
-            return;
-        }
+        // 2.2 GROWTH STAGE VALIDATION (Now handled globally at Step 1.1)
  
         // 3. REQUIREMENT CHECK
         if (!plugin.getRequirementEngine().canBreak(player, config)) {
@@ -116,6 +122,9 @@ public class BlockBreakListener implements Listener {
         // 5. DISTRIBUTE REWARDS & XP
         distributeRewards(player, block, config);
         plugin.getAuraSkillsManager().giveXP(player, block.getType());
+        
+        // --- AOE SWEEP LOGIC ---
+        handleSweep(player, block, config, blockKey);
         
         // 6. MANAGE TOOL DURABILITY
         handleDurability(player);
@@ -138,19 +147,21 @@ public class BlockBreakListener implements Listener {
         org.bukkit.Material fallbackMat = org.bukkit.Material.matchMaterial(fallbackMatStr);
         if (fallbackMat == null) fallbackMat = org.bukkit.Material.WHEAT;
 
-        // 9. BAMBOO SPECIAL HANDLING
-        if (block.getType() == org.bukkit.Material.BAMBOO || block.getType() == org.bukkit.Material.BAMBOO_SAPLING) {
-            org.bukkit.block.Block root = plugin.getRegenManager().getBambooRoot(block);
+        // 9. VERTICAL CROP SPECIAL HANDLING (Bamboo, Sugarcane, Cactus)
+        if (block.getType() == Material.BAMBOO || block.getType() == Material.BAMBOO_SAPLING || 
+            block.getType() == Material.SUGAR_CANE || block.getType() == Material.CACTUS) {
+            org.bukkit.block.Block root = plugin.getRegenManager().getVerticalRoot(block);
             
             if (plugin.getRegenManager().isRegenerating(root.getLocation())) {
                 event.setCancelled(true);
                 return;
             }
 
-            // Clear stalk upwards (excluding root for a moment to preserve its identity during scheduling)
+            // Clear stalk upwards (excluding root for now)
             org.bukkit.block.Block stalk = root.getRelative(0, 1, 0);
-            while (stalk.getType() == org.bukkit.Material.BAMBOO || stalk.getType() == org.bukkit.Material.BAMBOO_SAPLING) {
-                stalk.getWorld().dropItemNaturally(stalk.getLocation(), new ItemStack(org.bukkit.Material.BAMBOO));
+            Material stalkMat = block.getType();
+            while (stalk.getType() == stalkMat) {
+                stalk.getWorld().dropItemNaturally(stalk.getLocation(), new ItemStack(stalkMat));
                 stalk.setType(org.bukkit.Material.AIR);
                 stalk = stalk.getRelative(0, 1, 0);
             }
@@ -159,7 +170,7 @@ public class BlockBreakListener implements Listener {
             String rootKey = plugin.getRegenManager().findBlockKey(root, player);
             if (rootKey == null) rootKey = blockKey; // Fallback
             
-            plugin.getRegenManager().scheduleRegeneration(root, delay, replaceBlocks, delayBlocks, org.bukkit.Material.BAMBOO, rootKey);
+            plugin.getRegenManager().scheduleRegeneration(root, delay, replaceBlocks, delayBlocks, stalkMat, rootKey);
             return;
         }
 
@@ -211,40 +222,147 @@ public class BlockBreakListener implements Listener {
   
             List<?> drops = rewards.getList("drops");
             if (drops != null) {
-                boolean dropToInv = plugin.getConfigManager().getConfig("config.yml").getBoolean("settings.drop-to-inventory", false);
-                Random random = new Random();
+                boolean dropToInv = ToggleMenu.isDropToInvEnabled();
+                ItemStack tool = player.getInventory().getItemInMainHand();
+                int fortune = 0;
+                if (tool != null && tool.hasItemMeta()) {
+                    fortune = tool.getEnchantmentLevel(org.bukkit.enchantments.Enchantment.FORTUNE);
+                }
+                
+                int playerLevel = plugin.getAuraSkillsManager().getFarmingLevel(player);
+                double globalScaling = plugin.getConfigManager().getConfig("config.yml").getDouble("settings.global-level-scaling", 0.1);
+
+                boolean hasCommonDrop = false;
+                java.util.List<java.util.Map<?, ?>> weightedPool = new java.util.ArrayList<>();
+                
                 for (Object obj : drops) {
                     if (obj instanceof java.util.Map<?, ?> map) {
                         try {
                             ItemStack item = (ItemStack) map.get("item");
-                            double chance = map.containsKey("chance") ? ((Number) map.get("chance")).doubleValue() : 100.0;
-                            if (item != null && (random.nextDouble() * 100.0) <= chance) {
-                                ItemStack dropItem = item.clone();
-                                if (dropToInv) {
-                                    HashMap<Integer, ItemStack> remaining = player.getInventory().addItem(dropItem);
-                                    if (!remaining.isEmpty()) {
-                                        for (ItemStack left : remaining.values()) {
-                                            block.getWorld().dropItemNaturally(block.getLocation(), left);
-                                        }
-                                    }
-                                } else {
-                                    block.getWorld().dropItemNaturally(block.getLocation(), dropItem);
-                                }
+                            if (item == null) continue;
+
+                            // 1. Level Requirement Check
+                            int reqLevel = map.containsKey("farming-level") ? ((Number) map.get("farming-level")).intValue() : 0;
+                            if (playerLevel < reqLevel) continue;
+
+                            // 2. Chance Scaling
+                            double baseChance = map.containsKey("chance") ? ((Number) map.get("chance")).doubleValue() : 100.0;
+                            double scaling = map.containsKey("level-scaling") ? ((Number) map.get("level-scaling")).doubleValue() : globalScaling;
+                            double finalChance = baseChance + (playerLevel - reqLevel) * scaling;
+
+                            if ((random.nextDouble() * 100.0) > finalChance) continue;
+
+                            if (baseChance >= 10.0) hasCommonDrop = true;
+
+                            // If it has a weight (numeric or range), add to weighted pool competition
+                            if (map.containsKey("weight")) {
+                                weightedPool.add(map);
+                            } else {
+                                // Static drop (Independent)
+                                giveReward(player, block, item.clone(), map, dropToInv, fortune);
                             }
                         } catch (Exception ignored) {}
+                    }
+                }
+
+                // 3. Automatic Vanilla Drop (Trash Item)
+                if (!hasCommonDrop && !config.getBoolean("suppress-vanilla-drop", false)) {
+                    Material vanillaMat = block.getType();
+                    vanillaMat = id.seria.farm.inventory.utils.InvUtils.getSingleMaterial(vanillaMat);
+                    giveReward(player, block, new ItemStack(vanillaMat), new java.util.HashMap<>(), dropToInv, fortune);
+                }
+
+                // Handle the weighted pool competition (Pick only ONE)
+                if (!weightedPool.isEmpty()) {
+                    double totalWeight = 0;
+                    for (java.util.Map<?, ?> map : weightedPool) {
+                        totalWeight += getSelectionWeight(map);
+                    }
+
+                    if (totalWeight > 0) {
+                        double roll = random.nextDouble() * totalWeight;
+                        double count = 0;
+                        for (java.util.Map<?, ?> map : weightedPool) {
+                            count += getSelectionWeight(map);
+                            if (roll <= count) {
+                                ItemStack item = (ItemStack) map.get("item");
+                                giveReward(player, block, item.clone(), map, dropToInv, fortune);
+                                break;
+                            }
+                        }
                     }
                 }
             }
         }
     }
+
+    private double getSelectionWeight(java.util.Map<?, ?> map) {
+        Object w = map.get("weight");
+        if (w instanceof Number n) return n.doubleValue();
+        String ws = String.valueOf(w);
+        if (ws.contains("-")) {
+            // Use mid-point of range for selection probability
+            try {
+                String[] parts = ws.split("-");
+                return (Double.parseDouble(parts[0]) + Double.parseDouble(parts[1])) / 2.0;
+            } catch (Exception e) { return 1.0; }
+        }
+        try { return Double.parseDouble(ws); } catch (Exception e) { return 1.0; }
+    }
+
+    private void giveReward(Player player, Block block, ItemStack dropItem, java.util.Map<?, ?> map, boolean dropToInv, int fortune) {
+        // Fortune Multiplier
+        if (fortune > 0) {
+            int bonus = 0;
+            for (int i = 0; i < fortune; i++) {
+                if (random.nextBoolean()) bonus++;
+            }
+            dropItem.setAmount(dropItem.getAmount() + bonus);
+        }
+
+        // --- WEIGHT / RARITY SYSTEM ---
+        handleWeightAndRarity(player, dropItem, map);
+        
+        // Always strip technical lore
+        InvUtils.stripTechnicalLore(dropItem);
+
+        if (dropToInv) {
+            java.util.HashMap<Integer, ItemStack> remaining = player.getInventory().addItem(dropItem);
+            if (!remaining.isEmpty()) {
+                for (ItemStack left : remaining.values()) {
+                    block.getWorld().dropItemNaturally(block.getLocation(), left);
+                }
+            }
+        } else {
+            block.getWorld().dropItemNaturally(block.getLocation(), dropItem);
+        }
+    }
  
-    private boolean isFullyGrown(Block block) {
+    private boolean isFullyGrown(org.bukkit.block.Block block) {
         org.bukkit.block.data.BlockData data = block.getBlockData();
         if (data instanceof org.bukkit.block.data.Ageable ageable) {
             return ageable.getAge() == ageable.getMaximumAge();
         }
         if (block.getType().name().contains("AMETHYST")) {
             return block.getType() == org.bukkit.Material.AMETHYST_CLUSTER;
+        }
+        
+        // Vertical Crops (Sugar Cane, Cactus, Bamboo)
+        if (block.getType() == org.bukkit.Material.BAMBOO || 
+            block.getType() == org.bukkit.Material.SUGAR_CANE || 
+            block.getType() == org.bukkit.Material.CACTUS) {
+            
+            String key = plugin.getRegenManager().findBlockKey(block, null);
+            if (key != null) {
+                org.bukkit.block.Block root = plugin.getRegenManager().getVerticalRoot(block);
+                int currentHeight = plugin.getRegenManager().getVerticalHeight(root, block.getType());
+                
+                String configKey = block.getType() == org.bukkit.Material.BAMBOO ? "bamboo-max-height" : "growth-max-height";
+                int def = block.getType() == org.bukkit.Material.BAMBOO ? 12 : 3;
+                int max = plugin.getConfigManager().getConfig("crops.yml").getInt("crops." + key + "." + configKey, def);
+                
+                return currentHeight >= max;
+            }
         }
         return true;
     }
@@ -254,11 +372,112 @@ public class BlockBreakListener implements Listener {
         return data instanceof org.bukkit.block.data.Ageable || block.getType().name().contains("AMETHYST");
     }
  
+    private void handleWeightAndRarity(Player player, ItemStack item, java.util.Map<?, ?> dropConfig) {
+        if (!dropConfig.containsKey("weight")) return;
+        
+        String weightRange = String.valueOf(dropConfig.get("weight"));
+        if (weightRange == null || !weightRange.contains("-")) return;
+
+        try {
+            String[] parts = weightRange.split("-");
+            double min = Double.parseDouble(parts[0]);
+            double max = Double.parseDouble(parts[1]);
+
+            // AuraSkills Quality Luck (Geneticist or Farming level)
+            double luckBonus = 0;
+            int geneticistLevel = plugin.getAuraSkillsManager().getAbilityLevel(player, "geneticist");
+            if (geneticistLevel > 0) luckBonus = (geneticistLevel * 0.005); // +0.5% per level
+
+            Random random = new Random();
+            double roll = min + (random.nextDouble() * (max - min)) + luckBonus;
+            roll = Math.min(roll, max); // Cap at max
+            roll = Math.round(roll * 1000.0) / 1000.0; // 3 decimal places
+
+            // Determine Rarity
+            double percent = (max - min) > 0 ? (roll - min) / (max - min) : 1.0;
+            String rarity;
+            String color;
+
+            if (percent >= 0.99) { rarity = "MYTHIC"; color = "&e&l"; }
+            else if (percent >= 0.95) { rarity = "LEGENDARY"; color = "&d"; }
+            else if (percent >= 0.85) { rarity = "EPIC"; color = "&6"; }
+            else if (percent >= 0.65) { rarity = "RARE"; color = "&b"; }
+            else if (percent >= 0.40) { rarity = "UNCOMMON"; color = "&a"; }
+            else { rarity = "COMMON"; color = "&8"; }
+
+            // Name Transformation (Potato -> Epic Potato)
+            org.bukkit.inventory.meta.ItemMeta meta = item.getItemMeta();
+            String originalName = meta.hasDisplayName() ? 
+                SeriaFarmPlugin.MINI_MESSAGE.serialize(meta.displayName()) : 
+                InvUtils.getFriendlyName(item.getType());
+            
+            // Re-apply rarity prefix to the name
+            meta.displayName(StaticColors.getHexMsg(color + rarity + " " + originalName));
+
+            // Remove Chance/Weight Lore to allow stacking
+            meta.lore(new java.util.ArrayList<>());
+
+            // Inject NBT (Only rarity name to allow items of same rarity to stack)
+            org.bukkit.persistence.PersistentDataContainer pdc = meta.getPersistentDataContainer();
+            pdc.set(new org.bukkit.NamespacedKey(plugin, "rarity"), org.bukkit.persistence.PersistentDataType.STRING, rarity);
+            
+            item.setItemMeta(meta);
+        } catch (Exception ignored) {}
+    }
+
+    private void handleSweep(Player player, Block center, ConfigurationSection config, String blockKey) {
+        ItemStack tool = player.getInventory().getItemInMainHand();
+        if (tool == null || !tool.hasItemMeta()) return;
+
+        // 1. Check NBT (seria_sweep)
+        boolean hasSweepTag = false;
+        try {
+            org.bukkit.persistence.PersistentDataContainer pdc = tool.getItemMeta().getPersistentDataContainer();
+            hasSweepTag = pdc.has(new org.bukkit.NamespacedKey("mmoitems", "seria_sweep"), org.bukkit.persistence.PersistentDataType.STRING) ||
+                          pdc.has(new org.bukkit.NamespacedKey("seriafarm", "sweep"), org.bukkit.persistence.PersistentDataType.BYTE);
+        } catch (Exception ignored) {}
+
+        // 2. Check AuraSkills Scythe Master level
+        int scytheLevel = plugin.getAuraSkillsManager().getAbilityLevel(player, "scythe_master");
+        
+        if (!hasSweepTag && scytheLevel <= 0) return;
+
+        // Radius Calculation
+        int radius = 0;
+        if (hasSweepTag) radius = 1; // Default radius for tag
+        if (scytheLevel > 0) radius = Math.max(radius, scytheLevel / 20 + 1); // 1 extra radius every 20 levels
+        
+        if (radius <= 0) return;
+        radius = Math.min(radius, 3); // Max logic safety
+
+        Material targetMat = center.getType();
+        for (int x = -radius; x <= radius; x++) {
+            for (int z = -radius; z <= radius; z++) {
+                if (x == 0 && z == 0) continue;
+                Block b = center.getRelative(x, 0, z);
+                if (b.getType() == targetMat && isFullyGrown(b)) {
+                    // Quick check if allowed to break (region/manager)
+                    if (findBlockKey(b) != null) {
+                        // Process virtual break
+                        distributeRewards(player, b, config);
+                        plugin.getAuraSkillsManager().giveXP(player, b.getType());
+                        
+                        // Regen
+                        int delay = config.getInt("regen-delay", 10);
+                        List<String> rb = config.getStringList("replace-blocks");
+                        List<String> db = config.getStringList("delay-blocks");
+                        plugin.getRegenManager().scheduleRegeneration(b, delay, rb, db, targetMat, blockKey);
+                    }
+                }
+            }
+        }
+    }
+
     private String findBlockKey(Block block) {
         return plugin.getRegenManager().findBlockKey(block, null);
     }
  
     private ConfigurationSection getBlockConfig(Block block, String blockKey) {
-        return plugin.getConfigManager().getConfig("materials.yml").getConfigurationSection("blocks." + blockKey);
+        return plugin.getConfigManager().getConfig("crops.yml").getConfigurationSection("crops." + blockKey);
     }
 }

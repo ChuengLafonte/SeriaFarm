@@ -41,7 +41,9 @@ public class RequirementEngine {
 
     private boolean checkTools(Player player, ConfigurationSection section) {
         if (section == null) return true;
-        List<String> allowedTools = section.getStringList("allowed");
+        
+        // Unify to the list format used by the GUI
+        List<String> allowedTools = section.getStringList("requirements.tools");
         if (allowedTools.isEmpty()) return true;
 
         ItemStack heldItem = player.getInventory().getItemInMainHand();

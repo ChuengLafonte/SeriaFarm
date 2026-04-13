@@ -58,14 +58,19 @@ public class EditMenu implements Listener, InventoryHolder {
         
         inventory.setItem(30, InvUtils.createItemStacks(Material.COMMAND_BLOCK_MINECART, StaticColors.getHexMsg("&#9370dbAdd Commands"), "&7Add A List Of Commands", "&7Which Runs When Player Mines", "", "&eClick to edit"));
 
+        // Delete Button
+        inventory.setItem(52, InvUtils.createItemStacks(Material.BARRIER, 
+            StaticColors.getHexMsg("&c&lDELETE BLOCK"), "&7Permanently removes this block", "&7from the SeriaFarm configuration.", "", "&eClick to DELETE"));
+
         ItemStack glass = InvUtils.createItemStacks(Material.PURPLE_STAINED_GLASS_PANE, " ", "", "");
         
-        // Bamboo Specific Button
-        if (materialKey.equalsIgnoreCase("BAMBOO")) {
-            inventory.setItem(32, InvUtils.createItemStacks(Material.BAMBOO, StaticColors.getHexMsg("&#228B22&lBamboo Settings"), "&7Special settings for Bamboo", "&7(Max growth height, etc.)", "", "&eClick to edit"));
+        // Vertical Growth Settings (Bamboo, Sugarcane, Cactus)
+        if (materialKey.equalsIgnoreCase("BAMBOO") || materialKey.equalsIgnoreCase("SUGAR_CANE") || materialKey.equalsIgnoreCase("CACTUS")) {
+            inventory.setItem(32, InvUtils.createItemStacks(Material.matchMaterial(materialKey) != null ? Material.matchMaterial(materialKey) : Material.OAK_SAPLING, 
+                StaticColors.getHexMsg("&#228B22&lGrowth Settings"), "&7Special settings for vertical growth", "&7(Max growth height, etc.)", "", "&eClick to edit"));
         }
 
-        for (int n : new int[]{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 17, 18, 26, 27, 35, 36, 44, 46, 47, 49, 48, 50, 51, 52}) {
+        for (int n : new int[]{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 17, 18, 26, 27, 35, 36, 44, 46, 47, 49, 48, 50, 51}) {
             if (inventory.getItem(n) == null) inventory.setItem(n, glass);
         }
 
@@ -77,9 +82,9 @@ public class EditMenu implements Listener, InventoryHolder {
         String section = parts.length > 1 ? parts[0] : "legacy";
         String materialKey = parts.length > 1 ? parts[1] : matName;
         if (section.equalsIgnoreCase("legacy")) {
-            return "blocks." + materialKey;
+            return "crops." + materialKey;
         } else {
-            return "blocks." + section + "." + materialKey;
+            return "crops." + section + "." + materialKey;
         }
     }
 
@@ -108,8 +113,8 @@ public class EditMenu implements Listener, InventoryHolder {
         final String finalMatName = parts[0];
         final String finalRegionName = parts[1];
 
-        YamlConfiguration config = (YamlConfiguration) plugin.getConfigManager().getConfig("materials.yml");
-        File file = plugin.getConfigManager().getConfigFile("materials.yml");
+        YamlConfiguration config = (YamlConfiguration) plugin.getConfigManager().getConfig("crops.yml");
+        File file = plugin.getConfigManager().getConfigFile("crops.yml");
         String path = getConfigPath(finalMatName);
 
         if (event.getRawSlot() == 53) {
@@ -121,7 +126,7 @@ public class EditMenu implements Listener, InventoryHolder {
             ChatInputListener.requestInput(player, "Customize Delay", "Integer value (e.g. 20)", input -> {
                 try {
                     config.set(path + ".regen-delay", Integer.parseInt(input));
-                    plugin.getConfigManager().saveConfig("materials.yml");
+                    plugin.getConfigManager().saveConfig("crops.yml");
                     player.sendMessage(StaticColors.getHexMsg("&6&lSeriaFarm &8» &aDelay updated to &f" + input));
                 } catch (NumberFormatException e) {
                     player.sendMessage(StaticColors.getHexMsg("&6&lSeriaFarm &8» &cInvalid input. Please enter a number."));
@@ -138,26 +143,20 @@ public class EditMenu implements Listener, InventoryHolder {
             ChatInputListener.requestInput(player, "Customize XP Drops", "Integer value", input -> {
                 try {
                     config.set(path + ".rewards.xp", Integer.parseInt(input));
-                    plugin.getConfigManager().saveConfig("materials.yml");
+                    plugin.getConfigManager().saveConfig("crops.yml");
                     player.sendMessage(StaticColors.getHexMsg("&6&lSeriaFarm &8» &aXP Drop updated to &f" + input));
                 } catch (NumberFormatException e) {
                     player.sendMessage(StaticColors.getHexMsg("&6&lSeriaFarm &8» &cInvalid input. Please enter a number."));
                 }
                 player.openInventory(emenu(player, config, finalMatName, file, finalRegionName));
             }, () -> player.openInventory(emenu(player, config, finalMatName, file, finalRegionName)));
-        } else if (event.getRawSlot() == 25) { // Required Tools
-            java.util.List<String> tools = config.getStringList(path + ".requirements.tools");
-            ChatInputListener.requestListInput(player, "Required Tools", tools, "MATERIAL or MMOITEM:ID", list -> {
-                config.set(path + ".requirements.tools", list);
-                plugin.getConfigManager().saveConfig("materials.yml");
-                player.sendMessage(StaticColors.getHexMsg("&6&lSeriaFarm &8» &aTools updated!"));
-                player.openInventory(emenu(player, config, finalMatName, file, finalRegionName));
-            }, () -> player.openInventory(emenu(player, config, finalMatName, file, finalRegionName)));
+        } else if (event.getRawSlot() == 25) { // Required Tools (GUI)
+            new RequiredToolsMenu(plugin).open(player, finalMatName, finalRegionName, path);
         } else if (event.getRawSlot() == 28) { // AuraSkills
             java.util.List<String> reqs = config.getStringList(path + ".requirements.skills");
             ChatInputListener.requestListInput(player, "Skills Requirements", reqs, "skill ; operator ; level", list -> {
                 config.set(path + ".requirements.skills", list);
-                plugin.getConfigManager().saveConfig("materials.yml");
+                plugin.getConfigManager().saveConfig("crops.yml");
                 player.sendMessage(StaticColors.getHexMsg("&6&lSeriaFarm &8» &aRequirements updated!"));
                 player.openInventory(emenu(player, config, finalMatName, file, finalRegionName));
             }, () -> player.openInventory(emenu(player, config, finalMatName, file, finalRegionName)));
@@ -165,12 +164,18 @@ public class EditMenu implements Listener, InventoryHolder {
             java.util.List<String> currentCmds = config.getStringList(path + ".rewards.commands");
             ChatInputListener.requestListInput(player, "Commands", currentCmds, "[Console/Player] ; cmd ; chance", list -> {
                 config.set(path + ".rewards.commands", list);
-                plugin.getConfigManager().saveConfig("materials.yml");
+                plugin.getConfigManager().saveConfig("crops.yml");
                 player.sendMessage(StaticColors.getHexMsg("&6&lSeriaFarm &8» &aCommands updated!"));
                 player.openInventory(emenu(player, config, finalMatName, file, finalRegionName));
             }, () -> player.openInventory(emenu(player, config, finalMatName, file, finalRegionName)));
-        } else if (event.getRawSlot() == 32 && clicked.getType() == Material.BAMBOO) {
-            new BambooMenu(plugin).open(player, finalMatName, finalRegionName);
+        } else if (event.getRawSlot() == 52) { // Delete Block
+            config.set(path, null);
+            plugin.getConfigManager().saveConfig("crops.yml");
+            player.sendMessage(StaticColors.getHexMsg("&6&lSeriaFarm &8» &cBlock configuration deleted."));
+            player.openInventory(new BlockMenu(plugin).blockmenu(player, 1, config, finalRegionName));
+            return;
+        } else if (event.getRawSlot() == 32) {
+            new VerticalGrowthMenu(plugin).open(player, finalMatName, finalRegionName);
         }
 
 

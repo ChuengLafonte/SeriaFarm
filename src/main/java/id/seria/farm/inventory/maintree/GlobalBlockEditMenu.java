@@ -34,8 +34,8 @@ public class GlobalBlockEditMenu implements Listener, InventoryHolder {
     public Inventory open(Player player, String matName) {
         this.matName = matName;
         Inventory inventory = Bukkit.createInventory(this, 27, name); // 3 Rows as per Wiki
-        YamlConfiguration config = (YamlConfiguration) plugin.getConfigManager().getConfig("materials.yml");
-        String path = "blocks.global." + matName.replace("global:", "");
+        YamlConfiguration config = (YamlConfiguration) plugin.getConfigManager().getConfig("crops.yml");
+        String path = "crops.global." + matName.replace("global:", "");
         String displayMaterial = matName.replace("global:", "");
         
         int delay = config.getInt(path + ".regen-delay", 20);
@@ -91,7 +91,7 @@ public class GlobalBlockEditMenu implements Listener, InventoryHolder {
             "&eClick to select block"));
 
         // Navigation
-        inventory.setItem(18, InvUtils.createItemStacks(Material.ARROW, StaticColors.getHexMsg("&cBack"), "&7Retun to Catalog", ""));
+        inventory.setItem(18, InvUtils.createItemStacks(Material.ARROW, StaticColors.getHexMsg("&cBack"), "&7Return to Catalog", ""));
         
         // Metadata for handlers
         ItemStack info = new ItemStack(Material.PAPER);
@@ -109,9 +109,9 @@ public class GlobalBlockEditMenu implements Listener, InventoryHolder {
         Player player = (Player) event.getWhoClicked();
         GlobalBlockEditMenu holder = (GlobalBlockEditMenu) event.getInventory().getHolder();
         String matName = holder.getMatName();
-        String path = "blocks.global." + matName.replace("global:", "");
+        String path = "crops.global." + matName.replace("global:", "");
 
-        YamlConfiguration config = (YamlConfiguration) plugin.getConfigManager().getConfig("materials.yml");
+        YamlConfiguration config = (YamlConfiguration) plugin.getConfigManager().getConfig("crops.yml");
 
         switch (event.getRawSlot()) {
             case 18: // Back
@@ -121,7 +121,7 @@ public class GlobalBlockEditMenu implements Listener, InventoryHolder {
                 ChatInputListener.requestInput(player, "Harvest Time", "Seconds (e.g. 30)", input -> {
                     try {
                         config.set(path + ".regen-delay", Integer.parseInt(input));
-                        plugin.getConfigManager().saveConfig("materials.yml");
+                        plugin.getConfigManager().saveConfig("crops.yml");
                         player.sendMessage(StaticColors.getHexMsg("&6&lSeriaFarm &8» &aHarvest Time updated!"));
                     } catch (Exception e) {}
                     player.openInventory(open(player, matName));

@@ -1,10 +1,9 @@
 package id.seria.farm.listeners;
  
 import id.seria.farm.SeriaFarmPlugin;
-import id.seria.farm.inventory.utils.StaticColors;
+import id.seria.farm.inventory.utils.InvUtils;
 import id.seria.farm.models.RegenBlock;
-import net.kyori.adventure.text.Component;
-import org.bukkit.Bukkit;
+import id.seria.farm.utils.RarityUtils;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.block.data.Ageable;
@@ -16,18 +15,15 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.meta.ItemMeta;
- 
-import java.util.ArrayList;
+
 import java.util.HashMap;
 import java.util.List;
 import java.util.Random;
- 
-import static id.seria.farm.SeriaFarmPlugin.MINI_MESSAGE;
- 
+
 public class InteractListener implements Listener {
- 
+
     private final SeriaFarmPlugin plugin;
+    private final Random random = new Random();
  
     public InteractListener(SeriaFarmPlugin plugin) {
         this.plugin = plugin;
@@ -45,9 +41,9 @@ public class InteractListener implements Listener {
         
         Player player = event.getPlayer();
   
-        // REDIRECT TO ROOT FOR BAMBOO
-        if (block.getType() == Material.BAMBOO || block.getType() == Material.BAMBOO_SAPLING) {
-            block = plugin.getRegenManager().getBambooRoot(block);
+        // REDIRECT TO ROOT FOR VERTICAL CROPS
+        if (block.getType() == Material.BAMBOO || block.getType() == Material.SUGAR_CANE || block.getType() == Material.CACTUS || block.getType() == Material.WHEAT) {
+            block = plugin.getRegenManager().getVerticalRoot(block);
         }
  
         // 1. REGENERATION CHECK (Notification Bug Fix)
@@ -62,7 +58,6 @@ public class InteractListener implements Listener {
                     // Allow admin to use bonemeal (bypass cancel)
                     return; 
                 }
-                player.sendMessage(StaticColors.getHexMsg("&8[&bDebug&8] &7Blok ditemukan di map (Akar/Block). isGrowth: &f" + (regen != null ? regen.isGrowth() : "NULL") + " &7| Key: &f" + plugin.getRegenManager().toKey(regen != null ? regen.getLocation() : block.getLocation())));
             }
  
             if (regen != null && regen.isGrowth()) {
@@ -73,18 +68,25 @@ public class InteractListener implements Listener {
         }
  
         // 1.5 ADMIN HARVEST DEBUG
-        if (player.hasPermission("seriafarm.admin") || player.isOp()) {
-             player.sendMessage(StaticColors.getHexMsg("&8[&bDebug&8] &7Blok &fTIDAK &7ditemukan di map. Key: &f" + plugin.getRegenManager().toKey(block.getLocation())));
-        }
+        
         
         // 2. Check if this is a managed crop/block
         String blockKey = findBlockKey(player, block);
         
         // 2.0. AD-HOC TRACKING (Handle growing blocks not in map)
         if (blockKey != null && !isFullyGrown(block)) {
-            plugin.getRegenManager().startAdHocTracking(block, blockKey);
-            // Now that it's in the map, recursive call or just show info
-            RegenBlock regen = plugin.getRegenManager().getRegenBlock(block.getLocation());
+            // For vertical crops, we only track the ROOT.
+            Block root = block;
+            if (isVerticalCrop(block.getType())) {
+                root = plugin.getRegenManager().getVerticalRoot(block);
+            }
+            
+            if (!plugin.getRegenManager().isRegenerating(root.getLocation())) {
+                plugin.getRegenManager().startAdHocTracking(root, blockKey);
+            }
+            
+            // Show growth info from either the block or its root
+            RegenBlock regen = plugin.getRegenManager().getRegenBlock(root.getLocation());
             if (regen != null && regen.isGrowth()) {
                 plugin.getVisualManager().showGrowthInfo(player, regen);
                 event.setCancelled(true);
@@ -95,9 +97,10 @@ public class InteractListener implements Listener {
         if (blockKey == null) return;
         
         // 2.1 Regional blocks: Disable right-click harvesting
+        // Only left-click is allowed for regional blocks.
         if (!blockKey.startsWith("global.")) return;
         
-        // 2.2 Global blocks: Check if harvest is enabled
+        // 2.2 Global blocks: Check if harvest is enabled via toggle
         if (!plugin.getConfigManager().getConfig("config.yml").getBoolean("settings.global-right-click-harvest", true)) {
             return;
         }
@@ -107,7 +110,6 @@ public class InteractListener implements Listener {
         if (config == null) return;
         
         if (!isFullyGrown(block)) {
-            player.sendMessage(plugin.getConfigManager().getMessage("not-fully-grown"));
             event.setCancelled(true);
             return;
         }
@@ -125,11 +127,16 @@ public class InteractListener implements Listener {
         if (block.getType().name().contains("AMETHYST")) {
             return block.getType() == Material.AMETHYST_CLUSTER;
         }
-        if (block.getType() == Material.BAMBOO) {
+        if (block.getType() == Material.BAMBOO || block.getType() == Material.SUGAR_CANE || block.getType() == Material.CACTUS) {
             String key = plugin.getRegenManager().findBlockKey(block, null);
             if (key != null) {
-                int max = plugin.getConfigManager().getConfig("materials.yml").getInt("blocks." + key + ".bamboo-max-height", 12);
-                int current = plugin.getRegenManager().getBambooHeight(block);
+                Block root = plugin.getRegenManager().getVerticalRoot(block);
+                int current = plugin.getRegenManager().getVerticalHeight(root, block.getType());
+                
+                String configKey = block.getType() == Material.BAMBOO ? "bamboo-max-height" : "growth-max-height";
+                int def = block.getType() == Material.BAMBOO ? 12 : 3;
+                int max = plugin.getConfigManager().getConfig("crops.yml").getInt("crops." + key + "." + configKey, def);
+                
                 return current >= max;
             }
         }
@@ -159,37 +166,94 @@ public class InteractListener implements Listener {
         List<?> drops = rewards.getList("drops");
         if (drops != null) {
             boolean dropToInv = plugin.getConfigManager().getConfig("config.yml").getBoolean("settings.drop-to-inventory", false);
-            Random random = new Random();
+            int playerLevel = plugin.getAuraSkillsManager().getFarmingLevel(player);
+            double globalScaling = plugin.getConfigManager().getConfig("config.yml").getDouble("settings.global-level-scaling", 0.1);
+
+            boolean hasCommonDrop = false;
+            java.util.List<java.util.Map<?, ?>> weightedPool = new java.util.ArrayList<>();
+
             for (Object obj : drops) {
                 if (obj instanceof java.util.Map<?, ?> map) {
-                    ItemStack item = (ItemStack) map.get("item");
-                    double chance = map.containsKey("chance") ? ((Number) map.get("chance")).doubleValue() : 100.0;
-                    if (item != null && (random.nextDouble() * 100.0) <= chance) {
-                        ItemStack dropItem = item.clone();
-                        ItemMeta meta = dropItem.getItemMeta();
-                        if (meta != null) {
-                            List<Component> lore = meta.hasLore() ? meta.lore() : new ArrayList<>();
-                            if (lore != null) {
-                                lore.removeIf(line -> MINI_MESSAGE.serialize(line).contains("Chance:"));
-                                lore.removeIf(line -> MINI_MESSAGE.serialize(line).contains("Click to"));
-                                if (lore.size() > 0 && MINI_MESSAGE.serialize(lore.get(lore.size()-1)).isEmpty()) lore.remove(lore.size()-1);
-                                meta.lore(lore);
-                                dropItem.setItemMeta(meta);
-                            }
-                        }
-                        if (dropToInv) {
-                            HashMap<Integer, ItemStack> remaining = player.getInventory().addItem(dropItem);
-                            if (!remaining.isEmpty()) {
-                                for (ItemStack left : remaining.values()) {
-                                    block.getWorld().dropItemNaturally(block.getLocation(), left);
-                                }
-                            }
+                    try {
+                        ItemStack item = (ItemStack) map.get("item");
+                        if (item == null) continue;
+
+                        // 1. Level Requirement Check
+                        int reqLevel = map.containsKey("farming-level") ? ((Number) map.get("farming-level")).intValue() : 0;
+                        if (playerLevel < reqLevel) continue;
+
+                        // 2. Chance Scaling
+                        double baseChance = map.containsKey("chance") ? ((Number) map.get("chance")).doubleValue() : 100.0;
+                        double scaling = map.containsKey("level-scaling") ? ((Number) map.get("level-scaling")).doubleValue() : globalScaling;
+                        double finalChance = baseChance + (playerLevel - reqLevel) * scaling;
+
+                        if ((random.nextDouble() * 100.0) > finalChance) continue;
+
+                        if (baseChance >= 10.0) hasCommonDrop = true;
+
+                        if (map.containsKey("weight")) {
+                            weightedPool.add(map);
                         } else {
-                            block.getWorld().dropItemNaturally(block.getLocation(), dropItem);
+                            giveReward(player, block, item.clone(), map, dropToInv);
+                        }
+                    } catch (Exception e) {}
+                }
+            }
+
+            // 3. Automatic Vanilla Drop (Trash Item)
+            if (!hasCommonDrop && !config.getBoolean("suppress-vanilla-drop", false)) {
+                Material vanillaMat = block.getType();
+                // Ensure we drop the item form
+                vanillaMat = id.seria.farm.inventory.utils.InvUtils.getSingleMaterial(vanillaMat);
+                giveReward(player, block, new ItemStack(vanillaMat), new java.util.HashMap<>(), dropToInv);
+            }
+
+            if (!weightedPool.isEmpty()) {
+                double totalWeight = 0;
+                for (java.util.Map<?, ?> map : weightedPool) {
+                    totalWeight += getSelectionWeight(map);
+                }
+
+                if (totalWeight > 0) {
+                    double roll = random.nextDouble() * totalWeight;
+                    double count = 0;
+                    for (java.util.Map<?, ?> map : weightedPool) {
+                        count += getSelectionWeight(map);
+                        if (roll <= count) {
+                            ItemStack item = (ItemStack) map.get("item");
+                            giveReward(player, block, item.clone(), map, dropToInv);
+                            break;
                         }
                     }
                 }
             }
+        }
+    }
+
+    private double getSelectionWeight(java.util.Map<?, ?> map) {
+        Object w = map.get("weight");
+        if (w instanceof Number n) return n.doubleValue();
+        String ws = String.valueOf(w);
+        if (ws.contains("-")) {
+            try {
+                String[] parts = ws.split("-");
+                return (Double.parseDouble(parts[0]) + Double.parseDouble(parts[1])) / 2.0;
+            } catch (Exception e) { return 1.0; }
+        }
+        try { return Double.parseDouble(ws); } catch (Exception e) { return 1.0; }
+    }
+
+    private void giveReward(Player player, Block block, ItemStack dropItem, java.util.Map<?, ?> map, boolean dropToInv) {
+        InvUtils.stripTechnicalLore(dropItem);
+        if (dropToInv) {
+            HashMap<Integer, ItemStack> remaining = player.getInventory().addItem(dropItem);
+            if (!remaining.isEmpty()) {
+                for (ItemStack left : remaining.values()) {
+                    block.getWorld().dropItemNaturally(block.getLocation(), left);
+                }
+            }
+        } else {
+            block.getWorld().dropItemNaturally(block.getLocation(), dropItem);
         }
     }
  
@@ -198,6 +262,12 @@ public class InteractListener implements Listener {
     }
 
     private ConfigurationSection getBlockConfig(Block block, String blockKey) {
-        return plugin.getConfigManager().getConfig("materials.yml").getConfigurationSection("blocks." + blockKey);
+        return plugin.getConfigManager().getConfig("crops.yml").getConfigurationSection("crops." + blockKey);
+    }
+
+    private boolean isVerticalCrop(Material mat) {
+        return mat == Material.BAMBOO || mat == Material.BAMBOO_SAPLING || 
+               mat == Material.SUGAR_CANE || mat == Material.WHEAT || 
+               mat == Material.CACTUS;
     }
 }

@@ -1,6 +1,7 @@
 package id.seria.farm.inventory.edittree;
 
 import id.seria.farm.SeriaFarmPlugin;
+import id.seria.farm.inventory.edittree.VerticalGrowthMenu;
 import id.seria.farm.inventory.utils.InvUtils;
 import id.seria.farm.inventory.utils.LocalizedName;
 import id.seria.farm.inventory.utils.StaticColors;
@@ -17,13 +18,14 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
 import net.kyori.adventure.text.Component;
-import static id.seria.farm.SeriaFarmPlugin.MINI_MESSAGE;
-
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
-public class ReplaceBlockMenu implements Listener {
+import org.bukkit.inventory.InventoryHolder;
+import org.jetbrains.annotations.NotNull;
+
+public class ReplaceBlockMenu implements Listener, InventoryHolder {
 
     private final SeriaFarmPlugin plugin;
 
@@ -33,7 +35,7 @@ public class ReplaceBlockMenu implements Listener {
 
     public void open(Player player, String matName, String regionName, String configKey, String fullPath) {
         String displayTitle = configKey.contains("delay") ? "Delay Block Editor" : "Replace Block Editor";
-        Inventory inv = Bukkit.createInventory(null, 54, StaticColors.getHexMsg("&#9370db&l" + displayTitle));
+        Inventory inv = Bukkit.createInventory(this, 54, StaticColors.getHexMsg("&#9370db&l" + displayTitle));
         
         // Setup border and controls
         ItemStack glass = InvUtils.createItemStacks(Material.PURPLE_STAINED_GLASS_PANE, " ", "");
@@ -50,7 +52,7 @@ public class ReplaceBlockMenu implements Listener {
         inv.setItem(49, info);
 
         // Load existing data
-        YamlConfiguration config = (YamlConfiguration) plugin.getConfigManager().getConfig("materials.yml");
+        YamlConfiguration config = (YamlConfiguration) plugin.getConfigManager().getConfig("crops.yml");
         List<String> current = config.getStringList(fullPath + "." + configKey);
         
         int slot = 10;
@@ -97,9 +99,15 @@ public class ReplaceBlockMenu implements Listener {
         }
     }
 
+    @Override
+    public @NotNull Inventory getInventory() {
+        return Bukkit.createInventory(this, 54, StaticColors.getHexMsg("&#9370db&lBlock Editor"));
+    }
+
     @EventHandler
     public void onInventoryClick(InventoryClickEvent event) {
-        if (!MINI_MESSAGE.serialize(event.getView().title()).contains("Editor")) return;
+        if (!(event.getInventory().getHolder() instanceof ReplaceBlockMenu)) return;
+        event.setCancelled(true);
         
         int slot = event.getRawSlot();
         ItemStack clicked = event.getCurrentItem();
@@ -160,8 +168,8 @@ public class ReplaceBlockMenu implements Listener {
         if (regionName.equalsIgnoreCase("global")) {
             player.openInventory(new id.seria.farm.inventory.maintree.GlobalBlockEditMenu(plugin).open(player, matName));
         } else {
-            YamlConfiguration config = (YamlConfiguration) plugin.getConfigManager().getConfig("materials.yml");
-            File file = plugin.getConfigManager().getConfigFile("materials.yml");
+            YamlConfiguration config = (YamlConfiguration) plugin.getConfigManager().getConfig("crops.yml");
+            File file = plugin.getConfigManager().getConfigFile("crops.yml");
             player.openInventory(new EditMenu(plugin).emenu(player, config, matName, file, regionName));
         }
     }
@@ -184,9 +192,9 @@ public class ReplaceBlockMenu implements Listener {
             }
         }
         
-        YamlConfiguration config = (YamlConfiguration) plugin.getConfigManager().getConfig("materials.yml");
+        YamlConfiguration config = (YamlConfiguration) plugin.getConfigManager().getConfig("crops.yml");
         config.set(fullPath + "." + configKey, list);
-        plugin.getConfigManager().saveConfig("materials.yml");
+        plugin.getConfigManager().saveConfig("crops.yml");
         player.sendMessage(StaticColors.getHexMsg("&6&lSeriaFarm &8» &aSettings saved successfully!"));
     }
 }

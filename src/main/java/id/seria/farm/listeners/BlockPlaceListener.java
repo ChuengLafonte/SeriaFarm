@@ -2,7 +2,6 @@ package id.seria.farm.listeners;
 
 import id.seria.farm.SeriaFarmPlugin;
 import org.bukkit.block.Block;
-import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
@@ -22,13 +21,24 @@ public class BlockPlaceListener implements Listener {
         if (!plugin.getConfigManager().getConfig("config.yml").getBoolean("settings.enabled", true)) return;
 
         Block block = event.getBlock();
-        Player player = event.getPlayer();
 
         // 1. Check if this is a managed crop/block
         String blockKey = plugin.getRegenManager().findBlockKey(block, null); // Silent check for key
         
-        // 2. Automatically start tracking if it's a managed block
         if (blockKey != null) {
+            // 2. Check Farming Level Requirement
+            int requiredLevel = plugin.getConfigManager().getConfig("crops.yml").getInt("crops." + blockKey + ".farming-level", 0);
+            int playerLevel = plugin.getAuraSkillsManager().getFarmingLevel(event.getPlayer());
+
+            if (playerLevel < requiredLevel) {
+                event.setCancelled(true);
+                event.getPlayer().sendMessage(id.seria.farm.inventory.utils.StaticColors.getHexMsg(
+                    "&6&lSeriaFarm &8» &cLevel Farming Anda belum cukup! &7(Butuh Level " + requiredLevel + ")"
+                ));
+                return;
+            }
+
+            // 3. Automatically start tracking if it's a managed block
             plugin.getRegenManager().startAdHocTracking(block, blockKey);
         }
     }

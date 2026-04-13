@@ -2,7 +2,6 @@ package id.seria.farm.managers;
  
 import id.seria.farm.SeriaFarmPlugin;
 import id.seria.farm.models.RegenBlock;
-import id.seria.farm.inventory.utils.StaticColors;
 import id.seria.farm.utils.LocationUtils;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
@@ -16,13 +15,18 @@ import org.bukkit.scheduler.BukkitTask;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.HashMap;
 import java.util.concurrent.ConcurrentHashMap;
  
 public class RegenManager {
  
     private final SeriaFarmPlugin plugin;
     private final Map<String, RegenBlock> activeRegens = new ConcurrentHashMap<>();
+    private final Map<String, CachedRegion> regionCache = new ConcurrentHashMap<>();
+    private final Map<String, Map<String, String>> materialLookup = new ConcurrentHashMap<>();
     private BukkitTask task;
+
+    private static record CachedRegion(Location pos1, Location pos2) {}
     
     public String toKey(Location loc) {
         if (loc == null) return "null";
@@ -31,11 +35,14 @@ public class RegenManager {
  
     public RegenManager(SeriaFarmPlugin plugin) {
         this.plugin = plugin;
+        refreshCaches();
         startTicking();
     }
  
     private void startTicking() {
         task = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
+            if (activeRegens.isEmpty()) return;
+            
             long now = System.currentTimeMillis();
             for (RegenBlock regen : activeRegens.values()) {
                 if (regen.isGrowth()) {
@@ -60,17 +67,14 @@ public class RegenManager {
             long elapsed = now - regen.getStartTime();
             int expectedStage = (int) (elapsed / regen.getStepDuration());
             
-            if (plugin.getConfig().getBoolean("settings.debug", false)) {
-                plugin.getLogger().info("[GrowthDebug] " + regen.getMaterialKey() + " | Stage: " + regen.getCurrentStage() + " -> Expected: " + expectedStage + " | Elapsed: " + elapsed + "ms");
-            }
-
-            // Limit to max stage
+            
             if (expectedStage > regen.getMaxStage()) expectedStage = regen.getMaxStage();
 
             if (expectedStage > regen.getCurrentStage()) {
                 regen.setCurrentStage(expectedStage);
                 regen.setLastStepTime(now);
                 updateBlockStage(regen);
+                playGrowthEffects(regen);
             }
         } else {
             // FINISHED: The final stage is already reached and set by updateBlockStage.
@@ -92,32 +96,8 @@ public class RegenManager {
             if (regen.getCurrentStage() < stages.size()) {
                 block.setType(stages.get(regen.getCurrentStage()), true);
             }
-        } else if (original == Material.BAMBOO) {
-            // Bamboo Growth Logic
-            int stage = regen.getCurrentStage();
-            if (stage == 0) {
-                block.setType(Material.BAMBOO_SAPLING, true);
-            } else {
-                // Grow upwards
-                for (int i = 0; i < stage; i++) {
-                    org.bukkit.block.Block b = block.getRelative(0, i, 0);
-                    if (plugin.getConfig().getBoolean("settings.debug", false)) {
-                        plugin.getLogger().info("[GrowthDebug] Setting " + b.getType() + " at Y+" + i + " for " + regen.getMaterialKey());
-                    }
-                    if (i == 0) {
-                        b.setType(Material.BAMBOO, true);
-                    } else if (b.getType() == Material.AIR || b.getType() == Material.CAVE_AIR || b.getType() == Material.BAMBOO) {
-                        b.setType(Material.BAMBOO, true);
-                        // Add leaf visuals
-                        if (b.getBlockData() instanceof org.bukkit.block.data.type.Bamboo bamboo) {
-                            if (i == stage - 1) bamboo.setLeaves(org.bukkit.block.data.type.Bamboo.Leaves.LARGE);
-                            else if (i == stage - 2) bamboo.setLeaves(org.bukkit.block.data.type.Bamboo.Leaves.SMALL);
-                            else bamboo.setLeaves(org.bukkit.block.data.type.Bamboo.Leaves.NONE);
-                            b.setBlockData(bamboo, true);
-                        }
-                    }
-                }
-            }
+        } else if (original == Material.BAMBOO || original == Material.SUGAR_CANE || original == Material.CACTUS) {
+            handleVerticalGrowthTick(regen);
         } else {
             // Ageable
             BlockData data = block.getBlockData();
@@ -127,7 +107,88 @@ public class RegenManager {
             }
         }
     }
+
+    private void playGrowthEffects(RegenBlock regen) {
+        Location loc = regen.getLocation();
+        ConfigurationSection config = plugin.getConfigManager().getConfig("crops.yml").getConfigurationSection("crops." + regen.getMaterialKey());
+        
+        String soundStr = config != null ? config.getString("growth-sound", "BLOCK_CHERRY_SAPLING_PLACE") : "BLOCK_CHERRY_SAPLING_PLACE";
+
+        // Removing particles as requested by USER
+        /*
+        try {
+            org.bukkit.Particle particle = org.bukkit.Particle.valueOf(particleStr);
+            loc.getWorld().spawnParticle(particle, loc.clone().add(0.5, 0.5, 0.5), 10, 0.3, 0.3, 0.3, 0.05);
+        } catch (Exception ignored) {}
+        */
+
+        try {
+            org.bukkit.Sound sound = org.bukkit.Sound.valueOf(soundStr);
+            loc.getWorld().playSound(loc, sound, 1.0f, 1.0f);
+        } catch (Exception ignored) {}
+    }
+
+    private void handleVerticalGrowthTick(RegenBlock regen) {
+        Block root = regen.getLocation().getBlock();
+        Material original = regen.getOriginalMaterial();
+        int targetStage = regen.getCurrentStage();
+        
+        // 1. Handle Stage 0 (Seedling)
+        if (targetStage == 0) {
+            Material seedling = getSeedlingMaterial(regen);
+            if (root.getType() != seedling) {
+                root.setType(seedling, true);
+            }
+            return;
+        }
+
+        // 2. Sequential Stack Advancement
+        // We grow from the root up to targetStage.
+        for (int i = 0; i < targetStage; i++) {
+            Block stalk = root.getRelative(0, i, 0);
+            
+            // Force place the stalk if it's not the right material yet
+            if (stalk.getType() != original) {
+                // Check if the space is clear or can be replaced
+                if (stalk.getType() == Material.AIR || stalk.getType() == Material.CAVE_AIR || stalk.getType() == getSeedlingMaterial(regen)) {
+                    stalk.setType(original, i == 0); // Apply physics only for the first block to ensure updates
+                } else {
+                    // Blocked by something else? Skip this stage for now
+                    break;
+                }
+            }
+
+            // 3. Handle specific block data (Bamboo Leaves, etc.)
+            if (original == Material.BAMBOO && stalk.getBlockData() instanceof org.bukkit.block.data.type.Bamboo bamboo) {
+                org.bukkit.block.data.type.Bamboo.Leaves leafType = org.bukkit.block.data.type.Bamboo.Leaves.NONE;
+                if (i == targetStage - 1) leafType = org.bukkit.block.data.type.Bamboo.Leaves.LARGE;
+                else if (i == targetStage - 2) leafType = org.bukkit.block.data.type.Bamboo.Leaves.SMALL;
+                
+                if (bamboo.getLeaves() != leafType) {
+                    bamboo.setLeaves(leafType);
+                    stalk.setBlockData(bamboo, true);
+                }
+            }
+        }
+    }
+
+    private Material getSeedlingMaterial(RegenBlock regen) {
+        ConfigurationSection config = plugin.getConfigManager().getConfig("crops.yml").getConfigurationSection("crops." + regen.getMaterialKey());
+        if (config != null && config.contains("seedling-material")) {
+            Material mat = Material.matchMaterial(config.getString("seedling-material"));
+            if (mat != null) return mat;
+        }
+        
+        Material original = regen.getOriginalMaterial();
+        if (original == Material.BAMBOO) return Material.BAMBOO_SAPLING;
+        return Material.WHEAT; 
+    }
  
+    private Material getSeedlingMaterial(Material original) {
+        if (original == Material.BAMBOO) return Material.BAMBOO_SAPLING;
+        return Material.WHEAT; 
+    }
+
     public boolean isRegenerating(Location loc) {
         return activeRegens.containsKey(toKey(loc));
     }
@@ -148,14 +209,14 @@ public class RegenManager {
         Material originalMat = (fallbackMat != null && (block.getType() == Material.AIR || block.getType() == Material.CAVE_AIR)) ? fallbackMat : block.getType();
         BlockData originalData = (originalMat == block.getType()) ? block.getBlockData().clone() : Bukkit.createBlockData(originalMat);
 
-        plugin.getLogger().info("[RegenDebug] Scheduling " + originalMat + " at " + loc.getBlockX() + "," + loc.getBlockY() + "," + loc.getBlockZ() + " (Key: " + materialKey + ")");
+        
 
         RegenBlock regen = new RegenBlock(loc, originalMat, originalData, restoreTime, replaceBlocks, delayBlocks, materialKey);
         regen.setStartTime(now);
         
         // CHECK FOR GROWTH CAPABILITY
         boolean growth = isGrowthCapable(originalMat, originalData);
-        plugin.getLogger().info("[RegenDebug] Growth Capable: " + growth);
+        
         if (growth) {
             setupGrowthBlock(regen, block, delaySeconds, now);
         } else {
@@ -173,22 +234,38 @@ public class RegenManager {
         activeRegens.put(toKey(loc), regen);
     }
 
-    public Block getBambooRoot(Block block) {
-        if (block.getType() != Material.BAMBOO && block.getType() != Material.BAMBOO_SAPLING) return block;
+    public Block getVerticalRoot(Block block) {
+        Material type = block.getType();
+        if (!isVerticalCrop(type)) return block;
+        
         Block root = block;
-        while (root.getRelative(0, -1, 0).getType() == Material.BAMBOO) {
+        while (isVerticalCrop(root.getRelative(0, -1, 0).getType())) {
             root = root.getRelative(0, -1, 0);
         }
         return root;
     }
 
-    public int getBambooHeight(Block root) {
-        if (root.getType() != Material.BAMBOO && root.getType() != Material.BAMBOO_SAPLING) return 0;
+    private boolean isVerticalCrop(Material mat) {
+        return mat == Material.BAMBOO || mat == Material.BAMBOO_SAPLING || 
+               mat == Material.SUGAR_CANE || mat == Material.WHEAT || 
+               mat == Material.CACTUS;
+    }
+
+    private Material getBaseMaterial(Material current) {
+        if (current == Material.BAMBOO || current == Material.BAMBOO_SAPLING) return Material.BAMBOO;
+        if (current == Material.SUGAR_CANE || current == Material.WHEAT) return Material.SUGAR_CANE;
+        if (current == Material.CACTUS) return Material.CACTUS;
+        return current;
+    }
+
+    public int getVerticalHeight(Block root, Material stalkType) {
         int height = 0;
         Block stalk = root;
-        while (stalk.getType() == Material.BAMBOO || stalk.getType() == Material.BAMBOO_SAPLING) {
+        Material seedling = getSeedlingMaterial(stalkType);
+        while (stalk.getType() == stalkType || stalk.getType() == seedling) {
             height++;
             stalk = stalk.getRelative(0, 1, 0);
+            if (height > 15) break; // Safety break
         }
         return height;
     }
@@ -202,7 +279,7 @@ public class RegenManager {
         long now = System.currentTimeMillis();
         
         // Find config for delay
-        ConfigurationSection config = plugin.getConfigManager().getConfig("materials.yml").getConfigurationSection("blocks." + materialKey);
+        ConfigurationSection config = plugin.getConfigManager().getConfig("crops.yml").getConfigurationSection("crops." + materialKey);
         int delaySeconds = config != null ? config.getInt("regen-delay", 45) : 45;
 
         BlockData data = block.getBlockData();
@@ -212,15 +289,14 @@ public class RegenManager {
         if (data instanceof Ageable ageable) {
             maxAge = ageable.getMaximumAge();
             currentAge = ageable.getAge();
-        } else if (block.getType() == Material.BAMBOO || block.getType() == Material.BAMBOO_SAPLING) {
-            // Bamboo/Sapling logic for ad-hoc
-            Block root = getBambooRoot(block);
-            if (isRegenerating(root.getLocation())) return; // Root is already being tracked
+        } else if (block.getType() == Material.BAMBOO || block.getType() == Material.SUGAR_CANE || block.getType() == Material.CACTUS) {
+            Block root = getVerticalRoot(block);
+            if (isRegenerating(root.getLocation())) return;
             
-            maxAge = config != null ? config.getInt("bamboo-max-height", 12) : 12;
-            currentAge = getBambooHeight(root);
+            maxAge = config != null ? config.getInt("growth-max-height", 3) : 3;
+            if (block.getType() == Material.BAMBOO) maxAge = config != null ? config.getInt("bamboo-max-height", 12) : 12;
             
-            // Redirect tracking to ROOT
+            currentAge = getVerticalHeight(root, getBaseMaterial(block.getType()));
             loc = root.getLocation();
             if (isRegenerating(loc)) return;
         }
@@ -236,15 +312,13 @@ public class RegenManager {
             regen.setStartTime(now - offset);
             
             activeRegens.put(toKey(loc), regen);
-            if (plugin.getConfig().getBoolean("settings.debug", false)) {
-                plugin.getLogger().info("[GrowthDebug] Started ad-hoc tracking for " + materialKey + " at stage " + currentAge + "/" + maxAge);
-            }
+        
         }
     }
  
     private boolean isGrowthCapable(Material mat, BlockData data) {
         if (data instanceof Ageable) return true;
-        if (mat == Material.AMETHYST_CLUSTER || mat == Material.BAMBOO || mat == Material.BAMBOO_SAPLING) return true;
+        if (mat == Material.AMETHYST_CLUSTER || mat == Material.BAMBOO || mat == Material.BAMBOO_SAPLING || mat == Material.SUGAR_CANE || mat == Material.CACTUS) return true;
         return false;
     }
 
@@ -260,27 +334,33 @@ public class RegenManager {
         int maxAge = 0;
         Material startMat = block.getType();
         
+        Material original = regen.getOriginalMaterial();
         if (block.getBlockData() instanceof Ageable ageable) {
             maxAge = ageable.getMaximumAge();
             regen.setMaxStage(maxAge);
             regen.setCurrentStage(0);
-        } else if (block.getType() == Material.AMETHYST_CLUSTER) {
+        } else if (original == Material.AMETHYST_CLUSTER) {
             maxAge = 3; // Small -> Medium -> Large -> Cluster
             regen.setMaxStage(maxAge);
             regen.setCurrentStage(0);
             startMat = Material.SMALL_AMETHYST_BUD;
-        } else if (block.getType() == Material.BAMBOO) {
-            org.bukkit.configuration.ConfigurationSection matConfig = plugin.getConfigManager().getConfig("materials.yml").getConfigurationSection("blocks." + regen.getMaterialKey());
-            maxAge = matConfig != null ? matConfig.getInt("bamboo-max-height", 12) : 12;
+        } else if (original == Material.BAMBOO || original == Material.SUGAR_CANE || original == Material.CACTUS) {
+            org.bukkit.configuration.ConfigurationSection matConfig = plugin.getConfigManager().getConfig("crops.yml").getConfigurationSection("crops." + regen.getMaterialKey());
+            // Unify on growth-max-height for all vertical crops
+            maxAge = matConfig != null ? matConfig.getInt("growth-max-height", 3) : 3;
+            // Legacy/specific fallback for bamboo if needed, but growth-max-height is preferred
+            if (original == Material.BAMBOO && (matConfig == null || !matConfig.contains("growth-max-height"))) {
+                maxAge = matConfig != null ? matConfig.getInt("bamboo-max-height", 12) : 12;
+            }
+            
             regen.setMaxStage(maxAge);
             regen.setCurrentStage(0);
-            startMat = Material.BAMBOO_SAPLING;
-            plugin.getLogger().info("[GrowthDebug] Bamboo Setup: maxAge=" + maxAge + " delay=" + delaySeconds);
+            startMat = getSeedlingMaterial(regen);
         }
     
         if (mode.equalsIgnoreCase("VANILLA") && maxAge > 0) {
             regen.setStepDuration((delaySeconds * 1000L) / maxAge);
-            plugin.getLogger().info("[GrowthDebug] Step Duration: " + regen.getStepDuration() + "ms");
+        
         }
         
         regen.setLastStepTime(now);
@@ -308,7 +388,7 @@ public class RegenManager {
         } else {
             if (regen.getOriginalMaterial() == Material.BAMBOO) {
                 // Multi-block restoration for Bamboo in INSTANT mode
-                int maxHeight = plugin.getConfigManager().getConfig("materials.yml").getInt("blocks." + regen.getMaterialKey() + ".bamboo-max-height", 12);
+                int maxHeight = plugin.getConfigManager().getConfig("crops.yml").getInt("crops." + regen.getMaterialKey() + ".bamboo-max-height", 12);
                 for (int i = 0; i < maxHeight; i++) {
                     org.bukkit.block.Block b = block.getRelative(0, i, 0);
                     if (i == 0 || b.getType() == Material.AIR || b.getType() == Material.CAVE_AIR) {
@@ -359,65 +439,88 @@ public class RegenManager {
     }
  
     public String getRegionAt(Location loc) {
-        org.bukkit.configuration.ConfigurationSection section = plugin.getConfigManager().getConfig("regions.yml").getConfigurationSection("regions");
-        if (section == null) return null;
-        for (String regionName : section.getKeys(false)) {
-            String p1Str = section.getString(regionName + ".pos1");
-            String p2Str = section.getString(regionName + ".pos2");
-            if (p1Str == null || p2Str == null) continue;
-            Location l1 = LocationUtils.deserialize(p1Str);
-            Location l2 = LocationUtils.deserialize(p2Str);
-            if (l1 != null && l2 != null) {
-                if (LocationUtils.isInside(loc, l1, l2)) return regionName;
+        if (regionCache.isEmpty()) return null;
+        
+        for (Map.Entry<String, CachedRegion> entry : regionCache.entrySet()) {
+            CachedRegion region = entry.getValue();
+            if (LocationUtils.isInside(loc, region.pos1(), region.pos2())) {
+                return entry.getKey();
             }
         }
         return null;
     }
- 
+
+    public void refreshCaches() {
+        refreshRegionCache();
+        refreshMaterialCache();
+    }
+
+    public void refreshRegionCache() {
+        regionCache.clear();
+        ConfigurationSection section = plugin.getConfigManager().getConfig("regions.yml").getConfigurationSection("regions");
+        if (section == null) return;
+
+        for (String regionName : section.getKeys(false)) {
+            String p1Str = section.getString(regionName + ".pos1");
+            String p2Str = section.getString(regionName + ".pos2");
+            if (p1Str == null || p2Str == null) continue;
+
+            Location l1 = LocationUtils.deserialize(p1Str);
+            Location l2 = LocationUtils.deserialize(p2Str);
+            if (l1 != null && l2 != null) {
+                regionCache.put(regionName, new CachedRegion(l1, l2));
+            }
+        }
+    }
+
+    public void refreshMaterialCache() {
+        materialLookup.clear();
+        ConfigurationSection blocks = plugin.getConfigManager().getConfig("crops.yml").getConfigurationSection("crops");
+        if (blocks == null) return;
+
+        for (String sectionName : blocks.getKeys(false)) {
+            ConfigurationSection section = blocks.getConfigurationSection(sectionName);
+            if (section == null) continue;
+
+            Map<String, String> normalizedMap = new HashMap<>();
+            for (String key : section.getKeys(false)) {
+                String matStr = section.getString(key + ".material", key);
+                normalizedMap.put(normalize(matStr), key);
+                normalizedMap.put(normalize(key), key);
+            }
+            materialLookup.put(sectionName, normalizedMap);
+        }
+    }
+
+    private String normalize(String s) {
+        if (s == null) return "";
+        String normalized = s.toLowerCase().replace("_", "");
+        return stripPlural(normalized);
+    }
+
     public String findBlockKey(Block block, Player player) {
         String matName = block.getType().name();
+        String normalizedMat = normalize(matName);
         String regionName = getRegionAt(block.getLocation());
-        ConfigurationSection rootBlocks = plugin.getConfigManager().getConfig("materials.yml").getConfigurationSection("blocks");
         
-        if (rootBlocks == null) {
-            if (player != null && player.isOp()) player.sendMessage(StaticColors.getHexMsg("&8[&bDebug&8] &cRoot section 'blocks' MISSING from materials.yml!"));
+        // 1. Check Region-Specific
+        if (regionName != null) {
+            Map<String, String> regionMap = materialLookup.get(regionName);
+            if (regionMap != null) {
+                String key = regionMap.get(normalizedMat);
+                if (key != null) return regionName + "." + key;
+            }
+            // STRICT ISOLATION: If we are in a region, we DO NOT fall back to global.
             return null;
         }
 
-        // 1. Check Region-Specific Overrides
-        if (regionName != null) {
-            ConfigurationSection regionSection = rootBlocks.getConfigurationSection(regionName);
-            if (regionSection != null) {
-                for (String key : regionSection.getKeys(false)) {
-                    String configMat = regionSection.getString(key + ".material", "");
-                    if (isMatch(matName, configMat, key)) {
-                        return regionName + "." + key;
-                    }
-                }
-            }
-        }
-
-        // 2. Check Global Settings
-        ConfigurationSection globalSection = rootBlocks.getConfigurationSection("global");
-        if (globalSection != null) {
-            for (String key : globalSection.getKeys(false)) {
-                String configMat = globalSection.getString(key + ".material", "");
-                if (isMatch(matName, configMat, key)) {
-                    return "global." + key;
-                }
-            }
+        // 2. Check Global
+        Map<String, String> globalMap = materialLookup.get("global");
+        if (globalMap != null) {
+            String key = globalMap.get(normalizedMat);
+            if (key != null) return "global." + key;
         }
         
-        // ADMIN VERBOSE DEBUG (Snapshot of internal state)
-        if (player != null && block.getType() != Material.AIR && (player.isOp() || player.hasPermission("seriafarm.admin"))) {
-            player.sendMessage(StaticColors.getHexMsg("&8[&bDebug&8] &7Material: &f" + matName + " &7| ConfigFound: &cTIDAK"));
-            if (globalSection != null) {
-                String foundKeys = String.join(", ", globalSection.getKeys(false));
-                player.sendMessage(StaticColors.getHexMsg("&8[&bDebug&8] &7Available Global Keys: &e[" + foundKeys + "]"));
-            } else {
-                player.sendMessage(StaticColors.getHexMsg("&8[&bDebug&8] &cGlobal section 'blocks.global' NOT found in config!"));
-            }
-        }
         return null;
     }
 

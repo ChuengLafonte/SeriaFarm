@@ -20,13 +20,13 @@ import org.jetbrains.annotations.NotNull;
 
 import java.io.File;
 
-public class BambooMenu implements Listener, InventoryHolder {
-    private static final Component NAME = StaticColors.getHexMsg("&#228B22&lBamboo Settings");
+public class VerticalGrowthMenu implements Listener, InventoryHolder {
+    private static final Component NAME = StaticColors.getHexMsg("&#228B22&lGrowth Settings");
     private final SeriaFarmPlugin plugin;
     private String matName;
     private String regionName;
 
-    public BambooMenu(SeriaFarmPlugin plugin) {
+    public VerticalGrowthMenu(SeriaFarmPlugin plugin) {
         this.plugin = plugin;
     }
 
@@ -34,17 +34,22 @@ public class BambooMenu implements Listener, InventoryHolder {
         this.matName = matName;
         this.regionName = regionName;
         
-        YamlConfiguration config = (YamlConfiguration) plugin.getConfigManager().getConfig("materials.yml");
+        YamlConfiguration config = (YamlConfiguration) plugin.getConfigManager().getConfig("crops.yml");
         String path = getConfigPath(matName);
-        int maxHeight = config.getInt(path + ".bamboo-max-height", 12);
+        
+        // Use the unified key growth-max-height
+        int maxHeight = config.getInt(path + ".growth-max-height", 
+            matName.toLowerCase().contains("bamboo") ? 12 : 3);
 
         Inventory inventory = Bukkit.createInventory(this, 27, NAME);
 
+        Material iconMat = Material.matchMaterial(matName.split(":")[1]) != null ? Material.matchMaterial(matName.split(":")[1]) : Material.OAK_SAPLING;
+
         // Slot 13: Info & Edit Max Height
-        inventory.setItem(13, InvUtils.createItemStacks(Material.BAMBOO, 
+        inventory.setItem(13, InvUtils.createItemStacks(iconMat, 
             StaticColors.getHexMsg("&#228B22&lMax Growth Height"),
             "&7Configure how many blocks tall",
-            "&7this bamboo can grow.",
+            "&7this plant can grow.",
             "",
             "&eCurrent Limit: &f" + maxHeight + " blocks",
             "",
@@ -58,10 +63,6 @@ public class BambooMenu implements Listener, InventoryHolder {
         for (int i = 0; i < 27; i++) {
             if (inventory.getItem(i) == null) inventory.setItem(i, glass);
         }
-
-        // Store metadata on a hidden item or use holder
-        // Since we don't have a dedicated slot for data, we'll use the holder if needed, 
-        // but EditMenu uses slot 45 for data. Here we'll use slot 0 or just pass data via holder.
         
         player.openInventory(inventory);
     }
@@ -71,43 +72,43 @@ public class BambooMenu implements Listener, InventoryHolder {
         String section = parts.length > 1 ? parts[0] : "legacy";
         String materialKey = parts.length > 1 ? parts[1] : matName;
         if (section.equalsIgnoreCase("legacy")) {
-            return "blocks." + materialKey;
+            return "crops." + materialKey;
         } else {
-            return "blocks." + section + "." + materialKey;
+            return "crops." + section + "." + materialKey;
         }
     }
 
     @Override
     public @NotNull Inventory getInventory() {
-        return null; // Holder identification
+        return Bukkit.createInventory(this, 27, NAME); // Dummy for Holder identification
     }
 
     @EventHandler
     public void onInventoryClick(InventoryClickEvent event) {
-        if (!(event.getInventory().getHolder() instanceof BambooMenu)) return;
+        if (!(event.getInventory().getHolder() instanceof VerticalGrowthMenu)) return;
         event.setCancelled(true);
 
         Player player = (Player) event.getWhoClicked();
-        BambooMenu holder = (BambooMenu) event.getInventory().getHolder();
-        String currentMat = holder.matName;
-        String currentRegion = holder.regionName;
+        VerticalGrowthMenu holder = (VerticalGrowthMenu) event.getInventory().getHolder();
+        String currentMat = this.matName; // Simplified since it's a new instance per open usually
+        String currentRegion = this.regionName;
 
         if (event.getRawSlot() == 18) { // Back
-            YamlConfiguration matConfig = (YamlConfiguration) plugin.getConfigManager().getConfig("materials.yml");
-            File matFile = plugin.getConfigManager().getConfigFile("materials.yml");
+            YamlConfiguration matConfig = (YamlConfiguration) plugin.getConfigManager().getConfig("crops.yml");
+            File matFile = plugin.getConfigManager().getConfigFile("crops.yml");
             player.openInventory(new EditMenu(plugin).emenu(player, matConfig, currentMat, matFile, currentRegion));
             return;
         }
 
         if (event.getRawSlot() == 13) { // Edit Max Height
-            ChatInputListener.requestInput(player, "Bamboo Max Height", "Positive integer (default: 12)", input -> {
+            ChatInputListener.requestInput(player, "Max Growth Height", "Positive integer", input -> {
                 try {
                     int val = Integer.parseInt(input);
                     if (val < 1) throw new NumberFormatException();
                     
-                    YamlConfiguration config = (YamlConfiguration) plugin.getConfigManager().getConfig("materials.yml");
-                    config.set(getConfigPath(currentMat) + ".bamboo-max-height", val);
-                    plugin.getConfigManager().saveConfig("materials.yml");
+                    YamlConfiguration config = (YamlConfiguration) plugin.getConfigManager().getConfig("crops.yml");
+                    config.set(getConfigPath(currentMat) + ".growth-max-height", val);
+                    plugin.getConfigManager().saveConfig("crops.yml");
                     
                     player.sendMessage(StaticColors.getHexMsg("&6&lSeriaFarm &8» &aMax height updated to &f" + val));
                 } catch (NumberFormatException e) {

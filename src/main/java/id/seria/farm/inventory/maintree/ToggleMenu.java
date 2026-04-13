@@ -16,6 +16,10 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 
 public class ToggleMenu implements Listener {
+    
+    public static boolean isDropToInvEnabled() {
+        return SeriaFarmPlugin.getInstance().getConfigManager().getConfig("config.yml").getBoolean("settings.drop-to-inventory", false);
+    }
 
     private final Component name = StaticColors.getHexMsg("&#cf8ff7&lToggle Menu");
     private final SeriaFarmPlugin plugin;
@@ -59,8 +63,9 @@ public class ToggleMenu implements Listener {
         boolean globalRightClick = config.getBoolean("settings.global-right-click-harvest", true);
         inventory.setItem(19, InvUtils.createItemStacks(Material.WOODEN_HOE, 
             StaticColors.getHexMsg("&#cf8ff7Global Right-Click Harvest"), 
-            "&7Enable harvesting by right-click", 
-            "&7on blocks outside regions.", 
+            "&7Enable harvesting by right-click.", 
+            "&7&cONLY affects blocks outside regions.", 
+            "&7Regions always follow their own rules.", 
             "", 
             "&eStatus: " + (globalRightClick ? "&aEnabled" : "&cDisabled")));
 
@@ -69,7 +74,8 @@ public class ToggleMenu implements Listener {
         inventory.setItem(21, InvUtils.createItemStacks(Material.DIAMOND_HOE, 
             StaticColors.getHexMsg("&#cf8ff7Global Replant"), 
             "&7Automatically replant crops", 
-            "&7outside regions after harvest.", 
+            "&7after harvest in global areas.", 
+            "&7&cHas NO EFFECT inside regions.", 
             "", 
             "&eStatus: " + (globalReplant ? "&aEnabled" : "&cDisabled")));
 

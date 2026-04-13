@@ -1,12 +1,68 @@
-# Definition for farmable crops
+# ----------------------------------------------------------------
+# SeriaFarm Unified Crops Configuration
+# ----------------------------------------------------------------
+# This file handles both block regeneration and farming rewards.
+# Structure:
+# crops:
+#   global:
+#     - Applied server-wide.
+#   [region_name]:
+#     - Overrides global settings within this region.
+# ----------------------------------------------------------------
+
 crops:
+  global:
+    # --- Standard Crops (Ageable) ---
+    wheat:
+      material: WHEAT
+      regen-delay: 60
+      farming-level: 1
+    carrots:
+      material: CARROT
+      regen-delay: 60
+      farming-level: 5
+    potatoes:
+      material: POTATO
+      regen-delay: 60
+      farming-level: 2
+      level-scaling: 0.5
+    beetroots:
+      material: BEETROOT
+      regen-delay: 60
+    nether_wart:
+      material: NETHER_WART
+      regen-delay: 90
+      farming-level: 15
+      level-scaling: 1.0
+    cocoa:
+      material: COCOA_BEANS
+      regen-delay: 90
+    
+    # --- Fruits ---
+    melon:
+      material: MELON
+      regen-delay: 120
+    pumpkin:
+      material: PUMPKIN
+      regen-delay: 120
+    
+    # --- Berries ---
+    sweet_berry_bush:
+      material: SWEET_BERRIES
+      regen-delay: 60
+
+  # Region Overrides
+  farming_zone_1:
+    wheat:
+       material: WHEAT
+       regen-delay: 30
+       rewards:
+          xp: 2
+
+# Drop Table Definitions (Automatically injected into global blocks above)
+# This section mimics your original crops.yml for easy management.
+drop-tables:
   potato:
-    seed: POTATO
-    farmland: FARMLAND
-    growth-time: 300 # seconds
-    requirements:
-      auraskills:
-        farming: ">= 1"
     drops:
       - material: POTATO
         chance: 80.0
@@ -16,4 +72,3 @@ crops:
         chance: 4.0
       - material: "mmoitems-MATERIAL:LEGENDARY_POTATO"
         chance: 1.0
-    vanilla-animation: true

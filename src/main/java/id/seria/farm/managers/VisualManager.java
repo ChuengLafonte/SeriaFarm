@@ -128,7 +128,7 @@ public class VisualManager {
         String region = plugin.getRegenManager().getRegionAt(regen.getLocation());
         
         // Debug Logging
-        Bukkit.getLogger().info("[SeriaFarm Debug] showGrowthInfo called for " + regen.getLocation() + " | Region: " + region);
+        
 
         // Check if inside a region
         if (region != null) {
@@ -154,8 +154,8 @@ public class VisualManager {
     private Component getMaterialDisplayName(String materialKey) {
         if (materialKey == null) return Component.text("Unknown");
         
-        // 1. Check config (materials.yml) for custom display-name
-        org.bukkit.configuration.ConfigurationSection config = plugin.getConfigManager().getConfig("materials.yml").getConfigurationSection("blocks." + materialKey);
+        // 1. Check config (crops.yml) for custom display-name
+        org.bukkit.configuration.ConfigurationSection config = plugin.getConfigManager().getConfig("crops.yml").getConfigurationSection("crops." + materialKey);
         if (config != null && config.contains("display-name")) {
             return StaticColors.getHexMsg(config.getString("display-name"));
         }

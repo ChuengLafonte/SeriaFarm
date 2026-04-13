@@ -21,12 +21,14 @@ public class SeriaFarmPlugin extends JavaPlugin {
     private RequirementEngine requirementEngine;
     public static org.bukkit.NamespacedKey key;
     public static org.bukkit.NamespacedKey chanceKey;
+    public static org.bukkit.NamespacedKey weightKey;
 
     @Override
     public void onEnable() {
         instance = this;
         key = new org.bukkit.NamespacedKey(this, "localized_name");
         chanceKey = new org.bukkit.NamespacedKey(this, "chance_value");
+        weightKey = new org.bukkit.NamespacedKey(this, "weight_value");
         saveDefaultConfig();
 
         getLogger().info("========================================");
@@ -48,6 +50,9 @@ public class SeriaFarmPlugin extends JavaPlugin {
         farmManager = new FarmManager(this);
         visualManager = new VisualManager(this);
         auraSkillsManager = new AuraSkillsManager(this);
+        
+        // Inject drop tables AFTER systems are ready
+        configManager.injectDropTablesIntoCrops();
 
         // Register Listeners
         org.bukkit.plugin.PluginManager pm = getServer().getPluginManager();
@@ -65,12 +70,14 @@ public class SeriaFarmPlugin extends JavaPlugin {
         pm.registerEvents(new id.seria.farm.inventory.edittree.EditMenu(this), this);
         pm.registerEvents(new id.seria.farm.inventory.edittree.ReplaceBlockMenu(this), this);
         pm.registerEvents(new id.seria.farm.inventory.edittree.DropsMenu(this), this);
-        pm.registerEvents(new id.seria.farm.inventory.edittree.BambooMenu(this), this);
+        pm.registerEvents(new id.seria.farm.inventory.edittree.RequiredToolsMenu(this), this);
+        pm.registerEvents(new id.seria.farm.inventory.edittree.VerticalGrowthMenu(this), this);
         pm.registerEvents(new id.seria.farm.inventory.maintree.GlobalBlocksMenu(this), this);
         pm.registerEvents(new id.seria.farm.inventory.maintree.GlobalBlockEditMenu(this), this);
         pm.registerEvents(new RegionListener(this), this);
         pm.registerEvents(new GrowthListener(this), this);
         pm.registerEvents(new BlockPlaceListener(this), this);
+        pm.registerEvents(new CropProtectionListener(this), this);
 
         // Register Commands
         id.seria.farm.commands.SFarmCommand sfarmCommand = new id.seria.farm.commands.SFarmCommand(this);

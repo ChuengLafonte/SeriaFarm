@@ -59,27 +59,35 @@ public class DatabaseManager {
     }
 
     public void saveRegenBlock(String world, int x, int y, int z, String material, long time) {
-        String sql = "INSERT INTO regenerating_blocks(world, x, y, z, original_mat, restore_time) VALUES(?,?,?,?,?,?)";
-        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
-            pstmt.setString(1, world);
-            pstmt.setInt(2, x);
-            pstmt.setInt(3, y);
-            pstmt.setInt(4, z);
-            pstmt.setString(5, material);
-            pstmt.setLong(6, time);
-            pstmt.executeUpdate();
-        } catch (SQLException e) { plugin.getLogger().warning("DB Error: " + e.getMessage()); }
+        org.bukkit.Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+            String sql = "INSERT INTO regenerating_blocks(world, x, y, z, original_mat, restore_time) VALUES(?,?,?,?,?,?)";
+            try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+                pstmt.setString(1, world);
+                pstmt.setInt(2, x);
+                pstmt.setInt(3, y);
+                pstmt.setInt(4, z);
+                pstmt.setString(5, material);
+                pstmt.setLong(6, time);
+                pstmt.executeUpdate();
+            } catch (SQLException e) { 
+                plugin.getLogger().warning("DB Error (Async): " + e.getMessage()); 
+            }
+        });
     }
 
     public void removeRegenBlock(String world, int x, int y, int z) {
-        String sql = "DELETE FROM regenerating_blocks WHERE world = ? AND x = ? AND y = ? AND z = ?";
-        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
-            pstmt.setString(1, world);
-            pstmt.setInt(2, x);
-            pstmt.setInt(3, y);
-            pstmt.setInt(4, z);
-            pstmt.executeUpdate();
-        } catch (SQLException e) { plugin.getLogger().warning("DB Error: " + e.getMessage()); }
+        org.bukkit.Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+            String sql = "DELETE FROM regenerating_blocks WHERE world = ? AND x = ? AND y = ? AND z = ?";
+            try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+                pstmt.setString(1, world);
+                pstmt.setInt(2, x);
+                pstmt.setInt(3, y);
+                pstmt.setInt(4, z);
+                pstmt.executeUpdate();
+            } catch (SQLException e) { 
+                plugin.getLogger().warning("DB Error (Async): " + e.getMessage()); 
+            }
+        });
     }
 
     public void close() {

@@ -58,20 +58,25 @@ public class AddBlocksMenu implements Listener {
             String target = LocalizedName.get(targetItem);
             if (target == null) target = "global";
             
-            org.bukkit.configuration.file.FileConfiguration config = SeriaFarmPlugin.getInstance().getConfigManager().getConfig("materials.yml");
+            org.bukkit.configuration.file.FileConfiguration config = SeriaFarmPlugin.getInstance().getConfigManager().getConfig("crops.yml");
             SeriaFarmPlugin plugin = SeriaFarmPlugin.getInstance();
             
             int added = 0;
+            int rejected = 0;
             for (int i = 0; i < 54; i++) {
                 if (isBorder(i)) continue;
                 ItemStack item = event.getInventory().getItem(i);
                 if (item != null && item.getType() != org.bukkit.Material.AIR) {
+                    if (!isPlantBlock(item.getType())) {
+                        rejected++;
+                        continue;
+                    }
                     String identifier = plugin.getHookManager().getItemIdentifier(item);
                     // Use a safe key for YAML (replace : with - to avoid accidental nesting)
                     String matKey = identifier.replace(":", "-").toUpperCase();
                     
-                    String path = target.equalsIgnoreCase("global") ? "blocks.global." + matKey : "blocks." + target + "." + matKey;
-                    if (target.equalsIgnoreCase("legacy")) path = "blocks." + matKey;
+                    String path = target.equalsIgnoreCase("global") ? "crops.global." + matKey : "crops." + target + "." + matKey;
+                    if (target.equalsIgnoreCase("legacy")) path = "crops." + matKey;
                     
                     config.set(path + ".material", identifier);
                     config.set(path + ".regen-delay", 20);
@@ -83,8 +88,11 @@ public class AddBlocksMenu implements Listener {
             }
             
             if (added > 0) {
-                SeriaFarmPlugin.getInstance().getConfigManager().saveConfig("materials.yml");
+                SeriaFarmPlugin.getInstance().getConfigManager().saveConfig("crops.yml");
                 player.sendMessage(StaticColors.getHexMsg("&6&lSeriaFarm &8» &aSuccessfully added &f" + added + " &ablocks to &b" + target));
+            }
+            if (rejected > 0) {
+                player.sendMessage(StaticColors.getHexMsg("&6&lSeriaFarm &8» &cRejected &f" + rejected + " &cnon-plant blocks."));
             }
             player.openInventory(new MainMenu(SeriaFarmPlugin.getInstance()).mainmenu(player));
         }
@@ -108,6 +116,17 @@ public class AddBlocksMenu implements Listener {
                 inv.setItem(i, null);
             }
         }
+    }
+
+    private boolean isPlantBlock(Material mat) {
+        String name = mat.name();
+        return name.contains("WHEAT") || name.contains("CARROT") || name.contains("POTATO") || 
+               name.contains("BEETROOT") || name.contains("NETHER_WART") || name.contains("COCOA") || 
+               name.contains("CANE") || name.contains("CACTUS") || name.contains("BAMBOO") || 
+               name.contains("KELP") || name.contains("MELON") || name.contains("PUMPKIN") || 
+               name.contains("BERRY") || name.contains("VINE") || name.contains("MUSHROOM") || 
+               name.contains("FLOWER") || name.contains("SAPLING") || name.contains("LEAVES") ||
+               mat.isBlock() && mat.createBlockData() instanceof org.bukkit.block.data.Ageable;
     }
 
     private boolean isBorder(int slot) {

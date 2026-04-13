@@ -97,7 +97,7 @@ public class RegionSelectionMenu implements Listener, InventoryHolder {
         Player player = (Player) event.getWhoClicked();
         
         // Debug Logging
-        Bukkit.getLogger().info("[SeriaFarm Debug] Click detected in RegionSelectionMenu. Slot: " + event.getRawSlot() + " | Title Match: " + isTitle + " | Holder Match: " + isHolder);
+        
 
         if (event.getRawSlot() >= 54) return;
 

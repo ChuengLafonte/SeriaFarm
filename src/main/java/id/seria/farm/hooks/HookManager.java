@@ -36,8 +36,13 @@ public class HookManager {
         if (identifier.startsWith("ia:")) return getItemsAdderItem(identifier.substring(3));
         if (identifier.startsWith("nx:")) return getNexoItem(identifier.substring(3));
         if (identifier.startsWith("ox:")) return getOraxenItem(identifier.substring(3));
-        if (identifier.startsWith("mi:")) {
-            String[] parts = identifier.substring(3).split(":");
+        
+        String mmoId = null;
+        if (identifier.startsWith("mi:")) mmoId = identifier.substring(3);
+        else if (identifier.startsWith("mmoitems-")) mmoId = identifier.substring(9);
+
+        if (mmoId != null) {
+            String[] parts = mmoId.split(":");
             if (parts.length >= 2) return getMMOItemStack(parts[0], parts[1]);
         }
 

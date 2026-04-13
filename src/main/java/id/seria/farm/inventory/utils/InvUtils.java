@@ -71,4 +71,48 @@ public class InvUtils {
         }
         return null;
     }
+
+    public static String getFriendlyName(Material material) {
+        String name = material.name().toLowerCase().replace("_", " ");
+        String[] words = name.split(" ");
+        StringBuilder sb = new StringBuilder();
+        for (String word : words) {
+            if (word.isEmpty()) continue;
+            sb.append(Character.toUpperCase(word.charAt(0))).append(word.substring(1)).append(" ");
+        }
+        return sb.toString().trim();
+    }
+
+    public static void stripTechnicalLore(ItemStack item) {
+        if (item == null || !item.hasItemMeta()) return;
+        ItemMeta meta = item.getItemMeta();
+        if (meta == null) return;
+
+        // 1. Remove Lore
+        if (meta.hasLore()) {
+            List<net.kyori.adventure.text.Component> lore = meta.lore();
+            if (lore != null) {
+                lore.removeIf(line -> {
+                    String plain = id.seria.farm.SeriaFarmPlugin.MINI_MESSAGE.serialize(line);
+                    return plain.contains("Chance:") || 
+                           plain.contains("Weight:") || 
+                           plain.contains("Click:") || 
+                           plain.contains("Set Weight") ||
+                           plain.contains("Remove");
+                });
+                while (!lore.isEmpty() && id.seria.farm.SeriaFarmPlugin.MINI_MESSAGE.serialize(lore.get(lore.size() - 1)).trim().isEmpty()) {
+                    lore.remove(lore.size() - 1);
+                }
+                meta.lore(lore);
+            }
+        }
+
+        // 2. Remove Technical NBT to allow stacking
+        org.bukkit.persistence.PersistentDataContainer pdc = meta.getPersistentDataContainer();
+        pdc.remove(id.seria.farm.SeriaFarmPlugin.chanceKey);
+        pdc.remove(id.seria.farm.SeriaFarmPlugin.weightKey);
+        pdc.remove(id.seria.farm.SeriaFarmPlugin.key);
+        
+        item.setItemMeta(meta);
+    }
 }

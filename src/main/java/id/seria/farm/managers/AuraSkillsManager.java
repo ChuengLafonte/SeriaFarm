@@ -90,9 +90,48 @@ public class AuraSkillsManager {
         SkillXP info = xpMapping.get(material);
         if (info == null) return;
 
-        // Command: sk xp add %player_name% <skill> <amount> -s
-        String cmd = String.format("sk xp add %s %s %s -s", player.getName(), info.skill, info.xp);
-        Bukkit.dispatchCommand(Bukkit.getConsoleSender(), cmd);
+        try {
+            dev.aurelium.auraskills.api.AuraSkillsApi api = dev.aurelium.auraskills.api.AuraSkillsApi.get();
+            dev.aurelium.auraskills.api.user.SkillsUser user = api.getUser(player.getUniqueId());
+            dev.aurelium.auraskills.api.skill.Skill skill = api.getGlobalRegistry().getSkill(dev.aurelium.auraskills.api.registry.NamespacedId.of("auraskills", info.skill));
+            if (skill != null) {
+                user.addSkillXp(skill, info.xp);
+            }
+        } catch (NoClassDefFoundError | Exception e) {
+            // Fallback or ignore if AuraSkills is not loaded correctly
+            String cmd = String.format("sk xp add %s %s %s -s", player.getName(), info.skill, info.xp);
+            Bukkit.dispatchCommand(Bukkit.getConsoleSender(), cmd);
+        }
+    }
+
+    public int getAbilityLevel(Player player, String abilityName) {
+        try {
+            dev.aurelium.auraskills.api.AuraSkillsApi api = dev.aurelium.auraskills.api.AuraSkillsApi.get();
+            dev.aurelium.auraskills.api.user.SkillsUser user = api.getUser(player.getUniqueId());
+            dev.aurelium.auraskills.api.ability.Ability ability = api.getGlobalRegistry().getAbility(dev.aurelium.auraskills.api.registry.NamespacedId.of("auraskills", abilityName));
+            if (ability != null) {
+                return user.getAbilityLevel(ability);
+            }
+        } catch (NoClassDefFoundError | Exception ignored) {}
+        return 0;
+    }
+
+    public int getFarmingLevel(Player player) {
+        if (!SeriaFarmPlugin.getInstance().getHookManager().isAuraSkillsEnabled()) return 0;
+        try {
+            Class<?> apiClass = Class.forName("dev.aurelium.auraskills.api.AuraSkillsApi");
+            Object apiInstance = apiClass.getMethod("get").invoke(null);
+            Object user = apiClass.getMethod("getUser", java.util.UUID.class).invoke(apiInstance, player.getUniqueId());
+            if (user == null) return 0;
+
+            Object registry = apiClass.getMethod("getGlobalRegistry").invoke(apiInstance);
+            Object skillObj = registry.getClass().getMethod("getSkill", String.class).invoke(registry, "farming");
+            if (skillObj == null) return 0;
+
+            return (int) user.getClass().getMethod("getSkillLevel", skillObj.getClass()).invoke(user, skillObj);
+        } catch (Exception e) {
+            return 0;
+        }
     }
 
     private static class SkillXP {

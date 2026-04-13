@@ -39,7 +39,7 @@ public class GlobalBlocksMenu implements Listener, InventoryHolder {
     public Inventory blockmenu(Player player, int page) {
         this.page = page;
         Inventory inventory = Bukkit.createInventory(this, 54, this.name);
-        YamlConfiguration config = (YamlConfiguration) plugin.getConfigManager().getConfig("materials.yml");
+        YamlConfiguration config = (YamlConfiguration) plugin.getConfigManager().getConfig("crops.yml");
         
         // Navigation & Info (Modern Wiki Style)
         inventory.setItem(48, InvUtils.createItemStacks(Material.ARROW, StaticColors.getHexMsg("&#2ecc71&l« Previous"), "&7Go back to the last page.", ""));
@@ -69,7 +69,10 @@ public class GlobalBlocksMenu implements Listener, InventoryHolder {
         
         inventory.setItem(53, InvUtils.createItemStacks(Material.BARRIER, StaticColors.getHexMsg("&cClose Menu"), "&7Exit the wiki", ""));
 
-        ConfigurationSection globalSection = config.getConfigurationSection("blocks.global");
+        ConfigurationSection globalSection = config.getConfigurationSection("crops.global");
+        if (globalSection == null) {
+            plugin.getLogger().warning("GlobalBlocksMenu: crops.global section not found in crops.yml!");
+        }
         List<String> materials = new ArrayList<>();
         if (globalSection != null) {
             globalSection.getKeys(false).forEach(k -> materials.add("global:" + k));
@@ -92,7 +95,7 @@ public class GlobalBlocksMenu implements Listener, InventoryHolder {
             if (slot >= 44) break;
 
             String materialKey = matKey.split(":")[1];
-            String path = "blocks.global." + materialKey;
+            String path = "crops.global." + materialKey;
             
             int xp = config.getInt(path + ".rewards.xp", 0);
             int delay = config.getInt(path + ".regen-delay", 20);
@@ -147,7 +150,7 @@ public class GlobalBlocksMenu implements Listener, InventoryHolder {
     }
 
     private int getGlobalCount(YamlConfiguration config) {
-        ConfigurationSection sec = config.getConfigurationSection("blocks.global");
+        ConfigurationSection sec = config.getConfigurationSection("crops.global");
         return sec == null ? 0 : sec.getKeys(false).size();
     }
 
@@ -169,7 +172,7 @@ public class GlobalBlocksMenu implements Listener, InventoryHolder {
         Player player = (Player) event.getWhoClicked();
         
         // Debug Logging
-        Bukkit.getLogger().info("[SeriaFarm Debug] Click detected in GlobalBlocksMenu. Slot: " + event.getRawSlot() + " | Title Match: " + isTitle + " | Holder Match: " + isHolder);
+        
 
         if (event.getRawSlot() >= 54) return;
         ItemStack clicked = event.getCurrentItem();
@@ -203,13 +206,13 @@ public class GlobalBlocksMenu implements Listener, InventoryHolder {
         if (matName != null && matName.startsWith("global:")) {
             if (!player.hasPermission("seriafarm.admin")) return;
 
-            YamlConfiguration matConfig = (YamlConfiguration) plugin.getConfigManager().getConfig("materials.yml");
+            YamlConfiguration matConfig = (YamlConfiguration) plugin.getConfigManager().getConfig("crops.yml");
             
             if (event.getClick() == ClickType.SHIFT_LEFT || event.getClick() == ClickType.SHIFT_RIGHT) {
                 // Delete Logic
                 String subKey = matName.split(":")[1];
-                matConfig.set("blocks.global." + subKey, null);
-                plugin.getConfigManager().saveConfig("materials.yml");
+                matConfig.set("crops.global." + subKey, null);
+                plugin.getConfigManager().saveConfig("crops.yml");
                 player.sendMessage(StaticColors.getHexMsg("&6&lSeriaFarm &8» &cDeleted Global &f" + subKey));
                 Bukkit.getScheduler().runTask(plugin, () -> player.openInventory(blockmenu(player, 1)));
             } else {

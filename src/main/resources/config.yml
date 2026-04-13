@@ -10,6 +10,7 @@ settings:
   # INSTANT: Block restores immediately after delay (default for most blocks)
   # VANILLA: Block grows in phases (Ageable crops, Amethyst, Bamboo)
   crop-growth-mode: VANILLA
+  global-level-scaling: 0.1 # Bonus chance per farming level
 
 # Integration settings
 hooks:

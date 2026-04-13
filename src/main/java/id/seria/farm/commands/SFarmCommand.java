@@ -2,6 +2,7 @@ package id.seria.farm.commands;
 
 import id.seria.farm.SeriaFarmPlugin;
 import id.seria.farm.inventory.MainMenu;
+import id.seria.farm.inventory.maintree.CatalogMenu;
 import id.seria.farm.inventory.utils.StaticColors;
 import id.seria.farm.listeners.WandListener;
 import org.bukkit.Material;
@@ -45,6 +46,9 @@ public class SFarmCommand implements CommandExecutor, TabCompleter {
             case "editor":
                 if (!player.isOp()) return noPerm(player);
                 player.openInventory(new MainMenu(plugin).mainmenu(player));
+                break;
+            case "catalog":
+                new CatalogMenu(plugin, player);
                 break;
             case "wand":
                 if (!player.isOp()) return noPerm(player);
@@ -131,6 +135,7 @@ public class SFarmCommand implements CommandExecutor, TabCompleter {
         player.sendMessage(StaticColors.getHexMsg("&e/sfarm pos2 &7- Set Position 2"));
         player.sendMessage(StaticColors.getHexMsg("&e/sfarm create <name> &7- Create Region"));
         player.sendMessage(StaticColors.getHexMsg("&e/sfarm clear &7- Clear Selection"));
+        player.sendMessage(StaticColors.getHexMsg("&e/sfarm catalog &7- View Plant Catalog"));
         player.sendMessage(StaticColors.getHexMsg("&e/sfarm reload &7- Reload Configs"));
     }
 
@@ -150,6 +155,7 @@ public class SFarmCommand implements CommandExecutor, TabCompleter {
             subs.add("create");
             subs.add("clear");
             subs.add("reload");
+            subs.add("catalog");
             return subs.stream().filter(s -> s.startsWith(args[0].toLowerCase())).collect(Collectors.toList());
         }
         return new ArrayList<>();

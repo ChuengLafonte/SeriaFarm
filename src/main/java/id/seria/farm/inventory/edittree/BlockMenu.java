@@ -46,7 +46,7 @@ public class BlockMenu implements Listener, InventoryHolder {
         this.regionName = regionName;
         plugin.getVisualManager().setFocusedRegion(player, regionName);
         
-        ConfigurationSection blocksSection = config.getConfigurationSection("blocks");
+        ConfigurationSection blocksSection = config.getConfigurationSection("crops");
         List<String> materials = new ArrayList<>();
         
         if (blocksSection != null) {
@@ -121,7 +121,7 @@ public class BlockMenu implements Listener, InventoryHolder {
             String source = parts[0];
             String displayKey = parts[1];
             
-            String path = "blocks." + source + "." + displayKey;
+            String path = "crops." + source + "." + displayKey;
             int xp = config.getInt(path + ".rewards.xp", 0);
             int delay = config.getInt(path + ".regen-delay", 20);
             boolean isGlobal = source.equalsIgnoreCase("global");
@@ -163,7 +163,7 @@ public class BlockMenu implements Listener, InventoryHolder {
         BlockMenu holder = (BlockMenu) event.getInventory().getHolder();
         int currentPage = holder.getPage();
         String regionName = holder.getRegionName();
-        YamlConfiguration config = (YamlConfiguration) plugin.getConfigManager().getConfig("materials.yml");
+        YamlConfiguration config = (YamlConfiguration) plugin.getConfigManager().getConfig("crops.yml");
 
         if (event.getRawSlot() == 53) {
             plugin.getVisualManager().setFocusedRegion(player, null);
@@ -193,23 +193,23 @@ public class BlockMenu implements Listener, InventoryHolder {
                 String targetRegion = parts[0];
                 String actualKey = parts[1];
                 
-                String path = "blocks." + targetRegion + "." + actualKey;
-                if (targetRegion.equalsIgnoreCase("legacy")) path = "blocks." + actualKey;
+                String path = "crops." + targetRegion + "." + actualKey;
+                if (targetRegion.equalsIgnoreCase("legacy")) path = "crops." + actualKey;
                 
-                plugin.getConfigManager().getConfig("materials.yml").set(path, null);
-                plugin.getConfigManager().saveConfig("materials.yml");
+                plugin.getConfigManager().getConfig("crops.yml").set(path, null);
+                plugin.getConfigManager().saveConfig("crops.yml");
                 
                 player.sendMessage(StaticColors.getHexMsg("&6&lSeriaFarm &8» &cDeleted &f" + actualKey));
                 
                 // Refresh the menu
-                YamlConfiguration matConfig = (YamlConfiguration) plugin.getConfigManager().getConfig("materials.yml");
+                YamlConfiguration matConfig = (YamlConfiguration) plugin.getConfigManager().getConfig("crops.yml");
                 player.openInventory(blockmenu(player, currentPage, matConfig, regionName));
             }
         } else if (isMatItem(event.getRawSlot())) {
             // Open EditMenu
             String matName = LocalizedName.get(clicked);
-            YamlConfiguration matConfig = (YamlConfiguration) plugin.getConfigManager().getConfig("materials.yml");
-            File matFile = plugin.getConfigManager().getConfigFile("materials.yml");
+            YamlConfiguration matConfig = (YamlConfiguration) plugin.getConfigManager().getConfig("crops.yml");
+            File matFile = plugin.getConfigManager().getConfigFile("crops.yml");
             
             player.openInventory(new EditMenu(plugin).emenu(player, matConfig, matName, matFile, regionName));
         }
