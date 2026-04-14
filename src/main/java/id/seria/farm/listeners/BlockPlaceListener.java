@@ -2,6 +2,7 @@ package id.seria.farm.listeners;
 
 import id.seria.farm.SeriaFarmPlugin;
 import org.bukkit.block.Block;
+import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
@@ -26,15 +27,10 @@ public class BlockPlaceListener implements Listener {
         String blockKey = plugin.getRegenManager().findBlockKey(block, null); // Silent check for key
         
         if (blockKey != null) {
-            // 2. Check Farming Level Requirement
-            int requiredLevel = plugin.getConfigManager().getConfig("crops.yml").getInt("crops." + blockKey + ".farming-level", 0);
-            int playerLevel = plugin.getAuraSkillsManager().getFarmingLevel(event.getPlayer());
-
-            if (playerLevel < requiredLevel) {
+            // 2. Check Requirement Engine (Engine handles messaging)
+            ConfigurationSection config = plugin.getConfigManager().getConfig("crops.yml").getConfigurationSection("crops." + blockKey);
+            if (config != null && !plugin.getRequirementEngine().canPlace(event.getPlayer(), config)) {
                 event.setCancelled(true);
-                event.getPlayer().sendMessage(id.seria.farm.inventory.utils.StaticColors.getHexMsg(
-                    "&6&lSeriaFarm &8» &cLevel Farming Anda belum cukup! &7(Butuh Level " + requiredLevel + ")"
-                ));
                 return;
             }
 

@@ -89,10 +89,10 @@ public class AddBlocksMenu implements Listener {
             
             if (added > 0) {
                 SeriaFarmPlugin.getInstance().getConfigManager().saveConfig("crops.yml");
-                player.sendMessage(StaticColors.getHexMsg("&6&lSeriaFarm &8» &aSuccessfully added &f" + added + " &ablocks to &b" + target));
+                plugin.getConfigManager().sendPrefixedMessage(player, "&aSuccessfully added &f" + added + " &ablocks to &b" + target);
             }
             if (rejected > 0) {
-                player.sendMessage(StaticColors.getHexMsg("&6&lSeriaFarm &8» &cRejected &f" + rejected + " &cnon-plant blocks."));
+                plugin.getConfigManager().sendPrefixedMessage(player, "&cRejected &f" + rejected + " &cnon-plant blocks.");
             }
             player.openInventory(new MainMenu(SeriaFarmPlugin.getInstance()).mainmenu(player));
         }

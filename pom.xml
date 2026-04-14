@@ -37,8 +37,8 @@
             <url>https://maven.enginehub.org/repo/</url>
         </repository>
         <repository>
-            <id>lumine-repo</id>
-            <url>https://mvn.lumine.io/repository/maven-public/</url>
+            <id>phoenix</id>
+            <url>https://nexus.phoenixdevt.fr/repository/maven-public/</url>
         </repository>
     </repositories>
 
@@ -65,6 +65,18 @@
             <groupId>dev.aurelium</groupId>
             <artifactId>auraskills-api-bukkit</artifactId>
             <version>2.2.4</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>net.Indyuce</groupId>
+            <artifactId>MMOItems-API</artifactId>
+            <version>6.10.1-SNAPSHOT</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.lumine</groupId>
+            <artifactId>MythicLib-dist</artifactId>
+            <version>1.7.1-SNAPSHOT</version>
             <scope>provided</scope>
         </dependency>
     </dependencies>

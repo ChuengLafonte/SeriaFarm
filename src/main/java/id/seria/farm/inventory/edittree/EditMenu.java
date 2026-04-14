@@ -127,9 +127,9 @@ public class EditMenu implements Listener, InventoryHolder {
                 try {
                     config.set(path + ".regen-delay", Integer.parseInt(input));
                     plugin.getConfigManager().saveConfig("crops.yml");
-                    player.sendMessage(StaticColors.getHexMsg("&6&lSeriaFarm &8» &aDelay updated to &f" + input));
+                    plugin.getConfigManager().sendPrefixedMessage(player, "&aDelay updated to &f" + input);
                 } catch (NumberFormatException e) {
-                    player.sendMessage(StaticColors.getHexMsg("&6&lSeriaFarm &8» &cInvalid input. Please enter a number."));
+                    plugin.getConfigManager().sendPrefixedMessage(player, "&cInvalid input. Please enter a number.");
                 }
                 player.openInventory(emenu(player, config, finalMatName, file, finalRegionName));
             }, () -> player.openInventory(emenu(player, config, finalMatName, file, finalRegionName)));
@@ -144,34 +144,29 @@ public class EditMenu implements Listener, InventoryHolder {
                 try {
                     config.set(path + ".rewards.xp", Integer.parseInt(input));
                     plugin.getConfigManager().saveConfig("crops.yml");
-                    player.sendMessage(StaticColors.getHexMsg("&6&lSeriaFarm &8» &aXP Drop updated to &f" + input));
+                    plugin.getConfigManager().sendPrefixedMessage(player, "&aXP Drop updated to &f" + input);
                 } catch (NumberFormatException e) {
-                    player.sendMessage(StaticColors.getHexMsg("&6&lSeriaFarm &8» &cInvalid input. Please enter a number."));
+                    plugin.getConfigManager().sendPrefixedMessage(player, "&cInvalid input. Please enter a number.");
                 }
                 player.openInventory(emenu(player, config, finalMatName, file, finalRegionName));
             }, () -> player.openInventory(emenu(player, config, finalMatName, file, finalRegionName)));
         } else if (event.getRawSlot() == 25) { // Required Tools (GUI)
             new RequiredToolsMenu(plugin).open(player, finalMatName, finalRegionName, path);
         } else if (event.getRawSlot() == 28) { // AuraSkills
-            java.util.List<String> reqs = config.getStringList(path + ".requirements.skills");
-            ChatInputListener.requestListInput(player, "Skills Requirements", reqs, "skill ; operator ; level", list -> {
-                config.set(path + ".requirements.skills", list);
-                plugin.getConfigManager().saveConfig("crops.yml");
-                player.sendMessage(StaticColors.getHexMsg("&6&lSeriaFarm &8» &aRequirements updated!"));
-                player.openInventory(emenu(player, config, finalMatName, file, finalRegionName));
-            }, () -> player.openInventory(emenu(player, config, finalMatName, file, finalRegionName)));
+            new RequiredSkillsMenu(plugin).open(player, finalMatName, finalRegionName, path);
         } else if (event.getRawSlot() == 30) { // Commands
             java.util.List<String> currentCmds = config.getStringList(path + ".rewards.commands");
             ChatInputListener.requestListInput(player, "Commands", currentCmds, "[Console/Player] ; cmd ; chance", list -> {
                 config.set(path + ".rewards.commands", list);
                 plugin.getConfigManager().saveConfig("crops.yml");
-                player.sendMessage(StaticColors.getHexMsg("&6&lSeriaFarm &8» &aCommands updated!"));
+                plugin.getRequirementEngine().canBreak(player, config);
+                plugin.getConfigManager().sendPrefixedMessage(player, "&aCommands updated!");
                 player.openInventory(emenu(player, config, finalMatName, file, finalRegionName));
             }, () -> player.openInventory(emenu(player, config, finalMatName, file, finalRegionName)));
         } else if (event.getRawSlot() == 52) { // Delete Block
             config.set(path, null);
             plugin.getConfigManager().saveConfig("crops.yml");
-            player.sendMessage(StaticColors.getHexMsg("&6&lSeriaFarm &8» &cBlock configuration deleted."));
+            plugin.getConfigManager().sendPrefixedMessage(player, "&cBlock configuration deleted.");
             player.openInventory(new BlockMenu(plugin).blockmenu(player, 1, config, finalRegionName));
             return;
         } else if (event.getRawSlot() == 32) {

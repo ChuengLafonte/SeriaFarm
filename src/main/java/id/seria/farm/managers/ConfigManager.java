@@ -152,6 +152,7 @@ public class ConfigManager {
     // Helper to get formatted messages
     public Component getMessage(String path) {
         FileConfiguration msgConfig = getConfig("messages.yml");
+        String prefix = msgConfig.getString("prefix", "");
         String msg = msgConfig.getString(path);
         
         if (msg == null) {
@@ -170,6 +171,12 @@ public class ConfigManager {
             }
         }
         
-        return StaticColors.getHexMsg(msg);
+        return StaticColors.getHexMsg(prefix + msg);
+    }
+
+    public void sendPrefixedMessage(org.bukkit.entity.Player player, String message) {
+        FileConfiguration msgConfig = getConfig("messages.yml");
+        String prefix = msgConfig.getString("prefix", "");
+        player.sendMessage(StaticColors.getHexMsg(prefix + message));
     }
 }

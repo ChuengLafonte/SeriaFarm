@@ -171,7 +171,7 @@ public class RequiredToolsMenu implements Listener, InventoryHolder {
         YamlConfiguration config = (YamlConfiguration) plugin.getConfigManager().getConfig("crops.yml");
         config.set(this.path + ".requirements.tools", tools);
         plugin.getConfigManager().saveConfig("crops.yml");
-        player.sendMessage(StaticColors.getHexMsg("&6&lSeriaFarm &8» &aRequirements updated!"));
+        plugin.getConfigManager().sendPrefixedMessage(player, "&aRequirements updated!");
     }
 
     private String identifyItem(ItemStack item) {

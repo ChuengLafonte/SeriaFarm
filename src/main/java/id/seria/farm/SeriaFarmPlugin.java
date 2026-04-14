@@ -71,6 +71,8 @@ public class SeriaFarmPlugin extends JavaPlugin {
         pm.registerEvents(new id.seria.farm.inventory.edittree.ReplaceBlockMenu(this), this);
         pm.registerEvents(new id.seria.farm.inventory.edittree.DropsMenu(this), this);
         pm.registerEvents(new id.seria.farm.inventory.edittree.RequiredToolsMenu(this), this);
+        pm.registerEvents(new id.seria.farm.inventory.edittree.RequiredSkillsMenu(this), this);
+        pm.registerEvents(new id.seria.farm.inventory.edittree.SkillDetailMenu(this), this);
         pm.registerEvents(new id.seria.farm.inventory.edittree.VerticalGrowthMenu(this), this);
         pm.registerEvents(new id.seria.farm.inventory.maintree.GlobalBlocksMenu(this), this);
         pm.registerEvents(new id.seria.farm.inventory.maintree.GlobalBlockEditMenu(this), this);

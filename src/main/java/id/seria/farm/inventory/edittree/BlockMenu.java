@@ -198,8 +198,7 @@ public class BlockMenu implements Listener, InventoryHolder {
                 
                 plugin.getConfigManager().getConfig("crops.yml").set(path, null);
                 plugin.getConfigManager().saveConfig("crops.yml");
-                
-                player.sendMessage(StaticColors.getHexMsg("&6&lSeriaFarm &8» &cDeleted &f" + actualKey));
+                plugin.getConfigManager().sendPrefixedMessage(player, "&cDeleted &f" + actualKey);
                 
                 // Refresh the menu
                 YamlConfiguration matConfig = (YamlConfiguration) plugin.getConfigManager().getConfig("crops.yml");

@@ -137,8 +137,21 @@ public class GlobalBlocksMenu implements Listener, InventoryHolder {
                 lore.add("&7Discover this plant in the fields!");
             }
 
+            ConfigurationSection skills = config.getConfigurationSection(path + ".requirements.skills");
+            if (skills != null && !skills.getKeys(false).isEmpty()) {
+                lore.add("");
+                lore.add("&d&lRequirements:");
+                for (String key : skills.getKeys(false)) {
+                    String skill = skills.getString(key + ".skill", "Farming");
+                    String op = skills.getString(key + ".operator", ">=");
+                    int level = skills.getInt(key + ".level", 0);
+                    lore.add("&7- " + skill + " " + op + " " + level);
+                }
+            }
+
+            String displayName = config.getString(path + ".display-name", materialKey.replace("_", " "));
             ItemStack item = InvUtils.applyMeta(icon, 
-                StaticColors.getHexMsg("&#2ecc71&l" + materialKey.replace("_", " ")), 
+                StaticColors.getHexMsg("&#2ecc71&l" + displayName), 
                 lore.toArray());
             
             LocalizedName.set(item, matKey);
@@ -206,15 +219,15 @@ public class GlobalBlocksMenu implements Listener, InventoryHolder {
         if (matName != null && matName.startsWith("global:")) {
             if (!player.hasPermission("seriafarm.admin")) return;
 
-            YamlConfiguration matConfig = (YamlConfiguration) plugin.getConfigManager().getConfig("crops.yml");
+            YamlConfiguration config = (YamlConfiguration) plugin.getConfigManager().getConfig("crops.yml");
             
             if (event.getClick() == ClickType.SHIFT_LEFT || event.getClick() == ClickType.SHIFT_RIGHT) {
                 // Delete Logic
                 String subKey = matName.split(":")[1];
-                matConfig.set("crops.global." + subKey, null);
+                config.set("crops.global." + subKey, null);
                 plugin.getConfigManager().saveConfig("crops.yml");
-                player.sendMessage(StaticColors.getHexMsg("&6&lSeriaFarm &8» &cDeleted Global &f" + subKey));
-                Bukkit.getScheduler().runTask(plugin, () -> player.openInventory(blockmenu(player, 1)));
+                plugin.getConfigManager().sendPrefixedMessage(player, "&cDeleted Global &f" + subKey);
+                player.openInventory(blockmenu(player, page));
             } else {
                 // Edit Logic (Wiki Adaptation)
                 Bukkit.getScheduler().runTask(plugin, () -> player.openInventory(new id.seria.farm.inventory.maintree.GlobalBlockEditMenu(plugin).open(player, matName)));

@@ -92,7 +92,7 @@ public class ChatInputListener implements Listener {
     }
 
     private static void printList(Player player, String title, List<String> list) {
-        String prefix = SeriaFarmPlugin.getInstance().getConfig().getString("settings.prefix", "&6&lSeriaFarm &8»");
+        String prefix = SeriaFarmPlugin.getInstance().getConfigManager().getConfig("messages.yml").getString("prefix", "");
         player.sendMessage(StaticColors.getHexMsg(prefix + " &a&lCurrent " + title + " list"));
         player.sendMessage(StaticColors.getHexMsg(prefix + " &7---------------------"));
         int i = 0;

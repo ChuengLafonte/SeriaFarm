@@ -110,9 +110,9 @@ public class VerticalGrowthMenu implements Listener, InventoryHolder {
                     config.set(getConfigPath(currentMat) + ".growth-max-height", val);
                     plugin.getConfigManager().saveConfig("crops.yml");
                     
-                    player.sendMessage(StaticColors.getHexMsg("&6&lSeriaFarm &8» &aMax height updated to &f" + val));
+                    plugin.getConfigManager().sendPrefixedMessage(player, "&aMax height updated to &f" + val);
                 } catch (NumberFormatException e) {
-                    player.sendMessage(StaticColors.getHexMsg("&6&lSeriaFarm &8» &cInvalid number. Operation cancelled."));
+                    plugin.getConfigManager().sendPrefixedMessage(player, "&cInvalid number. Operation cancelled.");
                 }
                 open(player, currentMat, currentRegion);
             }, () -> open(player, currentMat, currentRegion));

@@ -36,7 +36,8 @@ public class GlobalBlockEditMenu implements Listener, InventoryHolder {
         Inventory inventory = Bukkit.createInventory(this, 27, name); // 3 Rows as per Wiki
         YamlConfiguration config = (YamlConfiguration) plugin.getConfigManager().getConfig("crops.yml");
         String path = "crops.global." + matName.replace("global:", "");
-        String displayMaterial = matName.replace("global:", "");
+        String rawMat = matName.replace("global:", "");
+        String displayName = config.getString(path + ".display-name", rawMat.replace("_", " "));
         
         int delay = config.getInt(path + ".regen-delay", 20);
 
@@ -54,7 +55,7 @@ public class GlobalBlockEditMenu implements Listener, InventoryHolder {
         // Slot 0: Display Name (Name Tag)
         inventory.setItem(0, InvUtils.createItemStacks(Material.NAME_TAG, 
             StaticColors.getHexMsg("&#9370dbDisplay Name"), 
-            "&7Current: &f" + displayMaterial.replace("_", " "), 
+            "&7Current: &f" + displayName, 
             "&eClick to rename"));
 
         // Slot 2: Storage/Category (Barrel)
@@ -77,6 +78,12 @@ public class GlobalBlockEditMenu implements Listener, InventoryHolder {
             "", 
             "&eL-Click to edit time", 
             "&eR-Click to toggle water"));
+
+        // Slot 10: AuraSkills Requirements (Anvil)
+        inventory.setItem(10, InvUtils.createItemStacks(Material.ANVIL, 
+            StaticColors.getHexMsg("&#9370dbAuraSkills Requirements"), 
+            "&7Add level requirements for skills", 
+            "", "&eClick to edit"));
 
         // Slot 11: Soil Requirement (Farmland)
         inventory.setItem(11, InvUtils.createItemStacks(Material.FARMLAND, 
@@ -114,6 +121,14 @@ public class GlobalBlockEditMenu implements Listener, InventoryHolder {
         YamlConfiguration config = (YamlConfiguration) plugin.getConfigManager().getConfig("crops.yml");
 
         switch (event.getRawSlot()) {
+            case 0: // Display Name
+                ChatInputListener.requestInput(player, "Display Name", "&fColor coded name (e.g. &#ffaa00Gold...)", input -> {
+                    config.set("crops.global." + matName + ".display-name", input);
+                plugin.getConfigManager().saveConfig("crops.yml");
+                plugin.getConfigManager().sendPrefixedMessage(player, "&aDisplay Name updated!");
+                player.openInventory(open(player, matName));
+                }, () -> player.openInventory(open(player, matName)));
+                break;
             case 18: // Back
                 player.openInventory(new GlobalBlocksMenu(plugin).blockmenu(player, 1));
                 break;
@@ -122,7 +137,7 @@ public class GlobalBlockEditMenu implements Listener, InventoryHolder {
                     try {
                         config.set(path + ".regen-delay", Integer.parseInt(input));
                         plugin.getConfigManager().saveConfig("crops.yml");
-                        player.sendMessage(StaticColors.getHexMsg("&6&lSeriaFarm &8» &aHarvest Time updated!"));
+                        plugin.getConfigManager().sendPrefixedMessage(player, "&aHarvest Time updated!");
                     } catch (Exception e) {}
                     player.openInventory(open(player, matName));
                 }, () -> player.openInventory(open(player, matName)));
@@ -132,6 +147,9 @@ public class GlobalBlockEditMenu implements Listener, InventoryHolder {
                 break;
             case 13: // Sprout Type
                 new ReplaceBlockMenu(plugin).open(player, matName, "global", "delay-blocks", path);
+                break;
+            case 10: // AuraSkills
+                new id.seria.farm.inventory.edittree.RequiredSkillsMenu(plugin).open(player, matName, "global", path);
                 break;
         }
     }

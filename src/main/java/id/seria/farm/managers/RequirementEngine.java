@@ -16,25 +16,62 @@ public class RequirementEngine {
     }
 
     public boolean canBreak(Player player, ConfigurationSection section) {
-        // 1. Check AuraSkills Requirements
-        if (!checkAuraSkills(player, section.getConfigurationSection("requirements.auraskills"))) {
+        return canBreak(player, section, true);
+    }
+
+    public boolean canBreak(Player player, ConfigurationSection section, boolean sendMessage) {
+        if (section == null) return true;
+
+        // 1. Check AuraSkills Requirements (Nested Section)
+        if (!checkAuraSkills(player, section.getConfigurationSection("requirements.skills"), sendMessage)) {
             return false;
         }
 
         // 2. Check Tool Requirements
-        return checkTools(player, section.getConfigurationSection("requirements.tools"));
+        boolean hasTools = checkTools(player, section);
+        if (!hasTools && sendMessage) {
+            player.sendMessage(plugin.getConfigManager().getMessage("no-permission-to-break"));
+        }
+        return hasTools;
     }
 
-    private boolean checkAuraSkills(Player player, ConfigurationSection section) {
+    // Alias for planting/placing checks
+    public boolean canPlace(Player player, ConfigurationSection section) {
+        return canBreak(player, section, true);
+    }
+
+    private boolean checkAuraSkills(Player player, ConfigurationSection section, boolean sendMessage) {
         if (section == null) return true;
         if (!plugin.getHookManager().isAuraSkillsEnabled()) return true;
 
-        for (String skillKey : section.getKeys(false)) {
-            String requirement = section.getString(skillKey); // e.g., ">= 10"
-            if (requirement == null) continue;
+        for (String key : section.getKeys(false)) {
+            ConfigurationSection sub = section.getConfigurationSection(key);
+            if (sub == null) continue;
 
-            int playerLevel = getAuraSkillLevel(player, skillKey);
-            if (!evaluateExpression(playerLevel, requirement)) return false;
+            String skillName = sub.getString("skill");
+            String operator = sub.getString("operator", ">=");
+            int level = sub.getInt("level", 0);
+            String denyMsg = sub.getString("deny");
+
+            if (skillName == null) continue;
+
+            int playerLevel = getAuraSkillLevel(player, skillName);
+            if (!evaluateExpression(playerLevel, operator + " " + level)) {
+                if (sendMessage) {
+                    if (denyMsg != null && !denyMsg.isEmpty()) {
+                        String processed = denyMsg.replace("%skill%", skillName)
+                                .replace("%level%", String.valueOf(level))
+                                .replace("%operator%", operator)
+                                .replace("%current%", String.valueOf(playerLevel));
+                        plugin.getConfigManager().sendPrefixedMessage(player, processed);
+                    } else {
+                        // Fallback to generic message but include level if possible?
+                        // For now just generic.
+                        player.sendMessage(plugin.getConfigManager().getMessage("no-permission-to-break"));
+                    }
+                }
+                return false;
+            }
         }
         return true;
     }
@@ -85,11 +122,19 @@ public class RequirementEngine {
             if (user == null) return 0;
             
             Object registry = apiClass.getMethod("getGlobalRegistry").invoke(apiInstance);
-            Object skillObj = registry.getClass().getMethod("getSkill", String.class).invoke(registry, skill.toLowerCase());
+            
+            // Use NamespacedId for robustness
+            Class<?> nIdClass = Class.forName("dev.aurelium.auraskills.api.registry.NamespacedId");
+            Object nId = nIdClass.getMethod("of", String.class, String.class).invoke(null, "auraskills", skill.toLowerCase());
+            
+            Object skillObj = registry.getClass().getMethod("getSkill", nIdClass).invoke(registry, nId);
             if (skillObj == null) return 0;
             
-            return (int) user.getClass().getMethod("getSkillLevel", skillObj.getClass()).invoke(user, skillObj);
-        } catch (Exception e) { return 0; }
+            Class<?> skillInterface = Class.forName("dev.aurelium.auraskills.api.skill.Skill");
+            return (int) user.getClass().getMethod("getSkillLevel", skillInterface).invoke(user, skillObj);
+        } catch (Exception e) {
+            return 0;
+        }
     }
 
     private boolean isMMOItem(ItemStack item, String type, String id) {

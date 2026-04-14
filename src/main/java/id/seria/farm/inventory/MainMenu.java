@@ -40,7 +40,8 @@ public class MainMenu implements Listener {
         
         // Prefix (Slot 13)
         Component prefixLabel = StaticColors.getHexMsg("&#fbca00Plugin Prefix");
-        Component prefixInfo = StaticColors.getHexMsg("&6&lSeriaFarm &8»");
+        String prefStr = plugin.getConfigManager().getConfig("messages.yml").getString("prefix", "");
+        Component prefixInfo = StaticColors.getHexMsg(prefStr);
         inventory.setItem(13, InvUtils.createItemStacks(Material.NAME_TAG, prefixLabel, 
             "&7Set the prefix for messages.", 
             "&7You can use color codes.", 
@@ -96,19 +97,14 @@ public class MainMenu implements Listener {
                 player.openInventory(new AddMenu().addmenu(player, 1));
                 break;
             case 20: // Wand
-                ItemStack wand = new ItemStack(Material.STONE_AXE, 1);
-                ItemMeta meta = wand.getItemMeta();
-                if (meta != null) {
-                    meta.displayName(StaticColors.getHexMsg("&eREGEN WAND"));
-                    meta.setCustomModelData(20);
-                    wand.setItemMeta(meta);
-                }
-                player.getInventory().addItem(wand);
-                player.sendMessage(StaticColors.getHexMsg("&6&lSeriaFarm &8» &fYou have received a Regen Wand"));
+                player.getInventory().addItem(id.seria.farm.utils.WandUtils.getWand());
+                plugin.getConfigManager().sendPrefixedMessage(player, "&fYou have received a Regen Wand");
+                player.closeInventory();
                 break;
             case 22: // Reload
                 plugin.getConfigManager().reloadConfigs();
-                player.sendMessage(StaticColors.getHexMsg("&6&lSeriaFarm &8» &fPlugin Reloaded"));
+                plugin.getConfigManager().sendPrefixedMessage(player, "&fPlugin Reloaded");
+                player.closeInventory();
                 break;
             case 24: // Edit
                 player.openInventory(new RegionSelectionMenu(plugin).reg_sel(player, 1));

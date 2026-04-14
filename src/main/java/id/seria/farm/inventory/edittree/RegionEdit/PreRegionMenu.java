@@ -154,7 +154,7 @@ public class PreRegionMenu implements Listener, InventoryHolder {
         String worldName = config.getString(path + "teleport-location", "world;0;0;0").split(";")[0];
         org.bukkit.World world = Bukkit.getWorld(worldName);
         if (world == null) {
-            player.sendMessage(StaticColors.getHexMsg("&6&lSeriaFarm &8» &cWorld '&f" + worldName + "&c' is not loaded!"));
+            plugin.getConfigManager().sendPrefixedMessage(player, "&cWorld '&f" + worldName + "&c' is not loaded!");
             return;
         }
 
@@ -170,7 +170,8 @@ public class PreRegionMenu implements Listener, InventoryHolder {
                 
                 Location target = new Location(world, midX, midY, midZ, player.getLocation().getYaw(), player.getLocation().getPitch());
                 player.teleport(target);
-                player.sendMessage(StaticColors.getHexMsg("&6&lSeriaFarm &8» &fTeleported to the center of &b" + regionName));
+                plugin.getConfigManager().sendPrefixedMessage(player, "&fTeleported to the center of &b" + regionName);
+                player.closeInventory();
             }
         }
     }
@@ -179,18 +180,21 @@ public class PreRegionMenu implements Listener, InventoryHolder {
         String p1Str = config.getString(path + "pos1");
         String p2Str = config.getString(path + "pos2");
         if (p1Str == null || p2Str == null) {
-            player.sendMessage(StaticColors.getHexMsg("&6&lSeriaFarm &8» &cPos1 or Pos2 is not set for this region!"));
+            plugin.getConfigManager().sendPrefixedMessage(player, "&cPos1 or Pos2 is not set for this region!");
             return;
         }
 
-        Location l1 = deserializeLoc(p1Str);
-        Location l2 = deserializeLoc(p2Str);
-        if (l1 == null || l2 == null) {
-            player.sendMessage(StaticColors.getHexMsg("&6&lSeriaFarm &8» &cInvalid Pos1 or Pos2 data!"));
+        Location l1;
+        Location l2;
+        try {
+            l1 = deserializeLoc(p1Str);
+            l2 = deserializeLoc(p2Str);
+        } catch (Exception e) {
+            plugin.getConfigManager().sendPrefixedMessage(player, "&cInvalid Pos1 or Pos2 data!");
             return;
         }
 
-        player.sendMessage(StaticColors.getHexMsg("&6&lSeriaFarm &8» &bScanning region &f" + regionName + "&b..."));
+        plugin.getConfigManager().sendPrefixedMessage(player, "&bScanning region &f" + regionName + "&b...");
         
         java.util.Set<Material> found = id.seria.farm.utils.LocationUtils.getUniqueMaterialsInRange(l1, l2);
         java.util.Set<Material> ignored = new java.util.HashSet<>(java.util.Arrays.asList(
@@ -230,9 +234,9 @@ public class PreRegionMenu implements Listener, InventoryHolder {
 
         if (count > 0) {
             plugin.getConfigManager().saveConfig("crops.yml");
-            player.sendMessage(StaticColors.getHexMsg("&6&lSeriaFarm &8» &aSuccessfully added &f" + count + " &anew materials to the region!"));
+            plugin.getConfigManager().sendPrefixedMessage(player, "&aSuccessfully added &f" + count + " &anew materials to the region!");
         } else {
-            player.sendMessage(StaticColors.getHexMsg("&6&lSeriaFarm &8» &eNo new materials found to add."));
+            plugin.getConfigManager().sendPrefixedMessage(player, "&eNo new materials found to add.");
         }
     }
 

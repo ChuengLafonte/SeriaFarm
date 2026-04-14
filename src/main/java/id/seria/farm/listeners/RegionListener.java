@@ -35,8 +35,7 @@ public class RegionListener implements Listener {
             
             if (!allowPlace) {
                 event.setCancelled(true);
-                String prefix = plugin.getConfig().getString("settings.prefix", "&6&lSeriaFarm &8»");
-                player.sendMessage(StaticColors.getHexMsg(prefix + " &cYou are not allowed to place blocks in this region."));
+                player.sendMessage(plugin.getConfigManager().getMessage("no-permission-in-region"));
             }
         }
     }

@@ -30,18 +30,16 @@ public class WandListener implements Listener {
             && player.getInventory().getItemInMainHand().getItemMeta().hasCustomModelData()
             && player.getInventory().getItemInMainHand().getItemMeta().getCustomModelData() == 20) {
             
-            String prefix = SeriaFarmPlugin.getInstance().getConfig().getString("settings.prefix", "&6&lSeriaFarm &8»");
-
             if (event.getAction().equals(Action.LEFT_CLICK_BLOCK)) {
                 event.setCancelled(true);
                 Location loc = Objects.requireNonNull(event.getClickedBlock()).getLocation();
                 Mpos1.put(player.getUniqueId(), loc);
-                player.sendMessage(StaticColors.getHexMsg(prefix + " &fPos1 = &c[&eX=&f" + loc.getBlockX() + "&c,&eY=&f" + loc.getBlockY() + "&c,&eZ=&f" + loc.getBlockZ() + "&c]"));
+                SeriaFarmPlugin.getInstance().getConfigManager().sendPrefixedMessage(player, " &fPos1 = &c[&eX=&f" + loc.getBlockX() + "&c,&eY=&f" + loc.getBlockY() + "&c,&eZ=&f" + loc.getBlockZ() + "&c]");
             } else if (event.getAction().equals(Action.RIGHT_CLICK_BLOCK) && event.getHand().equals(EquipmentSlot.HAND)) {
                 event.setCancelled(true);
                 Location loc = Objects.requireNonNull(event.getClickedBlock()).getLocation();
                 Mpos2.put(player.getUniqueId(), loc);
-                player.sendMessage(StaticColors.getHexMsg(prefix + " &fPos2 = &c[&eX=&f" + loc.getBlockX() + "&c,&eY=&f" + loc.getBlockY() + "&c,&eZ=&f" + loc.getBlockZ() + "&c]"));
+                SeriaFarmPlugin.getInstance().getConfigManager().sendPrefixedMessage(player, " &fPos2 = &c[&eX=&f" + loc.getBlockX() + "&c,&eY=&f" + loc.getBlockY() + "&c,&eZ=&f" + loc.getBlockZ() + "&c]");
             }
         }
     }

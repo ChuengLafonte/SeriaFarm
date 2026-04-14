@@ -54,6 +54,12 @@ public class BlockBreakListener implements Listener {
             
             String matStr = config.getString("material", "");
             
+            // 1.2 NEW: Requirement Check for Global Crops (Engine handles messaging)
+            if (!plugin.getRequirementEngine().canBreak(player, config)) {
+                event.setCancelled(true);
+                return;
+            }
+
             // If it's a Hooked/Custom material (MMOItems, ItemsAdder, etc.)
             if (isCustomMaterial(matStr)) {
                 // Intercept and drop the custom source item
@@ -77,6 +83,12 @@ public class BlockBreakListener implements Listener {
                 // If it's a crop and we want replant:
                 boolean replant = plugin.getConfigManager().getConfig("config.yml").getBoolean("settings.global-replant", true);
                 if (replant && isGrowthCapable(block)) {
+                    // NEW: Requirement Check for Vanilla Global Crops (Engine handles messaging)
+                    if (!plugin.getRequirementEngine().canBreak(player, config)) {
+                        event.setCancelled(true);
+                        return;
+                    }
+                    
                     event.setCancelled(true);
                     distributeRewards(player, block, config);
                     int delay = config.getInt("regen-delay", 10);
@@ -109,10 +121,9 @@ public class BlockBreakListener implements Listener {
  
         // 2.2 GROWTH STAGE VALIDATION (Now handled globally at Step 1.1)
  
-        // 3. REQUIREMENT CHECK
+        // 3. REQUIREMENT CHECK (Engine handles messaging)
         if (!plugin.getRequirementEngine().canBreak(player, config)) {
             event.setCancelled(true);
-            player.sendMessage(plugin.getConfigManager().getMessage("no-permission-to-break"));
             return;
         }
  
@@ -211,6 +222,7 @@ public class BlockBreakListener implements Listener {
     }
  
     private void distributeRewards(Player player, Block block, ConfigurationSection config) {
+
         ConfigurationSection rewards = config.getConfigurationSection("rewards");
         if (rewards != null) {
             int xp = rewards.getInt("xp", 0);

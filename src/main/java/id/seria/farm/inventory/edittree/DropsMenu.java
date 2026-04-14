@@ -224,7 +224,7 @@ public class DropsMenu implements Listener, InventoryHolder {
                                 updateLore(clicked, chance, weight);
                                 player.openInventory(topInv);
                             } catch (Exception e) {
-                                player.sendMessage(StaticColors.getHexMsg("&6&lSeriaFarm &8» &cInvalid number."));
+                                plugin.getConfigManager().sendPrefixedMessage(player, "&cInvalid number.");
                                 player.openInventory(topInv);
                             }
                         }, () -> player.openInventory(topInv));
@@ -298,6 +298,6 @@ public class DropsMenu implements Listener, InventoryHolder {
         YamlConfiguration config = (YamlConfiguration) plugin.getConfigManager().getConfig("crops.yml");
         config.set(fullPath + ".rewards.drops", dropsList);
         plugin.getConfigManager().saveConfig("crops.yml");
-        player.sendMessage(StaticColors.getHexMsg("&6&lSeriaFarm &8» &aCustom drops saved successfully!"));
+        plugin.getConfigManager().sendPrefixedMessage(player, "&aCustom drops saved successfully!");
     }
 }
