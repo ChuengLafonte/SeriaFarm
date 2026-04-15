@@ -84,10 +84,14 @@ public class RegionSelectionMenu implements Listener {
         if (clicked == null || clicked.getType() == Material.AIR) return;
 
         String action = LocalizedName.get(clicked);
+        if (action == null) return; // border pane
 
         switch (action) {
             case "open_global":
-                Bukkit.getScheduler().runTask(plugin, () -> player.openInventory(new id.seria.farm.inventory.maintree.GlobalBlocksMenu(plugin).blockmenu(player, 1)));
+                Bukkit.getScheduler().runTask(plugin, () -> player.openInventory(new id.seria.farm.inventory.maintree.GlobalBlocksMenu(plugin).blockmenu(player, 1, "global")));
+                break;
+            case "open_garden":
+                Bukkit.getScheduler().runTask(plugin, () -> player.openInventory(new id.seria.farm.inventory.maintree.GlobalBlocksMenu(plugin).blockmenu(player, 1, "garden")));
                 break;
             case "prev_page":
                 if (clicked.getType() == Material.GREEN_STAINED_GLASS_PANE) {

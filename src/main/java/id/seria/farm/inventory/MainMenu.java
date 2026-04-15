@@ -77,6 +77,9 @@ public class MainMenu implements Listener {
             case "open_edit":
                 player.openInventory(new id.seria.farm.inventory.edittree.RegionEdit.RegionSelectionMenu(plugin).reg_sel(player, 1));
                 break;
+            case "open_watering_tools":
+                player.openInventory(new id.seria.farm.inventory.watering.WateringToolsMenu(plugin).open(player));
+                break;
             case "close_menu":
                 player.closeInventory();
                 break;

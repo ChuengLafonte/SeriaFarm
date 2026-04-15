@@ -11,6 +11,7 @@ settings:
   # VANILLA: Block grows in phases (Ageable crops, Amethyst, Bamboo)
   crop-growth-mode: VANILLA
   global-level-scaling: 0.1 # Bonus chance per farming level
+  global-replant: true
 
 # Integration settings
 hooks:
@@ -19,3 +20,31 @@ hooks:
   itemsadder: true
   oraxen: true
   nexo: true
+
+# ─── Composted Soil Slot System ──────────────────────────────────────────────
+# Controls how many Composted Soil blocks a player can place.
+# Bonus slots are given when a player's Farming level reaches a threshold.
+composted-soil:
+  base-slots: 9
+  identifier: "mi:MATERIAL:COMPOSTED_SOIL"
+  # Level thresholds: Farming level required → total bonus slots
+  # Only the HIGHEST applicable threshold counts (not cumulative).
+  level-thresholds:
+    10: 3
+    20: 8
+    30: 15
+    50: 25
+
+# ─── Watering Tools ──────────────────────────────────────────────────────────
+# Define all items that can be used as watering tools.
+# identifier : vanilla material name, or "mi:TYPE:ID" / "ia:namespace:id"
+# per-use    : how much watering_level is added to the plant per click
+# capacity   : max charges before the tool becomes empty
+# empty-item : item replaced after capacity hits 0
+watering-tools:
+  tools:
+    - identifier: WATER_BUCKET
+      display-name: "Water Bucket"
+      per-use: 5
+      capacity: 1
+      empty-item: BUCKET

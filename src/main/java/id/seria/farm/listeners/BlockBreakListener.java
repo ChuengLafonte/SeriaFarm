@@ -33,14 +33,68 @@ public class BlockBreakListener implements Listener {
         Block block = event.getBlock();
         Player player = event.getPlayer();
  
-        // 1. Check if this block is managed by SeriaFarm (Global or Regional)
+        // 1. Check if it's a Custom Garden Plant (Outside RegenManager)
+        if (plugin.getCustomPlantManager().isCustomPlant(block.getLocation())) {
+            id.seria.farm.models.CustomPlantState state = plugin.getCustomPlantManager().getState(block.getLocation());
+            if (state != null) {
+                if (!state.isRotten() && !isFullyGrown(block)) {
+                    event.setCancelled(true);
+                    return; // Prevent breaking immature plants (unless completely rotten)
+                }
+
+                // Allow break!
+                event.setCancelled(true); // Take over drops
+                block.setType(Material.AIR);
+
+                // Plant Cleanup (Slot is NOT freed here, because soil is still placed)
+                plugin.getCustomPlantManager().removePlant(block.getLocation());
+                if (player != null) plugin.getHologramManager().hide(player);
+
+                // Rewards if NOT ROTTEN
+                if (!state.isRotten() && isFullyGrown(block)) {
+                    ConfigurationSection gardenCfg = plugin.getConfigManager().getConfig("crops.yml")
+                            .getConfigurationSection("crops.garden." + state.getCropKey());
+                    if (gardenCfg != null) {
+                        distributeRewards(player, block, gardenCfg);
+                        plugin.getAuraSkillsManager().giveXP(player, block.getType());
+                    }
+                }
+                return;
+            }
+        }
+
+        // 1.5 Check if they broke an actual Composted Soil Block
+        java.util.UUID soilOwner = plugin.getSoilSlotManager().getOwner(block.getLocation());
+        if (soilOwner != null) {
+            if (!soilOwner.equals(player.getUniqueId()) && !player.hasPermission("seriafarm.admin")) {
+                event.setCancelled(true);
+                plugin.getConfigManager().sendPrefixedMessage(player, "&cIni bukan ladang milikmu!");
+                return;
+            }
+
+            // Refund the slot
+            plugin.getSoilSlotManager().breakSoil(block.getLocation());
+            int usedNow = plugin.getSoilSlotManager().getUsedSlotsByUUID(soilOwner);
+            plugin.getConfigManager().sendPrefixedMessage(player, "&aLadang dibongkar, Slot kembali: &f" + usedNow);
+
+            // Also explicitly destroy the plant above it if it exists, so holograms don't linger
+            Block above = block.getRelative(0, 1, 0);
+            if (plugin.getCustomPlantManager().isCustomPlant(above.getLocation())) {
+                plugin.getCustomPlantManager().removePlant(above.getLocation());
+                above.setType(Material.AIR);
+                if (player != null) plugin.getHologramManager().hide(player);
+            }
+            // Standard drops handle the soil item
+        }
+
+        // 2. Check if this block is managed by SeriaFarm (Global or Regional)
         String blockKey = findBlockKey(block);
         if (blockKey == null) return;
         
         ConfigurationSection config = getBlockConfig(block, blockKey);
         if (config == null) return;
  
-        // 1.1 Strict Growth Check for Crops (Apply to Global and Regional)
+        // 2.1 Strict Growth Check for Crops (Apply to Global and Regional)
         if (!isFullyGrown(block)) {
             event.setCancelled(true);
             return;
@@ -71,7 +125,7 @@ public class BlockBreakListener implements Listener {
                 // RESPECT GLOBAL REPLANT
                 boolean replant = plugin.getConfigManager().getConfig("config.yml").getBoolean("settings.global-replant", true);
                 if (replant) {
-                    int delay = config.getInt("regen-delay", 10);
+                    int delay = calculateDelayForPlayer(player, config.getInt("regen-delay", 10));
                     plugin.getRegenManager().scheduleRegeneration(block, delay, null, null, org.bukkit.Material.AIR, blockKey);
                 } else {
                     block.setType(org.bukkit.Material.AIR);
@@ -90,7 +144,7 @@ public class BlockBreakListener implements Listener {
                     
                     event.setCancelled(true);
                     distributeRewards(player, block, config);
-                    int delay = config.getInt("regen-delay", 10);
+                    int delay = calculateDelayForPlayer(player, config.getInt("regen-delay", 10));
                     plugin.getRegenManager().scheduleRegeneration(block, delay, null, null, block.getType(), blockKey);
                 }
                 return;
@@ -148,8 +202,8 @@ public class BlockBreakListener implements Listener {
             }
         }
         
-        // 8. REGENERATION PARAMETERS
-        int delay = calculateDelayForPlayer(player, config.getInt("regen-delay", 10));
+        // 8. REGENERATION PARAMETERS (Regional: raw delay, no GrowthAura buff)
+        int delay = config.getInt("regen-delay", 10);
         java.util.List<String> replaceBlocks = config.getStringList("replace-blocks");
         java.util.List<String> delayBlocks = config.getStringList("delay-blocks");
         

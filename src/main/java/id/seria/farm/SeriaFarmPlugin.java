@@ -20,6 +20,10 @@ public class SeriaFarmPlugin extends JavaPlugin {
     private AuraSkillsManager auraSkillsManager;
     private RequirementEngine requirementEngine;
     private GuiManager guiManager;
+    private CustomPlantManager customPlantManager;
+    private SoilSlotManager soilSlotManager;
+    private WateringToolManager wateringToolManager;
+    private CustomPlantHologramManager hologramManager;
     public static org.bukkit.NamespacedKey key;
     public static org.bukkit.NamespacedKey chanceKey;
     public static org.bukkit.NamespacedKey weightKey;
@@ -56,6 +60,15 @@ public class SeriaFarmPlugin extends JavaPlugin {
         // Inject drop tables AFTER systems are ready
         configManager.injectDropTablesIntoCrops();
 
+        // Custom plant system
+        wateringToolManager = new WateringToolManager(this);
+        soilSlotManager = new SoilSlotManager(this);
+        soilSlotManager.loadAll();
+        customPlantManager = new CustomPlantManager(this);
+        customPlantManager.loadFromDatabase();
+        hologramManager = new CustomPlantHologramManager(this);
+        id.seria.farm.tasks.WaterDecayTask.start(this);
+
         // Register Listeners
         org.bukkit.plugin.PluginManager pm = getServer().getPluginManager();
         pm.registerEvents(new BlockBreakListener(this), this);
@@ -71,6 +84,7 @@ public class SeriaFarmPlugin extends JavaPlugin {
         pm.registerEvents(new id.seria.farm.inventory.edittree.BlockMenu(this), this);
         pm.registerEvents(new id.seria.farm.inventory.edittree.EditMenu(this), this);
         pm.registerEvents(new id.seria.farm.inventory.edittree.ReplaceBlockMenu(this), this);
+        pm.registerEvents(new id.seria.farm.inventory.edittree.SproutBlockMenu(this), this);
         pm.registerEvents(new id.seria.farm.inventory.edittree.DropsMenu(this), this);
         pm.registerEvents(new id.seria.farm.inventory.edittree.RequiredToolsMenu(this), this);
         pm.registerEvents(new id.seria.farm.inventory.edittree.RequiredSkillsMenu(this), this);
@@ -82,6 +96,16 @@ public class SeriaFarmPlugin extends JavaPlugin {
         pm.registerEvents(new GrowthListener(this), this);
         pm.registerEvents(new BlockPlaceListener(this), this);
         pm.registerEvents(new CropProtectionListener(this), this);
+        pm.registerEvents(new id.seria.farm.inventory.watering.WateringToolsMenu(this), this);
+        pm.registerEvents(new id.seria.farm.inventory.watering.WateringSettingsMenu(this), this);
+        pm.registerEvents(new id.seria.farm.inventory.watering.SoilRequirementMenu(this), this);
+        // Cleanup holograms on player quit
+        pm.registerEvents(new org.bukkit.event.Listener() {
+            @org.bukkit.event.EventHandler
+            public void onQuit(org.bukkit.event.player.PlayerQuitEvent e) {
+                hologramManager.cleanup(e.getPlayer().getUniqueId());
+            }
+        }, this);
 
         // Register AuraSkills event listener only if plugin exists
         if (pm.isPluginEnabled("AuraSkills")) {
@@ -142,5 +166,21 @@ public class SeriaFarmPlugin extends JavaPlugin {
 
     public GuiManager getGuiManager() {
         return guiManager;
+    }
+
+    public CustomPlantManager getCustomPlantManager() {
+        return customPlantManager;
+    }
+
+    public SoilSlotManager getSoilSlotManager() {
+        return soilSlotManager;
+    }
+
+    public WateringToolManager getWateringToolManager() {
+        return wateringToolManager;
+    }
+
+    public CustomPlantHologramManager getHologramManager() {
+        return hologramManager;
     }
 }

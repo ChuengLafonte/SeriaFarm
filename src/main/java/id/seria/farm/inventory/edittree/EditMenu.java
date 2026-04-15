@@ -109,7 +109,7 @@ public class EditMenu implements Listener {
                 new ReplaceBlockMenu(plugin).open(player, finalMatName, finalRegionName, "replace-blocks", path);
                 break;
             case "edit_during":
-                new ReplaceBlockMenu(plugin).open(player, finalMatName, finalRegionName, "delay-blocks", path);
+                new SproutBlockMenu(plugin).open(player, finalMatName, finalRegionName, "delay-blocks", path);
                 break;
             case "edit_drops":
                 new DropsMenu(plugin).open(player, finalMatName, finalRegionName, path);

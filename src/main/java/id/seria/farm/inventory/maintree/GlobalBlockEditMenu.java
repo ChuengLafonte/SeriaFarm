@@ -29,9 +29,12 @@ public class GlobalBlockEditMenu implements Listener {
     public Inventory open(Player player, String matName) {
         this.matName = matName;
         YamlConfiguration config = (YamlConfiguration) plugin.getConfigManager().getConfig("crops.yml");
-        String materialKey = matName.replace("global:", "");
-        String path = "crops.global." + materialKey;
-        
+        // matName is "global:key" or "garden:key" — resolve section and key
+        String[] parts = matName.split(":", 2);
+        String section    = parts[0]; // "global" or "garden"
+        String materialKey = parts[1];
+        String path = "crops." + section + "." + materialKey;
+
         String displayName = config.getString(path + ".display-name", materialKey.replace("_", " "));
         int delay = config.getInt(path + ".regen-delay", 20);
 
@@ -60,12 +63,18 @@ public class GlobalBlockEditMenu implements Listener {
         if (clicked == null || clicked.getType() == Material.AIR) return;
 
         String action = LocalizedName.get(clicked);
+        if (action == null) return; // border pane or untagged item
         
         // Find the matName from the hidden paper in slot 26
         ItemStack infoItem = event.getInventory().getItem(26);
         if (infoItem == null) return;
         String matName = LocalizedName.get(infoItem);
-        String path = "crops.global." + matName.replace("global:", "");
+        if (matName == null) return; // info item lost its PDC tag
+        // Resolve config path from prefix ("global:key" or "garden:key")
+        String[] mparts  = matName.split(":", 2);
+        String section    = mparts[0];
+        String materialKey = mparts[1];
+        String path = "crops." + section + "." + materialKey;
         YamlConfiguration config = (YamlConfiguration) plugin.getConfigManager().getConfig("crops.yml");
 
         switch (action) {
@@ -78,7 +87,7 @@ public class GlobalBlockEditMenu implements Listener {
                 }, () -> player.openInventory(open(player, matName)));
                 break;
             case "back_to_catalog":
-                player.openInventory(new GlobalBlocksMenu(plugin).blockmenu(player, 1));
+                player.openInventory(new GlobalBlocksMenu(plugin).blockmenu(player, 1, section));
                 break;
             case "edit_time":
                 ChatInputListener.requestInput(player, "Harvest Time", "Seconds (e.g. 30)", input -> {
@@ -94,10 +103,16 @@ public class GlobalBlockEditMenu implements Listener {
                 new DropsMenu(plugin).open(player, matName, "global", path);
                 break;
             case "edit_sprout":
-                new ReplaceBlockMenu(plugin).open(player, matName, "global", "delay-blocks", path);
+                new id.seria.farm.inventory.edittree.SproutBlockMenu(plugin).open(player, matName, "global", "delay-blocks", path);
                 break;
             case "edit_skills":
                 new id.seria.farm.inventory.edittree.RequiredSkillsMenu(plugin).open(player, matName, "global", path);
+                break;
+            case "edit_watering":
+                player.openInventory(new id.seria.farm.inventory.watering.WateringSettingsMenu(plugin).open(player, matName));
+                break;
+            case "edit_soil":
+                new id.seria.farm.inventory.watering.SoilRequirementMenu(plugin).open(player, matName);
                 break;
         }
     }

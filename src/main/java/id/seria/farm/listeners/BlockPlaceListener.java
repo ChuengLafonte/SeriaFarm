@@ -23,7 +23,26 @@ public class BlockPlaceListener implements Listener {
 
         Block block = event.getBlock();
 
-        // 1. Check if this is a managed crop/block
+        // 1. Check if it's Composted Soil placement
+        org.bukkit.inventory.ItemStack item = event.getItemInHand();
+        if (plugin.getCustomPlantManager().isSoilItem(item)) {
+            org.bukkit.entity.Player player = event.getPlayer();
+            if (!plugin.getSoilSlotManager().canPlace(player)) {
+                event.setCancelled(true);
+                int used = plugin.getSoilSlotManager().getUsedSlots(player);
+                int max = plugin.getSoilSlotManager().getMaxSlots(player);
+                plugin.getConfigManager().sendPrefixedMessage(player, "&cSlot penuh! &f" + used + "&c/&f" + max);
+                return;
+            }
+            
+            // Register it!
+            plugin.getSoilSlotManager().placeSoil(block.getLocation(), player);
+            int usedNow = plugin.getSoilSlotManager().getUsedSlots(player) + 1;
+            int max = plugin.getSoilSlotManager().getMaxSlots(player);
+            plugin.getConfigManager().sendPrefixedMessage(player, "&aPemasangan berhasil, Slot: &f" + usedNow + "&a/&f" + max);
+        }
+
+        // 2. Check if this is a managed crop/block
         String blockKey = plugin.getRegenManager().findBlockKey(block, null); // Silent check for key
         
         if (blockKey != null) {
@@ -34,8 +53,8 @@ public class BlockPlaceListener implements Listener {
                 return;
             }
 
-            // 3. Automatically start tracking if it's a managed block
-            plugin.getRegenManager().startAdHocTracking(block, blockKey);
+            // 3. Automatically start tracking — pass player so GrowthAura buff applies on plant
+            plugin.getRegenManager().startAdHocTracking(block, blockKey, event.getPlayer());
         }
     }
 }

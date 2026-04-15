@@ -2,6 +2,8 @@ package id.seria.farm.listeners;
  
 import id.seria.farm.SeriaFarmPlugin;
 import id.seria.farm.inventory.utils.InvUtils;
+import id.seria.farm.managers.WateringToolManager;
+import id.seria.farm.models.CustomPlantState;
 import id.seria.farm.models.RegenBlock;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
@@ -10,9 +12,12 @@ import org.bukkit.block.data.BlockData;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerMoveEvent;
+import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 
 import java.util.HashMap;
@@ -23,40 +28,150 @@ public class InteractListener implements Listener {
 
     private final SeriaFarmPlugin plugin;
     private final Random random = new Random();
+    private int hologramTick = 0;
  
     public InteractListener(SeriaFarmPlugin plugin) {
         this.plugin = plugin;
     }
  
-    @EventHandler
+    @EventHandler(priority = EventPriority.HIGH)
     public void onPlayerInteract(PlayerInteractEvent event) {
-        // 0. Check if plugin is globally enabled
+        // 0. Global enable check + off-hand guard
         if (!plugin.getConfigManager().getConfig("config.yml").getBoolean("settings.enabled", true)) return;
- 
+        if (event.getHand() == EquipmentSlot.OFF_HAND) return;
         if (event.getAction() != Action.RIGHT_CLICK_BLOCK) return;
-        
+
         Block block = event.getClickedBlock();
         if (block == null) return;
-        
         Player player = event.getPlayer();
-  
+        ItemStack itemInHand = player.getInventory().getItemInMainHand();
+
+        // ─── A. CUSTOM PLANT INTERACTION ────────────────────────────────────────
+        if (plugin.getCustomPlantManager().isCustomPlant(block.getLocation())) {
+            event.setCancelled(true); // Always cancel — prevents vanilla regen timer showing
+            CustomPlantState state = plugin.getCustomPlantManager().getState(block.getLocation());
+            if (state == null) return;
+
+            WateringToolManager.WateringTool toolCfg = plugin.getWateringToolManager().getToolConfig(itemInHand);
+            if (toolCfg != null) {
+                if (state.isRotten()) {
+                    plugin.getConfigManager().sendPrefixedMessage(player, "&cTanaman sudah kekeringan dan mati, segera hancurkan!");
+                    return;
+                }
+                int capacity = plugin.getWateringToolManager().getCapacity(itemInHand);
+                if (capacity <= 0) {
+                    plugin.getConfigManager().sendPrefixedMessage(player, "&cWatering tool kosong!");
+                    return;
+                }
+                int added = plugin.getCustomPlantManager().water(block.getLocation(), toolCfg.perUse());
+                ItemStack newItem = plugin.getWateringToolManager().consume(itemInHand);
+                player.getInventory().setItemInMainHand(newItem);
+                if (state != null) plugin.getHologramManager().show(player, block.getLocation(), state);
+                if (added == 0) plugin.getConfigManager().sendPrefixedMessage(player, "&eTanaman sudah penuh air!");
+                return;
+            }
+
+            // Right click without a watering tool -> show timer
+            if (state.isRotten()) {
+                player.sendActionBar(net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer.legacyAmpersand().deserialize("&c&lTanaman sudah mati kekeringan!"));
+                return;
+            }
+            
+            int waterLevel = state.getWateringLevel();
+            if (waterLevel <= 0) {
+                net.kyori.adventure.text.Component title = id.seria.farm.inventory.utils.StaticColors.getHexMsg("&#FF5555Paused");
+                net.kyori.adventure.text.Component sub = net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer.legacyAmpersand().deserialize("&c(Kurang Air)");
+                player.showTitle(net.kyori.adventure.title.Title.title(title, sub, net.kyori.adventure.title.Title.Times.times(java.time.Duration.ZERO, java.time.Duration.ofSeconds(1), java.time.Duration.ofMillis(250))));
+                return;
+            }
+
+            // Calculate exact time remaining chronologically
+            String cropKey = state.getCropKey();
+            String path = plugin.getConfigManager().getConfig("crops.yml").contains("crops.garden." + cropKey) 
+                    ? "crops.garden." + cropKey : "crops.global." + cropKey;
+            
+            int delaySecs = plugin.getConfigManager().getConfig("crops.yml").getInt(path + ".regen-delay", 300);
+            
+            long wateredMs = System.currentTimeMillis() - state.getPlantedAt();
+            long timeRemainingMs = (delaySecs * 1000L) - wateredMs;
+            int timeRemaining = (int) Math.max(0, Math.ceil(timeRemainingMs / 1000.0));
+            
+            BlockData blockData = block.getBlockData();
+            if (blockData instanceof Ageable ageable && ageable.getAge() >= ageable.getMaximumAge()) {
+                timeRemaining = 0;
+            }
+            
+            if (timeRemaining > 0) {
+                long minutes = timeRemaining / 60;
+                long seconds = timeRemaining % 60;
+                String timeStr = String.format("%02dm:%02ds", minutes, seconds);
+                
+                String dName = plugin.getConfigManager().getConfig("crops.yml").getString(path + ".display-name", cropKey);
+                net.kyori.adventure.text.Component title = id.seria.farm.inventory.utils.StaticColors.getHexMsg("&#54F47FTime " + timeStr);
+                net.kyori.adventure.text.Component sub = net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer.legacyAmpersand().deserialize(dName);
+                
+                player.showTitle(net.kyori.adventure.title.Title.title(title, sub, net.kyori.adventure.title.Title.Times.times(java.time.Duration.ZERO, java.time.Duration.ofSeconds(1), java.time.Duration.ofMillis(250))));
+            } else {
+                player.sendActionBar(net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer.legacyAmpersand().deserialize("&aTanaman sudah siap dipanen!"));
+            }
+            return; // Stop here — do not fall through to vanilla regen check
+        }
+
+        // ─── B. PLANTING a seed on composted soil ────────────────────────────
+        if (!itemInHand.getType().isAir() && plugin.getCustomPlantManager().isValidSoil(block)) {
+            String seedId = plugin.getHookManager().getItemIdentifier(itemInHand);
+            plugin.getLogger().info("[DEBUG] PLANT CHECK: block=" + block.getType() + " seedId=" + seedId);
+            String cropKey = plugin.getCustomPlantManager().findCropBySeed(seedId);
+            plugin.getLogger().info("[DEBUG] PLANT CHECK: cropKey=" + cropKey);
+            if (cropKey != null) {
+                event.setCancelled(true);
+                Block above = block.getRelative(0, 1, 0);
+                if (above.getType() != Material.AIR && above.getType() != Material.CAVE_AIR) {
+                    plugin.getConfigManager().sendPrefixedMessage(player, "&cTidak ada ruang untuk menanam!");
+                    return;
+                }
+                
+                // Verify soil ownership instead of checking slot capacity
+                if (!plugin.getSoilSlotManager().isSoilOwner(block.getLocation(), player.getUniqueId()) && !player.hasPermission("seriafarm.admin")) {
+                    plugin.getConfigManager().sendPrefixedMessage(player, "&cIni bukan ladang milikmu!");
+                    return;
+                }
+
+                // Consume seed from hand
+                if (itemInHand.getAmount() > 1) itemInHand.setAmount(itemInHand.getAmount() - 1);
+                else player.getInventory().setItemInMainHand(new ItemStack(Material.AIR));
+                // Place sprout — read material from crops.garden section
+                String materialStr = plugin.getConfigManager().getConfig("crops.yml")
+                        .getString("crops.garden." + cropKey + ".material", "WHEAT").toUpperCase();
+                Material sproutMat = Material.matchMaterial(materialStr);
+                if (sproutMat == null || !sproutMat.isItem()) sproutMat = Material.WHEAT;
+                above.setType(sproutMat, true);
+                if (above.getBlockData() instanceof org.bukkit.block.data.Ageable ag) {
+                    ag.setAge(0);
+                    above.setBlockData(ag, true);
+                }
+                plugin.getCustomPlantManager().plant(above.getLocation(), player, cropKey);
+                // NOTE: Do NOT call startAdHocTracking — garden crops are managed by
+                // the watering engine, NOT the vanilla regen system.
+                plugin.getConfigManager().sendPrefixedMessage(player, "&aTanam berhasil! Siram tanamanmu agar tumbuh.");
+                return;
+            }
+        }
+
         // REDIRECT TO ROOT FOR VERTICAL CROPS
-        if (block.getType() == Material.BAMBOO || block.getType() == Material.SUGAR_CANE || block.getType() == Material.CACTUS || block.getType() == Material.WHEAT) {
+        if (block.getType() == Material.BAMBOO || block.getType() == Material.SUGAR_CANE ||
+                block.getType() == Material.CACTUS || block.getType() == Material.WHEAT) {
             block = plugin.getRegenManager().getVerticalRoot(block);
         }
  
-        // 1. REGENERATION CHECK (Notification Bug Fix)
-        // Check this FIRST so growth info works for both global and regional blocks
+        // 1. REGENERATION CHECK
         if (plugin.getRegenManager().isRegenerating(block.getLocation())) {
             RegenBlock regen = plugin.getRegenManager().getRegenBlock(block.getLocation());
             
             // ADMIN DEBUG & BYPASS
             if (player.hasPermission("seriafarm.admin") || player.isOp()) {
                 ItemStack hand = player.getInventory().getItemInMainHand();
-                if (hand.getType() == Material.BONE_MEAL) {
-                    // Allow admin to use bonemeal (bypass cancel)
-                    return; 
-                }
+                if (hand.getType() == Material.BONE_MEAL) return;
             }
  
             if (regen != null && regen.isGrowth()) {
@@ -68,23 +183,20 @@ public class InteractListener implements Listener {
  
         // 1.5 ADMIN HARVEST DEBUG
         
-        
         // 2. Check if this is a managed crop/block
         String blockKey = findBlockKey(player, block);
         
         // 2.0. AD-HOC TRACKING (Handle growing blocks not in map)
         if (blockKey != null && !isFullyGrown(block)) {
-            // For vertical crops, we only track the ROOT.
             Block root = block;
             if (isVerticalCrop(block.getType())) {
                 root = plugin.getRegenManager().getVerticalRoot(block);
             }
             
             if (!plugin.getRegenManager().isRegenerating(root.getLocation())) {
-                plugin.getRegenManager().startAdHocTracking(root, blockKey);
+                plugin.getRegenManager().startAdHocTracking(root, blockKey, player);
             }
             
-            // Show growth info from either the block or its root
             RegenBlock regen = plugin.getRegenManager().getRegenBlock(root.getLocation());
             if (regen != null && regen.isGrowth()) {
                 plugin.getVisualManager().showGrowthInfo(player, regen);
@@ -96,10 +208,9 @@ public class InteractListener implements Listener {
         if (blockKey == null) return;
         
         // 2.1 Regional blocks: Disable right-click harvesting
-        // Only left-click is allowed for regional blocks.
         if (!blockKey.startsWith("global.")) return;
         
-        // 2.2 Global blocks: Check if harvest is enabled via toggle
+        // 2.2 Global blocks: Check harvest toggle
         if (!plugin.getConfigManager().getConfig("config.yml").getBoolean("settings.global-right-click-harvest", true)) {
             return;
         }
@@ -117,7 +228,26 @@ public class InteractListener implements Listener {
         event.setCancelled(true);
         handleHarvest(player, block, config, blockKey);
     }
- 
+
+    // ─── Hologram trigger via PlayerMoveEvent ────────────────────────────────
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onPlayerMove(PlayerMoveEvent event) {
+        if (++hologramTick % 4 != 0) return;
+        Player player = event.getPlayer();
+        ItemStack hand = player.getInventory().getItemInMainHand();
+        if (plugin.getWateringToolManager().getToolConfig(hand) == null) {
+            plugin.getHologramManager().hide(player);
+            return;
+        }
+        Block target = player.getTargetBlockExact(5);
+        if (target == null || !plugin.getCustomPlantManager().isCustomPlant(target.getLocation())) {
+            plugin.getHologramManager().hide(player);
+            return;
+        }
+        CustomPlantState state = plugin.getCustomPlantManager().getState(target.getLocation());
+        if (state != null) plugin.getHologramManager().show(player, target.getLocation(), state);
+    }
+
     private boolean isFullyGrown(Block block) {
         BlockData data = block.getBlockData();
         if (data instanceof Ageable ageable) {
@@ -177,11 +307,9 @@ public class InteractListener implements Listener {
                         ItemStack item = (ItemStack) map.get("item");
                         if (item == null) continue;
 
-                        // 1. Level Requirement Check
                         int reqLevel = map.containsKey("farming-level") ? ((Number) map.get("farming-level")).intValue() : 0;
                         if (playerLevel < reqLevel) continue;
 
-                        // 2. Chance Scaling
                         double baseChance = map.containsKey("chance") ? ((Number) map.get("chance")).doubleValue() : 100.0;
                         double scaling = map.containsKey("level-scaling") ? ((Number) map.get("level-scaling")).doubleValue() : globalScaling;
                         double finalChance = baseChance + (playerLevel - reqLevel) * scaling;
@@ -199,19 +327,15 @@ public class InteractListener implements Listener {
                 }
             }
 
-            // 3. Automatic Vanilla Drop (Trash Item)
             if (!hasCommonDrop && !config.getBoolean("suppress-vanilla-drop", false)) {
                 Material vanillaMat = block.getType();
-                // Ensure we drop the item form
                 vanillaMat = id.seria.farm.inventory.utils.InvUtils.getSingleMaterial(vanillaMat);
                 giveReward(player, block, new ItemStack(vanillaMat), new java.util.HashMap<>(), dropToInv);
             }
 
             if (!weightedPool.isEmpty()) {
                 double totalWeight = 0;
-                for (java.util.Map<?, ?> map : weightedPool) {
-                    totalWeight += getSelectionWeight(map);
-                }
+                for (java.util.Map<?, ?> map : weightedPool) totalWeight += getSelectionWeight(map);
 
                 if (totalWeight > 0) {
                     double roll = random.nextDouble() * totalWeight;

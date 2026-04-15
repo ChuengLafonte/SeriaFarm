@@ -53,7 +53,8 @@ public class DropsMenu implements Listener {
                     double chance = map.containsKey("chance") ? ((Number) map.get("chance")).doubleValue() : 100.0;
                     
                     if (item != null) {
-                        while (slot < inv.getSize() && inv.getItem(slot) != null) slot++;
+                        if (item.getType() == Material.BLACK_STAINED_GLASS_PANE) continue; // Skip corrupted panes
+                        while (slot < inv.getSize() && (inv.getItem(slot) != null || isBorder(slot))) slot++;
                         if (slot >= 44) break;
                         
                         String weight = map.containsKey("weight") ? String.valueOf(map.get("weight")) : null;
@@ -158,6 +159,10 @@ public class DropsMenu implements Listener {
                 }, 1L);
                 event.setCancelled(false);
             } else if (clicked != null && clicked.getType() != Material.AIR && LocalizedName.get(clicked) == null) {
+                if (isBorder(slot)) {
+                    event.setCancelled(true);
+                    return;
+                }
                 if (event.isRightClick()) {
                     topInv.setItem(slot, null);
                     event.setCancelled(true);
@@ -186,6 +191,14 @@ public class DropsMenu implements Listener {
         }
     }
 
+    private boolean isBorder(int slot) {
+        int[] cancelledSlots = new int[]{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 17, 18, 26, 27, 35, 36, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53};
+        for (int s : cancelledSlots) {
+            if (s == slot) return true;
+        }
+        return false;
+    }
+
     private void refreshEditMenu(Player player) {
         ItemStack info = player.getOpenInventory().getTopInventory().getItem(49);
         if (info == null) return;
@@ -206,6 +219,7 @@ public class DropsMenu implements Listener {
         List<Map<String, Object>> dropsList = new ArrayList<>();
         
         for (int i = 0; i < 44; i++) {
+            if (isBorder(i)) continue;
             ItemStack item = inv.getItem(i);
             if (item != null && item.getType() != Material.AIR && LocalizedName.get(item) == null) {
                 ItemMeta meta = item.getItemMeta();

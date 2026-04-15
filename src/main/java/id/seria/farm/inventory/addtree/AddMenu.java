@@ -73,6 +73,7 @@ public class AddMenu implements Listener {
         if (clicked == null || clicked.getType() == Material.AIR) return;
 
         String action = LocalizedName.get(clicked);
+        if (action == null) return;
 
         switch (action) {
             case "close_menu":

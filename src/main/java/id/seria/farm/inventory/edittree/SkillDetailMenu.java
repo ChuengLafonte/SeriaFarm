@@ -58,7 +58,9 @@ public class SkillDetailMenu implements Listener {
 
         ItemStack infoItem = event.getInventory().getItem(0);
         if (infoItem == null) return;
-        String[] parts = LocalizedName.get(infoItem).split("\\|");
+        String infoData = LocalizedName.get(infoItem);
+        if (infoData == null) return;
+        String[] parts = infoData.split("\\|");
         String mName = parts[0], rName = parts[1], fPath = parts[2], rId = parts[3];
 
         String action = LocalizedName.get(clicked);

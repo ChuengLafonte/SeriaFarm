@@ -20,17 +20,15 @@ public class LocalizedName {
     }
 
     public static String get(ItemStack itemStack) {
-        if (itemStack == null) return "0";
-        PersistentDataContainer persistentDataContainer;
-        String string = "0";
+        if (itemStack == null) return null;
         NamespacedKey namespacedKey = SeriaFarmPlugin.key;
         ItemMeta itemMeta = itemStack.getItemMeta();
         if (itemMeta != null) {
-            persistentDataContainer = itemMeta.getPersistentDataContainer();
+            PersistentDataContainer persistentDataContainer = itemMeta.getPersistentDataContainer();
             if (persistentDataContainer.has(namespacedKey, PersistentDataType.STRING)) {
-                string = persistentDataContainer.get(namespacedKey, PersistentDataType.STRING);
+                return persistentDataContainer.get(namespacedKey, PersistentDataType.STRING);
             }
         }
-        return string;
+        return null;
     }
 }

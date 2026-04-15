@@ -138,6 +138,7 @@ public class BlockMenu implements Listener {
         final String currentRegion = (rawRegion != null) ? rawRegion : "global";
 
         String action = LocalizedName.get(clicked);
+        if (action == null) return;
         YamlConfiguration config = (YamlConfiguration) plugin.getConfigManager().getConfig("crops.yml");
 
         switch (action) {

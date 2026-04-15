@@ -247,7 +247,7 @@ public class RegenManager {
         return height;
     }
 
-    public void startAdHocTracking(Block block, String materialKey) {
+    public void startAdHocTracking(Block block, String materialKey, org.bukkit.entity.Player player) {
         if (!isGrowthCapable(block)) return;
         
         Location loc = block.getLocation();
@@ -255,7 +255,10 @@ public class RegenManager {
 
         long now = System.currentTimeMillis();
         ConfigurationSection config = plugin.getConfigManager().getConfig("crops.yml").getConfigurationSection("crops." + materialKey);
-        int delaySeconds = config != null ? config.getInt("regen-delay", 45) : 45;
+        int baseDelay = config != null ? config.getInt("regen-delay", 45) : 45;
+
+        // Apply GrowthAura buff from the planting player (important when auto-replant is OFF)
+        int delaySeconds = applyGrowthAura(player, baseDelay);
 
         BlockData data = block.getBlockData();
         int maxAge = 0;
@@ -398,7 +401,9 @@ public class RegenManager {
     public List<String> getRegionNames() {
         ConfigurationSection section = plugin.getConfigManager().getConfig("regions.yml").getConfigurationSection("regions");
         if (section == null) return new java.util.ArrayList<>();
-        return new java.util.ArrayList<>(section.getKeys(false));
+        return section.getKeys(false).stream()
+            .filter(key -> !key.equalsIgnoreCase("global"))
+            .collect(java.util.stream.Collectors.toList());
     }
   
     public String getRegionAt(Location loc) {
@@ -505,6 +510,19 @@ public class RegenManager {
         if (s.endsWith("es")) return s.substring(0, s.length() - 2);
         if (s.endsWith("s")) return s.substring(0, s.length() - 1);
         return s;
+    }
+
+    /**
+     * Applies the GrowthAura ability reduction to a base delay.
+     * Returns the reduced delay, or the base delay if the player is null / has no ability.
+     */
+    private int applyGrowthAura(org.bukkit.entity.Player player, int baseDelay) {
+        if (player == null) return baseDelay;
+        double reduction = plugin.getAuraSkillsManager().getGrowthAuraReduction(player);
+        if (reduction <= 0) return baseDelay;
+        double multiplier = 1.0 - (reduction / 100.0);
+        if (multiplier < 0) multiplier = 0;
+        return (int) Math.round(baseDelay * multiplier);
     }
 
     public void shutdown() {

@@ -22,6 +22,7 @@ import java.util.*;
 public class GlobalBlocksMenu implements Listener {
     private final SeriaFarmPlugin plugin;
     private int page;
+    private String type = "global";
 
     public GlobalBlocksMenu(SeriaFarmPlugin plugin) {
         this.plugin = plugin;
@@ -29,22 +30,22 @@ public class GlobalBlocksMenu implements Listener {
 
     public int getPage() { return page; }
 
-    public Inventory blockmenu(Player player, int page) {
+    public Inventory blockmenu(Player player, int page, String type) {
         this.page = page;
+        this.type = type;
         YamlConfiguration config = (YamlConfiguration) plugin.getConfigManager().getConfig("crops.yml");
         
         Map<String, String> placeholders = new HashMap<>();
-        placeholders.put("%count%", String.valueOf(getGlobalCount(config)));
+
+        ConfigurationSection targetSection = config.getConfigurationSection("crops." + type);
+        List<String> materials = new ArrayList<>();
+        if (targetSection != null) targetSection.getKeys(false).forEach(k -> materials.add(type + ":" + k));
+        materials.sort(Comparator.naturalOrder());
+
+        placeholders.put("%count%", String.valueOf(materials.size()));
         placeholders.put("%page%", String.valueOf(page));
 
         Inventory inventory = plugin.getGuiManager().createInventory("catalog-menu", placeholders);
-
-        ConfigurationSection globalSection = config.getConfigurationSection("crops.global");
-        List<String> materials = new ArrayList<>();
-        if (globalSection != null) {
-            globalSection.getKeys(false).forEach(k -> materials.add("global:" + k));
-        }
-        materials.sort(Comparator.naturalOrder());
 
         // Fill dynamic content in available slots
         int slot = 0;
@@ -57,9 +58,12 @@ public class GlobalBlocksMenu implements Listener {
             }
             if (slot >= inventory.getSize()) break;
 
-            String materialKey = matKey.split(":")[1];
-            String path = "crops.global." + materialKey;
-            
+            // Resolve config path from prefix (global: or garden:)
+            String[] parts = matKey.split(":", 2);
+            String prefix = parts[0];           // "global" or "garden"
+            String materialKey = parts[1];
+            String path = "crops." + prefix + "." + materialKey;
+
             int xp = config.getInt(path + ".rewards.xp", 0);
             int delay = config.getInt(path + ".regen-delay", 20);
             ConfigurationSection rewards = config.getConfigurationSection(path + ".rewards");
@@ -74,9 +78,30 @@ public class GlobalBlocksMenu implements Listener {
             int popularityScore = Math.abs(materialKey.hashCode() % 100);
             String popularity = popularityScore > 80 ? "&aHighly Popular" : (popularityScore > 40 ? "&eTrending" : "&7Stable");
 
-            ItemStack icon = plugin.getHookManager().getItem(materialKey);
-            if (icon.getType() == Material.STONE && !materialKey.equalsIgnoreCase("STONE")) {
-                icon = new ItemStack(Material.BARRIER);
+            // ── Icon resolution (priority: material field → item remap → seed-item → fallback WHEAT)
+            String materialStr = config.getString(path + ".material", materialKey).toUpperCase();
+            Material vanillaMat = Material.matchMaterial(materialStr);
+            // Some crop materials are block-only (POTATOES, CARROTS, BEETROOTS) — remap to item equivalent
+            if (vanillaMat != null && !vanillaMat.isItem()) {
+                vanillaMat = switch (vanillaMat.name()) {
+                    case "POTATOES"    -> Material.POTATO;
+                    case "CARROTS"     -> Material.CARROT;
+                    case "BEETROOTS"   -> Material.BEETROOT;
+                    case "COCOA_BEANS" -> Material.COCOA_BEANS;
+                    case "NETHER_WART_BLOCK" -> Material.NETHER_WART;
+                    default            -> null; // unknown block-only material
+                };
+            }
+            ItemStack icon;
+            if (vanillaMat != null && vanillaMat.isItem()) {
+                icon = new ItemStack(vanillaMat);
+            } else {
+                // Try seed-item via HookManager (MMOItems / ItemsAdder / vanilla)
+                String seedItemId = config.getString(path + ".seed-item", null);
+                icon = seedItemId != null ? plugin.getHookManager().getItem(seedItemId) : null;
+                if (icon == null || icon.getType() == Material.AIR || icon.getType() == Material.STONE) {
+                    icon = new ItemStack(Material.WHEAT); // safe visual fallback
+                }
             }
             List<Object> lore = new ArrayList<>(Arrays.asList(
                 "&8World Species • Wiki",
@@ -122,10 +147,7 @@ public class GlobalBlocksMenu implements Listener {
         return inventory;
     }
 
-    private int getGlobalCount(YamlConfiguration config) {
-        ConfigurationSection sec = config.getConfigurationSection("crops.global");
-        return sec == null ? 0 : sec.getKeys(false).size();
-    }
+
 
     @EventHandler
     public void oninvcclick(InventoryClickEvent event) {
@@ -138,17 +160,18 @@ public class GlobalBlocksMenu implements Listener {
         if (clicked == null || clicked.getType() == Material.AIR) return;
 
         String action = LocalizedName.get(clicked);
+        if (action == null) return; // border pane or item with no action tag
         
         if (action.equals("open_add_blocks")) {
-            Bukkit.getScheduler().runTask(plugin, () -> player.openInventory(new id.seria.farm.inventory.addtree.AddBlocksMenu().addblocks_menu(player, "global")));
+            Bukkit.getScheduler().runTask(plugin, () -> player.openInventory(new id.seria.farm.inventory.addtree.AddBlocksMenu().addblocks_menu(player, type)));
             return;
         }
         if (action.equals("prev_page")) {
-            Bukkit.getScheduler().runTask(plugin, () -> player.openInventory(blockmenu(player, Math.max(1, page - 1))));
+            Bukkit.getScheduler().runTask(plugin, () -> player.openInventory(blockmenu(player, Math.max(1, page - 1), type)));
             return;
         }
         if (action.equals("next_page")) {
-            Bukkit.getScheduler().runTask(plugin, () -> player.openInventory(blockmenu(player, page + 1)));
+            Bukkit.getScheduler().runTask(plugin, () -> player.openInventory(blockmenu(player, page + 1, type)));
             return;
         }
         if (action.equals("close_menu")) {
@@ -156,19 +179,24 @@ public class GlobalBlocksMenu implements Listener {
             return;
         }
 
-        // Logic for blocks (action will be global:BLOCK)
-        if (action.startsWith("global:")) {
+        // Logic for crop items — action is "global:key" or "garden:key"
+        if (action.startsWith("global:") || action.startsWith("garden:")) {
             if (!player.hasPermission("seriafarm.admin")) return;
             YamlConfiguration config = (YamlConfiguration) plugin.getConfigManager().getConfig("crops.yml");
-            
+            String[] ap = action.split(":", 2);
+            String section = ap[0]; // "global" or "garden"
+            String subKey  = ap[1];
+
             if (event.getClick() == ClickType.SHIFT_LEFT || event.getClick() == ClickType.SHIFT_RIGHT) {
-                String subKey = action.split(":")[1];
-                config.set("crops.global." + subKey, null);
+                config.set("crops." + section + "." + subKey, null);
                 plugin.getConfigManager().saveConfig("crops.yml");
-                plugin.getConfigManager().sendPrefixedMessage(player, "&cDeleted Global &f" + subKey);
-                player.openInventory(blockmenu(player, page));
+                plugin.getConfigManager().sendPrefixedMessage(player, "&cDeleted &f" + section + "/" + subKey);
+                player.openInventory(blockmenu(player, page, type));
             } else {
-                Bukkit.getScheduler().runTask(plugin, () -> player.openInventory(new id.seria.farm.inventory.maintree.GlobalBlockEditMenu(plugin).open(player, action)));
+                // Pass full "global:key" or "garden:key" as matName —
+                // GlobalBlockEditMenu resolves the config path from this prefix.
+                Bukkit.getScheduler().runTask(plugin, () ->
+                        player.openInventory(new id.seria.farm.inventory.maintree.GlobalBlockEditMenu(plugin).open(player, action)));
             }
         }
     }

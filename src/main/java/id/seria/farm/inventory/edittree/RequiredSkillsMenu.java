@@ -94,7 +94,7 @@ public class RequiredSkillsMenu implements Listener {
                     } else {
                         player.openInventory(new EditMenu(plugin).emenu(player, config, mName, null, rName));
                     }
-                    break;
+                    return;
                 case "add_requirement":
                     ConfigurationSection sec = config.getConfigurationSection(fPath + ".requirements.skills");
                     int nextId = 1;
@@ -109,22 +109,22 @@ public class RequiredSkillsMenu implements Listener {
                     config.set(subPath + ".level", 0);
                     plugin.getConfigManager().saveConfig("crops.yml");
                     new SkillDetailMenu(plugin).open(player, mName, rName, fPath, String.valueOf(nextId));
-                    break;
-            }
-            return;
-        }
-
-        if (clicked.getType() == Material.BOOK) {
-            String entryId = LocalizedName.get(clicked);
-            if (entryId == null) return;
-
-            if (event.getClick() == ClickType.SHIFT_LEFT || event.getClick() == ClickType.SHIFT_RIGHT) {
-                config.set(fPath + ".requirements.skills." + entryId, null);
-                plugin.getConfigManager().saveConfig("crops.yml");
-                plugin.getConfigManager().sendPrefixedMessage(player, "&cRequirement deleted.");
-                open(player, mName, rName, fPath);
-            } else {
-                new SkillDetailMenu(plugin).open(player, mName, rName, fPath, entryId);
+                    return;
+                case "context_metadata":
+                    return;
+                default:
+                    // Numeric requirement entry — handle click/shift-click
+                    if (clicked.getType() == Material.BOOK) {
+                        if (event.getClick() == ClickType.SHIFT_LEFT || event.getClick() == ClickType.SHIFT_RIGHT) {
+                            config.set(fPath + ".requirements.skills." + action, null);
+                            plugin.getConfigManager().saveConfig("crops.yml");
+                            plugin.getConfigManager().sendPrefixedMessage(player, "&cRequirement deleted.");
+                            open(player, mName, rName, fPath);
+                        } else {
+                            new SkillDetailMenu(plugin).open(player, mName, rName, fPath, action);
+                        }
+                    }
+                    return;
             }
         }
     }

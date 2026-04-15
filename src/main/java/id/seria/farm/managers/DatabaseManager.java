@@ -48,9 +48,30 @@ public class DatabaseManager {
                 "fertilizer_type TEXT" +
                 ");";
 
+        String customPlantsTable = "CREATE TABLE IF NOT EXISTS custom_plants (" +
+                "world TEXT NOT NULL," +
+                "x INT NOT NULL, y INT NOT NULL, z INT NOT NULL," +
+                "owner_uuid TEXT NOT NULL," +
+                "crop_key TEXT NOT NULL," +
+                "watering_level INT DEFAULT 0," +
+                "planted_at BIGINT NOT NULL," +
+                "no_water_since BIGINT DEFAULT 0," +
+                "is_rotten INTEGER DEFAULT 0," +
+                "PRIMARY KEY (world, x, y, z)" +
+                ");";
+
+        String soilSlotsTable = "CREATE TABLE IF NOT EXISTS player_soil_blocks (" +
+                "world TEXT NOT NULL," +
+                "x INT NOT NULL, y INT NOT NULL, z INT NOT NULL," +
+                "owner_uuid TEXT NOT NULL," +
+                "PRIMARY KEY (world, x, y, z)" +
+                ");";
+
         try (Statement stmt = connection.createStatement()) {
             stmt.execute(regenTable);
             stmt.execute(cropsTable);
+            stmt.execute(customPlantsTable);
+            stmt.execute(soilSlotsTable);
         }
     }
 

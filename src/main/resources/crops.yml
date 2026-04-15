@@ -1,18 +1,25 @@
 # ----------------------------------------------------------------
 # SeriaFarm Unified Crops Configuration
 # ----------------------------------------------------------------
-# This file handles both block regeneration and farming rewards.
-# Structure:
 # crops:
-#   global:
-#     - Applied server-wide.
-#   [region_name]:
-#     - Overrides global settings within this region.
+#   global:  Standard server-wide vanilla crops (SeriaFarm regen system)
+#   garden:  Custom premium crops (watering system, Composted Soil)
+#   [region]: Region-specific overrides for global crops
+#
+# Garden-specific fields:
+#   seed-item        : MMOItems/IA/vanilla identifier for the seed
+#   soil             : list of block identifiers valid as soil
+#   regen-delay      : seconds from sprout to fully grown
+#   watering.enabled : enable water decay system
+#   watering.max-level    : water bar max
+#   watering.decay-rate   : water lost per decay-interval
+#   watering.decay-interval: seconds between decay ticks
+#   watering.rot-threshold: seconds without water before plant rots
 # ----------------------------------------------------------------
 
 crops:
   global:
-    # --- Standard Crops (Ageable) ---
+    # ─── Standard Crops (Ageable / Vanilla) ─────────────────────
     wheat:
       material: WHEAT
       regen-delay: 60
@@ -37,21 +44,98 @@ crops:
     cocoa:
       material: COCOA_BEANS
       regen-delay: 90
-    
-    # --- Fruits ---
+
+    # ─── Fruits ──────────────────────────────────────────────────
     melon:
       material: MELON
       regen-delay: 120
     pumpkin:
       material: PUMPKIN
       regen-delay: 120
-    
-    # --- Berries ---
+
+    # ─── Berries ─────────────────────────────────────────────────
     sweet_berry_bush:
       material: SWEET_BERRIES
       regen-delay: 60
 
-  # Region Overrides
+  # ─── Custom Premium Garden Crops ─────────────────────────────────
+  # These crops live OUTSIDE the vanilla regen system.
+  # Growth is driven by SeriaFarm's watering engine.
+  # Seeds must be obtained via MMOItems; planting requires Composted Soil.
+  garden:
+    shining_wheat:
+      display-name: "&e✦ Shining Wheat"
+      material: WHEAT
+      seed-item: "mi:MISCELLANEOUS:SHINNING_WHEAT_SEED"
+      soil:
+        - "mi:MISCELLANEOUS:COMPOSTED_SOIL"
+      regen-delay: 300
+      farming-level: 5
+      watering:
+        enabled: true
+        max-level: 10
+        decay-rate: 1
+        decay-interval: 120
+        rot-threshold: 600
+        hologram-height: 1.6
+      rewards:
+        drops: []
+
+    crystalized_potato:
+      display-name: "&b✦ Crystalized Potato"
+      material: POTATO
+      seed-item: "mi:MISCELLANEOUS:CRYSTALIZED_POTATO_SEED"
+      soil:
+        - "mi:MISCELLANEOUS:COMPOSTED_SOIL"
+      regen-delay: 360
+      farming-level: 10
+      watering:
+        enabled: true
+        max-level: 10
+        decay-rate: 1
+        decay-interval: 120
+        rot-threshold: 600
+        hologram-height: 1.6
+      rewards:
+        drops: []
+
+    shining_golden_carrot:
+      display-name: "&6✦ Shining Golden Carrot"
+      material: CARROT
+      seed-item: "mi:MISCELLANEOUS:SHINNING_GOLDEN_CARROT_SEED"
+      soil:
+        - "mi:MISCELLANEOUS:COMPOSTED_SOIL"
+      regen-delay: 420
+      farming-level: 15
+      watering:
+        enabled: true
+        max-level: 10
+        decay-rate: 1
+        decay-interval: 120
+        rot-threshold: 600
+        hologram-height: 1.6
+      rewards:
+        drops: []
+
+    fermented_beetroot:
+      display-name: "&d✦ Fermented Beetroot"
+      material: BEETROOT
+      seed-item: "mi:MISCELLANEOUS:FERMENTED_BEETROOT_SEED"
+      soil:
+        - "mi:MISCELLANEOUS:COMPOSTED_SOIL"
+      regen-delay: 480
+      farming-level: 20
+      watering:
+        enabled: true
+        max-level: 10
+        decay-rate: 1
+        decay-interval: 120
+        rot-threshold: 600
+        hologram-height: 1.6
+      rewards:
+        drops: []
+
+  # ─── Region Overrides ────────────────────────────────────────────
   farming_zone_1:
     wheat:
        material: WHEAT
@@ -59,16 +143,5 @@ crops:
        rewards:
           xp: 2
 
-# Drop Table Definitions (Automatically injected into global blocks above)
-# This section mimics your original crops.yml for easy management.
-drop-tables:
-  potato:
-    drops:
-      - material: POTATO
-        chance: 80.0
-      - material: "mmoitems-MATERIAL:RARE_POTATO"
-        chance: 15.0
-      - material: "mmoitems-MATERIAL:EPIC_POTATO"
-        chance: 4.0
-      - material: "mmoitems-MATERIAL:LEGENDARY_POTATO"
-        chance: 1.0
+# ─── Drop Table Definitions ──────────────────────────────────────
+drop-tables: {}
