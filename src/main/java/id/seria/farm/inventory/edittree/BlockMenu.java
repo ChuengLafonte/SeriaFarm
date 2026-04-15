@@ -8,7 +8,6 @@ import id.seria.farm.inventory.utils.PageUtil;
 import id.seria.farm.inventory.utils.StaticColors;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
-import net.kyori.adventure.text.Component;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -18,18 +17,17 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.Inventory;
-import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
-import org.jetbrains.annotations.NotNull;
 import java.io.File;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Objects;
 
-public class BlockMenu implements Listener, InventoryHolder {
-    private static final Component NAME = StaticColors.getHexMsg("&#6495ED&lBlock Menu");
+import java.util.HashMap;
+import java.util.Map;
+import id.seria.farm.managers.GuiManager;
+
+public class BlockMenu implements Listener {
     private final SeriaFarmPlugin plugin;
     private int page;
     private String regionName;
@@ -50,7 +48,6 @@ public class BlockMenu implements Listener, InventoryHolder {
         List<String> materials = new ArrayList<>();
         
         if (blocksSection != null) {
-            // ONLY Include region-specific blocks
             if (!regionName.equalsIgnoreCase("global")) {
                 ConfigurationSection region = blocksSection.getConfigurationSection(regionName);
                 if (region != null) {
@@ -58,64 +55,44 @@ public class BlockMenu implements Listener, InventoryHolder {
                 }
             }
         }
-        
         materials.sort(Comparator.naturalOrder());
 
-        Component title = NAME.append(StaticColors.getHexMsg(" &7(" + materials.size() + ")"));
-        Inventory inventory = Bukkit.createInventory(this, 54, title);
-
-        // Navigation & Info (Dashboard Style)
-        inventory.setItem(48, InvUtils.createItemStacks(Material.ARROW, StaticColors.getHexMsg("&#6495ED&l« Previous Page"), "&7Go back", ""));
-        
-        // Slot 49: Summary Book
         FileConfiguration regConfig = plugin.getConfigManager().getConfig("regions.yml");
         String regPath = "regions." + regionName + ".";
         boolean isEnabled = regConfig.getBoolean(regPath + "enabled", true);
         boolean isPerRegion = regConfig.getBoolean(regPath + "per-region-regen", true);
 
-        inventory.setItem(49, InvUtils.createItemStacks(Material.BOOK, StaticColors.getHexMsg("&#6495ED&lRegion Summary"), 
-            "&7Region: &f" + regionName,
-            "&7Status: " + (isEnabled ? "&aActive" : "&cPaused"),
-            "&7Mode: " + (isPerRegion ? "&bRegional" : "&6Global-Only"),
-            "",
-            "&7Regional Overrides: &f" + materials.size(),
-            "&8&o(Global blocks managed in Global Menu)"));
+        Map<String, String> placeholders = new HashMap<>();
+        placeholders.put("%region%", regionName);
+        placeholders.put("%count%", String.valueOf(materials.size()));
+        placeholders.put("%status%", isEnabled ? "&aActive" : "&cPaused");
+        placeholders.put("%mode%", isPerRegion ? "&bRegional" : "&6Global-Only");
 
-
-        inventory.setItem(50, InvUtils.createItemStacks(Material.ARROW, StaticColors.getHexMsg("&#6495ED&lNext Page »"), "&7Go forward", ""));
+        Inventory inventory = plugin.getGuiManager().createInventory("block-menu", placeholders);
         
-        inventory.setItem(45, InvUtils.createItemStacks(Material.CHEST_MINECART, StaticColors.getHexMsg("&#6495ED&lRegion Selection"), 
-            "&7Viewing: &b" + regionName,
-            "",
-            "&eClick to return to list."));
-            
-        inventory.setItem(53, InvUtils.createItemStacks(Material.BARRIER, StaticColors.getHexMsg("&cBack to Regions"), "&7Return to the main list.", ""));
+        // Metadata for handlers (slot 49 contains regionName)
+        ItemStack summary = inventory.getItem(49);
+        if (summary != null) LocalizedName.set(summary, regionName);
 
-        // Initialize pagination slots even if invalid (so they can be safely meta-updated)
-        inventory.setItem(36, InvUtils.createItemStacks(Material.RED_STAINED_GLASS_PANE, StaticColors.getHexMsg("&cNo Previous Page"), "", ""));
-        inventory.setItem(44, InvUtils.createItemStacks(Material.RED_STAINED_GLASS_PANE, StaticColors.getHexMsg("&cNo Next Page"), "", ""));
-
+        // Update Nav buttons aesthetics based on page validity
         if (PageUtil.isPageValid(materials, page - 1, 28)) {
-            inventory.setItem(36, InvUtils.createItemStacks(Material.GREEN_STAINED_GLASS_PANE, StaticColors.getHexMsg("&#6495ED&l« Previous Page"), "&7Back to page " + (page - 1), ""));
+            ItemStack prev = inventory.getItem(36);
+            if (prev != null) inventory.setItem(36, InvUtils.applyMeta(prev.withType(Material.GREEN_STAINED_GLASS_PANE), null));
         }
-        LocalizedName.set(Objects.requireNonNull(inventory.getItem(36)), String.valueOf(page - 1));
-
         if (PageUtil.isPageValid(materials, page + 1, 28)) {
-            inventory.setItem(44, InvUtils.createItemStacks(Material.GREEN_STAINED_GLASS_PANE, StaticColors.getHexMsg("&#6495ED&lNext Page »"), "&7Advance to page " + (page + 1), ""));
-        }
-        LocalizedName.set(Objects.requireNonNull(inventory.getItem(44)), String.valueOf(page + 1));
-
-        ItemStack glass = InvUtils.createItemStacks(Material.LIGHT_BLUE_STAINED_GLASS_PANE, " ", "", "");
-        for (int n : new int[]{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 17, 18, 26, 27, 35, 46, 47, 48, 49, 50, 51, 52}) {
-            if (inventory.getItem(n) == null) inventory.setItem(n, glass);
+            ItemStack next = inventory.getItem(44);
+            if (next != null) inventory.setItem(44, InvUtils.applyMeta(next.withType(Material.GREEN_STAINED_GLASS_PANE), null));
         }
 
-        int slot = 10;
-        List<Integer> skipSlots = Arrays.asList(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 17, 18, 26, 27, 35, 36, 44, 46, 47, 48, 50, 51, 52, 53, 45, 49);
+        int slot = 0;
+        List<String> pageItems = PageUtil.getpageitems(materials, page, 28);
         
-        for (String matKey : PageUtil.getpageitems(materials, page, 28)) {
-            while (skipSlots.contains(slot)) slot++;
-            if (slot >= 44) break;
+        for (String matKey : pageItems) {
+            // Find next empty slot
+            while (slot < inventory.getSize() && inventory.getItem(slot) != null && inventory.getItem(slot).getType() != Material.AIR) {
+                slot++;
+            }
+            if (slot >= inventory.getSize()) break;
 
             String[] parts = matKey.split(":");
             String source = parts[0];
@@ -145,77 +122,63 @@ public class BlockMenu implements Listener, InventoryHolder {
         return inventory;
     }
 
-    @Override
-    public @NotNull Inventory getInventory() {
-        return null; // Holder identification only
-    }
-
     @EventHandler
     public void oninvcclick(InventoryClickEvent event) {
-        if (!(event.getInventory().getHolder() instanceof BlockMenu)) return;
+        if (!(event.getInventory().getHolder() instanceof GuiManager.MenuHolder holder)) return;
+        if (!holder.getMenuKey().equals("block-menu")) return;
+
         event.setCancelled(true);
-        
-        if (event.getRawSlot() >= 54) return;
+        Player player = (Player) event.getWhoClicked();
         ItemStack clicked = event.getCurrentItem();
         if (clicked == null || clicked.getType() == Material.AIR) return;
 
-        Player player = (Player) event.getWhoClicked();
-        BlockMenu holder = (BlockMenu) event.getInventory().getHolder();
-        int currentPage = holder.getPage();
-        String regionName = holder.getRegionName();
+        // Retrieve regionName from metadata in slot 49
+        ItemStack summaryItem = event.getInventory().getItem(49);
+        String rawRegion = (summaryItem != null) ? LocalizedName.get(summaryItem) : "global";
+        final String currentRegion = (rawRegion != null) ? rawRegion : "global";
+
+        String action = LocalizedName.get(clicked);
         YamlConfiguration config = (YamlConfiguration) plugin.getConfigManager().getConfig("crops.yml");
 
-        if (event.getRawSlot() == 53) {
-            plugin.getVisualManager().setFocusedRegion(player, null);
-            Bukkit.getScheduler().runTask(plugin, () -> player.openInventory(new RegionSelectionMenu(plugin).reg_sel(player, 1)));
-            return;
-        }
-
-        if (event.getRawSlot() == 45) {
-            Bukkit.getScheduler().runTask(plugin, () -> player.openInventory(new RegionSelectionMenu(plugin).reg_sel(player, 1)));
-            return;
-        }
-
-        if (event.getRawSlot() == 48 && clicked.getType() == Material.ARROW) {
-            Bukkit.getScheduler().runTask(plugin, () -> player.openInventory(blockmenu(player, Math.max(1, currentPage - 1), config, regionName)));
-            return;
-        }
-
-        if (event.getRawSlot() == 50 && clicked.getType() == Material.ARROW) {
-            Bukkit.getScheduler().runTask(plugin, () -> player.openInventory(blockmenu(player, currentPage + 1, config, regionName)));
-            return;
-        }
-
-        if (event.getClick() == ClickType.SHIFT_LEFT || event.getClick() == ClickType.SHIFT_RIGHT) {
-            String matKey = LocalizedName.get(clicked); // Format is "region:key" or "global:key"
-            if (matKey != null && matKey.contains(":")) {
-                String[] parts = matKey.split(":");
-                String targetRegion = parts[0];
-                String actualKey = parts[1];
-                
-                String path = "crops." + targetRegion + "." + actualKey;
-                if (targetRegion.equalsIgnoreCase("legacy")) path = "crops." + actualKey;
-                
-                plugin.getConfigManager().getConfig("crops.yml").set(path, null);
-                plugin.getConfigManager().saveConfig("crops.yml");
-                plugin.getConfigManager().sendPrefixedMessage(player, "&cDeleted &f" + actualKey);
-                
-                // Refresh the menu
-                YamlConfiguration matConfig = (YamlConfiguration) plugin.getConfigManager().getConfig("crops.yml");
-                player.openInventory(blockmenu(player, currentPage, matConfig, regionName));
-            }
-        } else if (isMatItem(event.getRawSlot())) {
-            // Open EditMenu
-            String matName = LocalizedName.get(clicked);
-            YamlConfiguration matConfig = (YamlConfiguration) plugin.getConfigManager().getConfig("crops.yml");
-            File matFile = plugin.getConfigManager().getConfigFile("crops.yml");
-            
-            player.openInventory(new EditMenu(plugin).emenu(player, matConfig, matName, matFile, regionName));
+        switch (action) {
+            case "close_menu":
+                plugin.getVisualManager().setFocusedRegion(player, null);
+                player.closeInventory();
+                break;
+            case "back_to_selection":
+                Bukkit.getScheduler().runTask(plugin, () -> player.openInventory(new RegionSelectionMenu(plugin).reg_sel(player, 1)));
+                break;
+            case "prev_page":
+                if (clicked.getType() == Material.GREEN_STAINED_GLASS_PANE) {
+                    Bukkit.getScheduler().runTask(plugin, () -> player.openInventory(blockmenu(player, page - 1, config, currentRegion)));
+                }
+                break;
+            case "next_page":
+                if (clicked.getType() == Material.GREEN_STAINED_GLASS_PANE) {
+                    Bukkit.getScheduler().runTask(plugin, () -> player.openInventory(blockmenu(player, page + 1, config, currentRegion)));
+                }
+                break;
+            default:
+                // Logic for blocks (action will be region:BLOCK)
+                if (action.contains(":")) {
+                    if (event.getClick() == ClickType.SHIFT_LEFT || event.getClick() == ClickType.SHIFT_RIGHT) {
+                        String[] parts = action.split(":");
+                        String targetRegion = parts[0];
+                        String actualKey = parts[1];
+                        
+                        String path = "crops." + targetRegion + "." + actualKey;
+                        plugin.getConfigManager().getConfig("crops.yml").set(path, null);
+                        plugin.getConfigManager().saveConfig("crops.yml");
+                        plugin.getConfigManager().sendPrefixedMessage(player, "&cDeleted &f" + actualKey);
+                        
+                        Bukkit.getScheduler().runTask(plugin, () -> player.openInventory(blockmenu(player, page, config, currentRegion)));
+                    } else {
+                        File matFile = plugin.getConfigManager().getConfigFile("crops.yml");
+                        Bukkit.getScheduler().runTask(plugin, () -> player.openInventory(new EditMenu(plugin).emenu(player, config, action, matFile, currentRegion)));
+                    }
+                }
+                break;
         }
     }
 
-    private boolean isMatItem(int slot) {
-        List<Integer> skipSlots = Arrays.asList(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 17, 18, 26, 27, 35, 36, 44, 46, 47, 48, 50, 51, 52, 53, 45, 49);
-        return !skipSlots.contains(slot) && slot < 44;
-    }
 }

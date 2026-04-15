@@ -1,8 +1,6 @@
 package id.seria.farm.inventory.edittree;
 
 import id.seria.farm.SeriaFarmPlugin;
-import id.seria.farm.inventory.edittree.VerticalGrowthMenu;
-import id.seria.farm.inventory.utils.InvUtils;
 import id.seria.farm.inventory.utils.LocalizedName;
 import id.seria.farm.inventory.utils.StaticColors;
 import id.seria.farm.listeners.ChatInputListener;
@@ -18,15 +16,13 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
 import net.kyori.adventure.text.Component;
-import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 
-import org.bukkit.inventory.InventoryHolder;
-import org.jetbrains.annotations.NotNull;
 
-public class ReplaceBlockMenu implements Listener, InventoryHolder {
-
+public class ReplaceBlockMenu implements Listener {
     private final SeriaFarmPlugin plugin;
 
     public ReplaceBlockMenu(SeriaFarmPlugin plugin) {
@@ -35,27 +31,20 @@ public class ReplaceBlockMenu implements Listener, InventoryHolder {
 
     public void open(Player player, String matName, String regionName, String configKey, String fullPath) {
         String displayTitle = configKey.contains("delay") ? "Delay Block Editor" : "Replace Block Editor";
-        Inventory inv = Bukkit.createInventory(this, 54, StaticColors.getHexMsg("&#9370db&l" + displayTitle));
-        
-        // Setup border and controls
-        ItemStack glass = InvUtils.createItemStacks(Material.PURPLE_STAINED_GLASS_PANE, " ", "");
-        for (int i : new int[]{0,1,2,3,4,5,6,7,8,9,17,18,26,27,35,36,44,45,46,47,48,49,50,51,52,53}) {
-            inv.setItem(i, glass);
-        }
+        Map<String, String> placeholders = new HashMap<>();
+        placeholders.put("%title%", displayTitle);
 
-        inv.setItem(48, InvUtils.createItemStacks(Material.LIME_STAINED_GLASS_PANE, "&a&lSAVE &f& EXIT", "&7Save all changes to config"));
-        inv.setItem(50, InvUtils.createItemStacks(Material.RED_STAINED_GLASS_PANE, "&c&lCANCEL", "&7Back to Edit Menu"));
+        Inventory inv = plugin.getGuiManager().createInventory("replace-block-menu", placeholders);
         
-        // Info item to store context
-        ItemStack info = InvUtils.createItemStacks(Material.PAPER, "&eContext Info (Hidden)", "");
-        LocalizedName.set(info, matName + "|" + regionName + "|" + configKey + "|" + fullPath);
-        inv.setItem(49, info);
+        // Metadata (PAPER in slot 49)
+        ItemStack info = inv.getItem(49);
+        if (info != null) LocalizedName.set(info, matName + "|" + regionName + "|" + configKey + "|" + fullPath);
 
         // Load existing data
         YamlConfiguration config = (YamlConfiguration) plugin.getConfigManager().getConfig("crops.yml");
         List<String> current = config.getStringList(fullPath + "." + configKey);
         
-        int slot = 10;
+        int slot = 0;
         for (String line : current) {
             try {
                 String[] parts = line.split(";");
@@ -63,7 +52,7 @@ public class ReplaceBlockMenu implements Listener, InventoryHolder {
                 double chance = parts.length > 1 ? Double.parseDouble(parts[1].trim()) : 100.0;
                 
                 if (mat != null) {
-                    while (isBorder(slot)) slot++;
+                    while (slot < inv.getSize() && inv.getItem(slot) != null) slot++;
                     if (slot >= 44) break;
                     
                     ItemStack item = new ItemStack(mat);
@@ -77,13 +66,6 @@ public class ReplaceBlockMenu implements Listener, InventoryHolder {
         player.openInventory(inv);
     }
 
-    private boolean isBorder(int slot) {
-        for (int i : new int[]{0,1,2,3,4,5,6,7,8,9,17,18,26,27,35,36,44,45,46,47,48,49,50,51,52,53}) {
-            if (i == slot) return true;
-        }
-        return false;
-    }
-
     private void updateLore(ItemStack item, double chance) {
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
@@ -91,86 +73,84 @@ public class ReplaceBlockMenu implements Listener, InventoryHolder {
             lore.add(Component.empty());
             lore.add(StaticColors.getHexMsg("&eChance: &f" + chance + "%"));
             lore.add(Component.empty());
-            lore.add(StaticColors.getHexMsg("&7Click to &6Change Chance"));
-            lore.add(StaticColors.getHexMsg("&7Right Click to &cRemove"));
+            lore.add(StaticColors.getHexMsg("&7Left Click: &6Change Chance"));
+            lore.add(StaticColors.getHexMsg("&7Right Click: &cRemove"));
             meta.lore(lore);
             meta.getPersistentDataContainer().set(SeriaFarmPlugin.chanceKey, PersistentDataType.DOUBLE, chance);
             item.setItemMeta(meta);
         }
     }
 
-    @Override
-    public @NotNull Inventory getInventory() {
-        return Bukkit.createInventory(this, 54, StaticColors.getHexMsg("&#9370db&lBlock Editor"));
-    }
-
     @EventHandler
     public void onInventoryClick(InventoryClickEvent event) {
-        if (!(event.getInventory().getHolder() instanceof ReplaceBlockMenu)) return;
-        event.setCancelled(true);
+        if (!(event.getInventory().getHolder() instanceof id.seria.farm.managers.GuiManager.MenuHolder holder)) return;
+        if (!holder.getMenuKey().equals("replace-block-menu")) return;
         
+        Inventory topInv = event.getInventory();
         int slot = event.getRawSlot();
         ItemStack clicked = event.getCurrentItem();
         Player player = (Player) event.getWhoClicked();
 
-        // Handle buttons
-        if (slot == 50) { // Cancel
-            event.setCancelled(true);
-            refreshEditMenu(player);
-            return;
-        }
-        
-        if (slot == 48) { // Save
-            event.setCancelled(true);
-            saveData(player, event.getInventory());
-            refreshEditMenu(player);
-            return;
-        }
-
-        if (isBorder(slot)) {
-            event.setCancelled(true);
-            return;
+        // Standard interaction for "open" slots
+        if (slot < topInv.getSize() && slot >= 0) {
+            ItemStack metaItem = topInv.getItem(slot);
+            String action = metaItem != null ? LocalizedName.get(metaItem) : null;
+            
+            if (action != null) {
+                event.setCancelled(true);
+                if (action.equals("cancel")) refreshEditMenu(player);
+                if (action.equals("save")) { saveData(player, topInv); refreshEditMenu(player); }
+                return;
+            }
         }
 
-        // Interaction logic
-        if (clicked != null && clicked.getType() != Material.AIR && slot < 54) {
-            if (event.isRightClick()) {
-                event.getInventory().setItem(slot, null);
+        if (event.getClickedInventory() == topInv) {
+            // Protect background fillers if they are clicked
+            if (clicked != null && clicked.getType() == Material.BLACK_STAINED_GLASS_PANE && LocalizedName.get(clicked) == null) {
                 event.setCancelled(true);
                 return;
             }
-            
-            // Left click to change chance
-            event.setCancelled(true);
-            
-            ChatInputListener.requestInput(player, "Set Chance (%)", "Enter a number 0-100", input -> {
-                try {
-                    double chance = Double.parseDouble(input);
-                    updateLore(clicked, chance);
-                    player.openInventory(event.getInventory());
-                } catch (Exception e) {
-                    plugin.getConfigManager().sendPrefixedMessage(player, "&cInvalid number.");
-                    player.openInventory(event.getInventory());
+
+            // Drag N Drop logic or Editing
+            ItemStack cursor = event.getCursor();
+            if (cursor != null && cursor.getType() != Material.AIR) {
+                Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                    ItemStack inSlot = topInv.getItem(slot);
+                    if (inSlot != null && inSlot.getType() != Material.AIR && LocalizedName.get(inSlot) == null) {
+                        updateLore(inSlot, 100.0);
+                    }
+                }, 1L);
+                event.setCancelled(false);
+            } else if (clicked != null && clicked.getType() != Material.AIR && LocalizedName.get(clicked) == null) {
+                if (event.isRightClick()) {
+                    topInv.setItem(slot, null);
+                    event.setCancelled(true);
+                } else if (event.isLeftClick()) {
+                    event.setCancelled(true);
+                    ChatInputListener.requestInput(player, "Set Chance", "0-100", input -> {
+                        try {
+                            double chance = Double.parseDouble(input);
+                            updateLore(clicked, chance);
+                        } catch (Exception ignored) {}
+                        player.openInventory(topInv);
+                    }, () -> player.openInventory(topInv));
                 }
-            }, () -> player.openInventory(event.getInventory()));
+            }
         }
     }
 
     private void refreshEditMenu(Player player) {
-        Inventory inv = player.getOpenInventory().getTopInventory();
-        ItemStack info = inv.getItem(49);
+        ItemStack info = player.getOpenInventory().getTopInventory().getItem(49);
         if (info == null) return;
         String data = LocalizedName.get(info);
         String[] parts = data.split("\\|");
-        String matName = parts[0];
-        String regionName = parts[1];
+        String matName = parts[0], regionName = parts[1];
         
         if (regionName.equalsIgnoreCase("global")) {
             player.openInventory(new id.seria.farm.inventory.maintree.GlobalBlockEditMenu(plugin).open(player, matName));
         } else {
             YamlConfiguration config = (YamlConfiguration) plugin.getConfigManager().getConfig("crops.yml");
-            File file = plugin.getConfigManager().getConfigFile("crops.yml");
-            player.openInventory(new EditMenu(plugin).emenu(player, config, matName, file, regionName));
+            player.openInventory(new EditMenu(plugin).emenu(player, config, matName, null, regionName));
         }
     }
 
@@ -178,23 +158,20 @@ public class ReplaceBlockMenu implements Listener, InventoryHolder {
         ItemStack info = inv.getItem(49);
         String data = LocalizedName.get(info);
         String[] parts = data.split("\\|");
-        String configKey = parts[2];
-        String fullPath = parts[3];
+        String configKey = parts[2], fullPath = parts[3];
         
         List<String> list = new ArrayList<>();
-        for (int i = 0; i < 54; i++) {
-            if (isBorder(i) || i == 49) continue;
+        for (int i = 0; i < 44; i++) {
             ItemStack item = inv.getItem(i);
-            if (item != null && item.getType() != Material.AIR) {
+            if (item != null && item.getType() != Material.AIR && LocalizedName.get(item) == null) {
                 double chance = item.getItemMeta().getPersistentDataContainer()
                         .getOrDefault(SeriaFarmPlugin.chanceKey, PersistentDataType.DOUBLE, 100.0);
                 list.add(item.getType().name() + " ; " + chance);
             }
         }
-        
         YamlConfiguration config = (YamlConfiguration) plugin.getConfigManager().getConfig("crops.yml");
         config.set(fullPath + "." + configKey, list);
         plugin.getConfigManager().saveConfig("crops.yml");
-        plugin.getConfigManager().sendPrefixedMessage(player, "&aSettings saved successfully!");
+        plugin.getConfigManager().sendPrefixedMessage(player, "&aSettings saved!");
     }
 }

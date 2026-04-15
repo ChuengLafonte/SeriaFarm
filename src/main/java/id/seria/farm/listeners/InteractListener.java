@@ -3,7 +3,6 @@ package id.seria.farm.listeners;
 import id.seria.farm.SeriaFarmPlugin;
 import id.seria.farm.inventory.utils.InvUtils;
 import id.seria.farm.models.RegenBlock;
-import id.seria.farm.utils.RarityUtils;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.block.data.Ageable;

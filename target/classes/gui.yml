@@ -1,97 +1,872 @@
-# SeriaFarm GUI Configuration
-# This file defines the layout and items for all plugin menus.
+# ==========================================
+# PROJECT SERIA - ULTIMATE GUI CONFIGURATION
+# ==========================================
+# Panduan Sistem Priority & Slot:
+# - priority: Angka lebih tinggi (misal 10) akan menimpa item dengan priority lebih rendah (misal 0).
+# - slots: Bisa menggunakan slot tunggal (["4", "13"]) atau rentang/range (["0-8", "45-53"]).
 
-main_menu:
-  title: "&#fbca00&lSeriaFarm Main Menu"
+# ==========================================
+# 1. CORE MENUS
+# ==========================================
+main-menu:
+  title: "&8&l| &8SeriaFarm Menu"
   size: 36
+  fillers:
+    background:
+      priority: 0
+      slots: ["0-9", "17-18", "26", "28-34"]
+      material: BLACK_STAINED_GLASS_PANE
+      name: " "
   items:
     toggle:
-      material: GREEN_WOOL
-      slot: 11
+      priority: 1
+      slots: ["11"]
+      action: "open_toggle"
+      material: "%toggle_material%"
       name: "&#fbca00Toggle Menu"
-      lore: ["&7Enable or Disable Plugin Features"]
+      lore: 
+        - "&7Enable or Disable Plugin Features"
+        - ""
+        - "&eStatus: %enabled_status%"
     prefix:
+      priority: 1
+      slots: ["13"]
+      action: "change_prefix"
       material: NAME_TAG
-      slot: 13
       name: "&#fbca00Plugin Prefix"
-      lore: ["&7Set the prefix for messages", "&7Customizable via chat input."]
+      lore:
+        - "&7Set the prefix for messages."
+        - "&7You can use color codes."
+        - ""
+        - "&eCurrent: %prefix%"
     add:
+      priority: 1
+      slots: ["15"]
+      action: "open_add"
       material: NETHER_STAR
-      slot: 15
       name: "&#fbca00Add More Blocks"
-      lore: ["&7Add more blocks to regeneration.", "&7Choose which region blocks should be added."]
+      lore:
+        - "&7Add more blocks to regeneration."
+        - "&7Choose which region blocks should be added."
     wand:
-      material: STONE_AXE
-      slot: 20
-      custom-model-data: 20
+      priority: 1
+      slots: ["20"]
+      action: "get_wand"
+      material: IRON_AXE
       name: "&#fbca00Regen Wand"
-      lore: ["&7Receive a regen wand.", "&7Used to select Pos1 and Pos2."]
+      lore:
+        - "&7Receive a regen wand."
+        - "&7Used to select Pos1 and Pos2."
     reload:
+      priority: 1
+      slots: ["22"]
+      action: "reload_plugin"
       material: CLOCK
-      slot: 22
       name: "&#fbca00Reload Plugin"
-      lore: ["&7Reloads the plugin configurations."]
+      lore:
+        - "&7Reloads the plugin."
     edit:
+      priority: 1
+      slots: ["24"]
+      action: "open_edit"
       material: DIAMOND_ORE
-      slot: 24
       name: "&#fbca00Edit Menu"
-      lore: ["&7Edit how the block regenerates.", "&7Choose which region blocks should be edited."]
+      lore:
+        - "&7Edit how the block regenerates."
+    player_head:
+      priority: 1
+      slots: ["27"]
+      action: "info_player"
+      material: PLAYER_HEAD
+      name: "&e%player_name%"
+      lore:
+        - "&7A super cool farmer."
     exit:
+      priority: 1
+      slots: ["35"]
+      action: "close_menu"
       material: BARRIER
-      slot: 35
-      name: "&cClose | Exit"
-      lore: ["&7Closes the current GUI."]
+      name: "&#fbca00Close | Exit"
+      lore:
+        - "&7Closes the current GUI."
 
-toggle_menu:
-  title: "&#cf8ff7&lToggle Menu"
-  size: 54
+toggle-menu:
+  title: "&8&l| &8Toggle Menu"
+  size: 36
+  fillers:
+    background:
+      priority: 0
+      slots: ["0-9", "17-18", "26", "28-34"]
+      material: BLACK_STAINED_GLASS_PANE
+      name: " "
   items:
     enable:
-      material: GREEN_WOOL
-      slot: 11
+      priority: 1
+      slots: ["11"]
+      action: "toggle_enabled"
+      material: "%enable_material%"
       name: "&#cf8ff7Enable / Disable"
-      lore: ["&7Toggle plugin activation."]
+      lore:
+        - "&7Toggle plugin activation."
+        - "&7Click to toggle plugin state."
+        - ""
+        - "&eStatus: %enable_status%"
     drop_to_inv:
+      priority: 1
+      slots: ["13"]
+      action: "toggle_drop"
       material: CHEST_MINECART
-      slot: 13
       name: "&#cf8ff7Drop To Inventory"
-      lore: ["&7Drops go to inventory.", "&7Else, they drop on block location."]
+      lore:
+        - "&7Drops go to inventory."
+        - "&7Else, they drop on block location."
+        - ""
+        - "&eStatus: %drop_status%"
+    growth_mode:
+      priority: 1
+      slots: ["15"]
+      action: "toggle_growth"
+      material: WHEAT
+      name: "&#cf8ff7Crop Growth Mode"
+      lore:
+        - "&7VANILLA: Step-by-step growth."
+        - "&7INSTANT: Fully grown immediately."
+        - ""
+        - "&eCurrent: %growth_mode%"
+    harvest_toggle:
+      priority: 1
+      slots: ["20"]
+      action: "toggle_harvest"
+      material: WOODEN_HOE
+      name: "&#cf8ff7Global Right-Click Harvest"
+      lore:
+        - "&7Enable harvesting by right-click."
+        - "&7&cONLY affects blocks outside regions."
+        - "&7Regions always follow their own rules."
+        - ""
+        - "&eStatus: %harvest_status%"
+    replant_toggle:
+      priority: 1
+      slots: ["22"]
+      action: "toggle_replant"
+      material: DIAMOND_HOE
+      name: "&#cf8ff7Global Replant"
+      lore:
+        - "&7Automatically replant crops"
+        - "&7after harvest in global areas."
+        - "&7&cHas NO EFFECT inside regions."
+        - ""
+        - "&eStatus: %replant_status%"
+    player_head:
+      priority: 1
+      slots: ["27"]
+      action: "info_player"
+      material: PLAYER_HEAD
+      name: "&e%player_name%"
+      lore:
+        - "&7A super cool farmer."
     exit:
+      priority: 1
+      slots: ["35"]
+      action: "close_menu"
       material: BARRIER
-      slot: 53
-      name: "&cBack to Main Menu"
+      name: "&cClose | Exit"
+      lore:
+        - "&7Closes the current GUI"
 
-region_list_menu:
-  title: "&#ffa500&lRegion Menu"
+# ==========================================
+# 2. CATALOG & ADD MENUS
+# ==========================================
+
+catalog-menu:
+  title: "&8&l| &8Farm Species Wiki"
   size: 54
+  fillers:
+    background:
+      priority: 0
+      slots: ["0-9", "17-18", "26", "27", "35", "36", "44", "46-47", "51-52"]
+      material: BLACK_STAINED_GLASS_PANE
+      name: " "
   items:
-    exit:
-      material: BARRIER
-      slot: 53
-      name: "&cBack to Main Menu"
-    next:
-      material: GREEN_STAINED_GLASS_PANE
-      slot: 44
-      name: "&aNext Page"
+    add:
+      priority: 1
+      slots: ["45"]
+      action: "open_add_blocks"
+      material: WRITABLE_BOOK
+      name: "&#93cfec&lAdd New Species"
+      lore:
+        - "&7Click to register a new"
+        - "&7global farming material."
+        - ""
+        - "&eAdmin Feature"
     prev:
-      material: RED_STAINED_GLASS_PANE
-      slot: 36
-      name: "&cPrevious Page"
-
-catalog_menu:
-  title: "&2&lCrop Catalog"
-  size: 54
-  items:
+      priority: 1
+      slots: ["48"]
+      action: "prev_page"
+      material: ARROW
+      name: "&#2ecc71&l« Previous"
+      lore: ["&7Go back to the last page."]
+    info:
+      priority: 1
+      slots: ["49"]
+      action: "wiki_info"
+      material: KNOWLEDGE_BOOK
+      name: "&#2ecc71&lFarm Wiki Info"
+      lore:
+        - "&7Viewing: &fGlobal Species"
+        - "&7Registered Plants: &f%count%"
+        - "&7Current Page: &f#%page%"
+        - ""
+        - "&7Discover all the plants and their"
+        - "&7growth properties in this catalog."
+    next:
+      priority: 1
+      slots: ["50"]
+      action: "next_page"
+      material: ARROW
+      name: "&#2ecc71&lNext »"
+      lore: ["&7Advance to the next page."]
     exit:
+      priority: 1
+      slots: ["53"]
+      action: "close_menu"
       material: BARRIER
-      slot: 53
-      name: "&cBack to Main Menu"
+      name: "&cClose Menu"
+      lore: ["&7Exit the wiki"]
 
-player_panel:
-  title: "&8» &2&lYour Farm Stats"
+catalog-edit-menu:
+  title: "&8&l| &8Plant Editor"
   size: 27
+  fillers:
+    background:
+      priority: 0
+      slots: ["0-26"]
+      material: BLACK_STAINED_GLASS_PANE
+      name: " "
   items:
+    display_name:
+      priority: 1
+      slots: ["0"]
+      action: "edit_name"
+      material: NAME_TAG
+      name: "&#9370dbDisplay Name"
+      lore:
+        - "&7Current: &f%display_name%"
+        - "&eClick to rename"
+    category:
+      priority: 1
+      slots: ["2"]
+      action: "info_category"
+      material: BARREL
+      name: "&#9370dbCategory Settings"
+      lore:
+        - "&7Manage how this plant is grouped."
+        - "&eStatus: &fGlobal"
+    yields:
+      priority: 1
+      slots: ["4"]
+      action: "edit_drops"
+      material: BUNDLE
+      name: "&#9370dbPlant Yields"
+      lore:
+        - "&7Customize what this plant drops."
+        - "&eClick to edit drops"
+    harvest_time:
+      priority: 1
+      slots: ["5"]
+      action: "edit_time"
+      material: CLOCK
+      name: "&#9370dbHarvest Time"
+      lore:
+        - "&7Duration: &f%delay%s"
+        - "&7Watering: &fNot Required"
+        - ""
+        - "&eL-Click to edit time"
+        - "&eR-Click to toggle water"
+    requirements:
+      priority: 1
+      slots: ["10"]
+      action: "edit_skills"
+      material: ANVIL
+      name: "&#9370dbAuraSkills Requirements"
+      lore:
+        - "&7Add level requirements for skills"
+        - ""
+        - "&eClick to edit"
+    soil:
+      priority: 1
+      slots: ["11"]
+      action: "edit_soil"
+      material: FARMLAND
+      name: "&#9370dbSoil Requirement"
+      lore:
+        - "&7Required block underneath."
+        - "&eCurrent: &fVanilla/Auto"
+    sprout:
+      priority: 1
+      slots: ["13"]
+      action: "edit_sprout"
+      material: OAK_SAPLING
+      name: "&#9370dbSprout Type"
+      lore:
+        - "&7The block appearing while growing."
+        - "&eClick to select block"
+    back:
+      priority: 1
+      slots: ["18"]
+      action: "back_to_catalog"
+      material: ARROW
+      name: "&cBack"
+      lore: ["&7Return to Catalog"]
+
+add-main-menu:
+  title: "&8&l| &8Add Menu"
+  size: 54
+  fillers:
+    background:
+      priority: 0
+      slots: ["0-9", "17-18", "26", "27", "35", "46-52"]
+      material: BLACK_STAINED_GLASS_PANE
+      name: " "
+  items:
+    global:
+      priority: 1
+      slots: ["10"]
+      action: "add_global"
+      material: MINECART
+      name: "&#ffa500Global Setting"
+      lore:
+        - "&7Add Blocks To Global Regeneration"
+        - "&7Regeneration Should Be Set To Global"
+    prev:
+      priority: 1
+      slots: ["36"]
+      action: "prev_page"
+      material: BLACK_STAINED_GLASS_PANE
+      name: "&aPrevious Page"
+      lore: ["&7Click To Go To The Previous Page"]
+    next:
+      priority: 1
+      slots: ["44"]
+      action: "next_page"
+      material: BLACK_STAINED_GLASS_PANE
+      name: "&aNext Page"
+      lore: ["&7Click To Go To The Next Page"]
+    player_info:
+      priority: 1
+      slots: ["45"]
+      action: "info_player"
+      material: PLAYER_HEAD
+      name: "&#ffa500%player_name%"
+      lore: ["&7A Super Cool Farmer"]
     exit:
+      priority: 1
+      slots: ["53"]
+      action: "close_menu"
       material: BARRIER
-      slot: 26
+      name: "&4Close | Exit"
+      lore: ["&7Closes The Current Gui"]
+
+add-blocks-menu:
+  title: "&8&l| &8Add Regen Blocks Menu"
+  size: 54
+  fillers:
+    background:
+      priority: 0
+      slots: ["0-9", "17-18", "26", "27", "35", "36", "44", "46-48", "50-52"]
+      material: BLACK_STAINED_GLASS_PANE
+      name: " "
+  items:
+    confirm:
+      priority: 1
+      slots: ["49"]
+      action: "confirm_add"
+      material: NETHER_STAR
+      name: "&fAdd Blocks"
+      lore:
+        - "&7Drop All Blocks To Be Added Above"
+        - "&7Click Here TO Continue"
+    target_info:
+      priority: 1
+      slots: ["45"]
+      action: "info_target"
+      material: PLAYER_HEAD
+      name: "&#ffa500[%target%]"
+      lore: ["&7A Super Cool Farmer"]
+    exit:
+      priority: 1
+      slots: ["53"]
+      action: "close_to_main"
+      material: BARRIER
+      name: "&4Close | Exit"
+      lore: ["&7Closes The Current Gui"]
+
+# ==========================================
+# 2. REGIONAL & EDIT TREE (BATCH 2)
+# ==========================================
+
+region-selection-menu:
+  title: "&8&l| &8Region Selection"
+  size: 54
+  fillers:
+    background:
+      priority: 0
+      slots: ["0-9", "17", "18", "26", "27", "35", "37-43", "46-52"]
+      material: BLACK_STAINED_GLASS_PANE
+      name: " "
+  items:
+    global_setting:
+      priority: 1
+      slots: ["10"]
+      material: MINECART
+      name: "&e&lGlobal Setting"
+      lore: ["&7Manage Global Regeneration"]
+      action: "open_global"
+    prev_page:
+      priority: 1
+      slots: ["36"]
+      material: RED_STAINED_GLASS_PANE
+      name: "&cPrevious Page"
+      action: "prev_page"
+    next_page:
+      priority: 1
+      slots: ["44"]
+      material: RED_STAINED_GLASS_PANE
+      name: "&aNext Page"
+      action: "next_page"
+    player_info:
+      priority: 1
+      slots: ["45"]
+      material: PLAYER_HEAD
+      name: "&e%player_name%"
+      lore: ["&7Regional Administrator"]
+    close:
+      priority: 1
+      slots: ["53"]
+      material: BARRIER
       name: "&cClose"
+      action: "close_to_main"
+
+pre-region-menu:
+  title: "&8&l| &8Region: %region%"
+  size: 36
+  fillers:
+    background:
+      priority: 0
+      slots: ["0-10", "12", "14", "16-21", "23", "25-30", "32-34"]
+      material: BLACK_STAINED_GLASS_PANE
+      name: " "
+  items:
+    teleport:
+      priority: 1
+      slots: ["11"]
+      material: ENDER_PEARL
+      name: "&bTeleport to Center"
+      lore: ["&7World: &f%world%", "&7Location: &f%loc%", "", "&eClick to Teleport"]
+      action: "teleport"
+    toggle_enabled:
+      priority: 1
+      slots: ["20"]
+      material: BEACON
+      name: "&9Regeneration Status"
+      lore: ["&7Current: %status%", "", "&eClick to Toggle"]
+      action: "toggle_enabled"
+    toggle_per_region:
+      priority: 1
+      slots: ["13"]
+      material: IRON_BARS
+      name: "&9Per-Region Mode"
+      lore: ["&7Current: %mode%", "", "&eClick to Toggle"]
+      action: "toggle_per_region"
+    toggle_perms:
+      priority: 1
+      slots: ["22"]
+      material: GOLDEN_PICKAXE
+      name: "&9Permission Required"
+      lore: ["&7Current: %perms%", "", "&eClick to Toggle"]
+      action: "toggle_perms"
+    toggle_place:
+      priority: 1
+      slots: ["15"]
+      material: GRASS_BLOCK
+      name: "&9Allow Block Place"
+      lore: ["&7Current: %place%", "", "&eClick to Toggle"]
+      action: "toggle_place"
+    edit_blocks:
+      priority: 1
+      slots: ["24"]
+      material: MINECART
+      name: "&6Edit Blocks Menu"
+      lore: ["&7Manage block overrides for this region"]
+      action: "edit_blocks"
+    scan_region:
+      priority: 1
+      slots: ["31"]
+      material: ENDER_EYE
+      name: "&b&lSCAN REGION"
+      lore: ["&7Detects all blocks inside the region", "&7and adds them automatically.", "", "&eLeft-Click to Start"]
+      action: "scan_region"
+    back:
+      priority: 1
+      slots: ["35"]
+      material: ARROW
+      name: "&cBack to List"
+      action: "back_to_list"
+
+block-menu:
+  title: "&8&l| &8Blocks: %region% (%count%)"
+  size: 54
+  fillers:
+    background:
+      priority: 0
+      slots: ["0-9", "17", "18", "26", "27", "35", "37-43", "46-48", "51-52"]
+      material: BLACK_STAINED_GLASS_PANE
+      name: " "
+  items:
+    summary:
+      priority: 1
+      slots: ["49"]
+      material: BOOK
+      name: "&bRegion Summary"
+      lore: ["&7Region: &f%region%", "&7Status: %status%", "&7Mode: %mode%"]
+      action: "show_summary"
+    prev_page:
+      priority: 1
+      slots: ["36"]
+      material: RED_STAINED_GLASS_PANE
+      name: "&cPrevious Page"
+      action: "prev_page"
+    next_page:
+      priority: 1
+      slots: ["44"]
+      material: RED_STAINED_GLASS_PANE
+      name: "&aNext Page"
+      action: "next_page"
+    back_to_selection:
+      priority: 1
+      slots: ["45"]
+      material: CHEST_MINECART
+      name: "&eRegion Selection"
+      lore: ["&7Return to regional list"]
+      action: "back_to_selection"
+    close:
+      priority: 1
+      slots: ["53"]
+      material: BARRIER
+      name: "&cClose"
+      action: "close_menu"
+
+edit-menu:
+  title: "&8&l| &8Edit: %material%"
+  size: 54
+  fillers:
+    background:
+      priority: 0
+      slots: ["0-9", "17-18", "26-27", "35-36", "44", "46-51"]
+      material: BLACK_STAINED_GLASS_PANE
+      name: " "
+  items:
+    info:
+      priority: 1
+      slots: ["45"]
+      material: PAPER
+      name: "&bEditing: &f%material%"
+      lore: ["&7Region: %region%"]
+      action: "info_metadata"
+    toggle_block:
+      priority: 1
+      slots: ["10"]
+      material: GREEN_WOOL
+      name: "&aEnable/Disable"
+      lore: ["&7Toggle per-block regeneration", "&eStatus: &f%status%"]
+      action: "toggle_block"
+    edit_delay:
+      priority: 1
+      slots: ["12"]
+      material: CLOCK
+      name: "&eCustomize Delay"
+      lore: ["&7Current: &f%delay%s"]
+      action: "edit_delay"
+    edit_xp:
+      priority: 1
+      slots: ["16"]
+      material: EXPERIENCE_BOTTLE
+      name: "&dCustomize XP"
+      lore: ["&7Current: &f%xp%"]
+      action: "edit_xp"
+    edit_final:
+      priority: 1
+      slots: ["19"]
+      material: STONE
+      name: "&fCustomize Final Block"
+      lore: ["&7Block placed AFTER growth"]
+      action: "edit_final"
+    edit_during:
+      priority: 1
+      slots: ["21"]
+      material: BEDROCK
+      name: "&8Customize During Block"
+      lore: ["&7Block placed DURING growth"]
+      action: "edit_during"
+    edit_drops:
+      priority: 1
+      slots: ["23"]
+      material: DROPPER
+      name: "&6Customize Drops"
+      action: "edit_drops"
+    edit_tools:
+      priority: 1
+      slots: ["25"]
+      material: DIAMOND_PICKAXE
+      name: "&bRequired Tools"
+      action: "edit_tools"
+    edit_skills:
+      priority: 1
+      slots: ["28"]
+      material: ANVIL
+      name: "&5AuraSkills Requirement"
+      action: "edit_skills"
+    edit_commands:
+      priority: 1
+      slots: ["30"]
+      material: COMMAND_BLOCK_MINECART
+      name: "&cAdd Commands"
+      action: "edit_commands"
+    edit_growth:
+      priority: 1
+      slots: ["32"]
+      material: BAMBOO
+      name: "&2Growth Settings"
+      lore: ["&7Vertical growth properties"]
+      action: "edit_growth"
+    delete_block:
+      priority: 1
+      slots: ["52"]
+      material: TNT
+      name: "&4&lDELETE BLOCK"
+      lore: ["&7Permanently removes configuration"]
+      action: "delete_block"
+    back:
+      priority: 1
+      slots: ["53"]
+      material: ARROW
+      name: "&cBack to Menu"
+      action: "back_to_blocks"
+
+# ==========================================
+# 3. SPECIALIZED EDITORS (BATCH 3)
+# ==========================================
+
+drops-menu:
+  title: "&8&l| &8Drops: %material%"
+  size: 54
+  fillers:
+    border:
+      priority: 0
+      slots: ["0-9", "17", "18", "26", "27", "35", "36", "44", "45", "46", "47", "51", "52", "53"]
+      material: BLACK_STAINED_GLASS_PANE
+      name: " "
+  items:
+    save:
+      priority: 1
+      slots: ["48"]
+      material: LIME_STAINED_GLASS_PANE
+      name: "&a&lSAVE & EXIT"
+      lore: ["&7Save changes to config"]
+      action: "save"
+    context:
+      priority: 1
+      slots: ["49"]
+      material: PAPER
+      name: "&eContext Info"
+      action: "context_metadata"
+    cancel:
+      priority: 1
+      slots: ["50"]
+      material: RED_STAINED_GLASS_PANE
+      name: "&c&lCANCEL"
+      lore: ["&7Discard changes"]
+      action: "cancel"
+
+replace-block-menu:
+  title: "&8&l| &8%title%"
+  size: 54
+  fillers:
+    border:
+      priority: 0
+      slots: ["0-9", "17", "18", "26", "27", "35", "36", "44", "45", "46", "47", "51", "52", "53"]
+      material: BLACK_STAINED_GLASS_PANE
+      name: " "
+  items:
+    save:
+      priority: 1
+      slots: ["48"]
+      material: LIME_STAINED_GLASS_PANE
+      name: "&a&lSAVE & EXIT"
+      action: "save"
+    context:
+      priority: 1
+      slots: ["49"]
+      material: PAPER
+      name: "&eContext Info"
+      action: "context_metadata"
+    cancel:
+      priority: 1
+      slots: ["50"]
+      material: RED_STAINED_GLASS_PANE
+      name: "&c&lCANCEL"
+      action: "cancel"
+
+required-tools-menu:
+  title: "&8&l| &8Required Tools"
+  size: 54
+  fillers:
+    border:
+      priority: 0
+      slots: ["0-9", "17", "18", "26", "27", "35", "36", "44", "45", "46", "51-53"]
+      material: BLACK_STAINED_GLASS_PANE
+      name: " "
+  items:
+    save:
+      priority: 1
+      slots: ["48"]
+      material: LIME_STAINED_GLASS_PANE
+      name: "&a&lSAVE & EXIT"
+      action: "save"
+    cancel:
+      priority: 1
+      slots: ["50"]
+      material: RED_STAINED_GLASS_PANE
+      name: "&c&lCANCEL"
+      action: "cancel"
+    context:
+      priority: 1
+      slots: ["49"]
+      material: PAPER
+      name: "&eContext Info"
+      action: "context_metadata"
+    deny_msg:
+      priority: 1
+      slots: ["47"]
+      material: WRITABLE_BOOK
+      name: "&e&lDeny Message"
+      lore:
+        - "&7Pesan saat player menggunakan"
+        - "&7alat yang salah."
+        - ""
+        - "&eSaat ini: &f%deny%"
+        - ""
+        - "&eKlik untuk mengubah"
+      action: "edit_deny"
+
+
+required-skills-menu:
+  title: "&8&l| &8Skill Gated Requirements"
+  size: 36
+  fillers:
+    border:
+      priority: 0
+      slots: ["0-9", "17-18", "26-27", "30", "32-35"]
+      material: BLACK_STAINED_GLASS_PANE
+      name: " "
+  items:
+    add:
+      priority: 1
+      slots: ["10"]
+      material: LIME_STAINED_GLASS_PANE
+      name: "&a&lAdd Requirement"
+      lore: ["&7Add new gated condition"]
+      action: "add_requirement"
+    back:
+      priority: 1
+      slots: ["31"]
+      material: ARROW
+      name: "&cBack"
+      action: "back"
+    context:
+      priority: 1
+      slots: ["0"]
+      material: PAPER
+      name: "&eContext Info"
+      action: "context_metadata"
+
+skill-detail-menu:
+  title: "&8&l| &8Requirement Details"
+  size: 36
+  fillers:
+    background:
+      priority: 0
+      slots: ["0-19", "21", "23", "25", "27-30", "32-35"]
+      material: BLACK_STAINED_GLASS_PANE
+      name: " "
+  items:
+    edit_skill:
+      priority: 1
+      slots: ["20"]
+      material: BOOK
+      name: "&eSkill Name"
+      lore: ["&7Current: &f%skill%", "", "&eClick to edit"]
+      action: "edit_skill"
+    edit_operator:
+      priority: 1
+      slots: ["22"]
+      material: ANVIL
+      name: "&eOperator"
+      lore: ["&7Current: &f%op%", "", "&eClick to edit"]
+      action: "edit_operator"
+    edit_level:
+      priority: 1
+      slots: ["24"]
+      material: EXPERIENCE_BOTTLE
+      name: "&eLevel"
+      lore: ["&7Current: &f%level%", "", "&eClick to edit"]
+      action: "edit_level"
+    edit_deny:
+      priority: 1
+      slots: ["26"]
+      material: OAK_SIGN
+      name: "&eDeny Message"
+      lore: ["&7Current: &f%deny%", "", "&eClick to edit"]
+      action: "edit_deny"
+    back:
+      priority: 1
+      slots: ["31"]
+      material: ARROW
+      name: "&cBack"
+      action: "back"
+    context:
+      priority: 1
+      slots: ["0"]
+      material: PAPER
+      name: "&eContext Info"
+      action: "context_metadata"
+
+vertical-growth-menu:
+  title: "&8&l| &8Growth Properties"
+  size: 27
+  fillers:
+    background:
+      priority: 0
+      slots: ["0-12", "14-17", "19-26"]
+      material: BLACK_STAINED_GLASS_PANE
+      name: " "
+  items:
+    edit_height:
+      priority: 1
+      slots: ["13"]
+      material: BAMBOO
+      name: "&2Max Growth Height"
+      lore: ["&7Limit: &f%height% stops", "", "&eClick to edit"]
+      action: "edit_height"
+    back:
+      priority: 1
+      slots: ["18"]
+      material: ARROW
+      name: "&cBack"
+      action: "back"
+    context:
+      priority: 1
+      slots: ["0"]
+      material: PAPER
+      name: "&eContext Info"
+      action: "context_metadata"

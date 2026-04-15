@@ -4,7 +4,6 @@ import id.seria.farm.SeriaFarmPlugin;
 import id.seria.farm.inventory.maintree.ToggleMenu;
 import id.seria.farm.inventory.utils.StaticColors;
 import id.seria.farm.inventory.utils.InvUtils;
-import id.seria.farm.utils.RarityUtils;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
@@ -150,7 +149,7 @@ public class BlockBreakListener implements Listener {
         }
         
         // 8. REGENERATION PARAMETERS
-        int delay = config.getInt("regen-delay", 10);
+        int delay = calculateDelayForPlayer(player, config.getInt("regen-delay", 10));
         java.util.List<String> replaceBlocks = config.getStringList("replace-blocks");
         java.util.List<String> delayBlocks = config.getStringList("delay-blocks");
         
@@ -323,13 +322,25 @@ public class BlockBreakListener implements Listener {
     }
 
     private void giveReward(Player player, Block block, ItemStack dropItem, java.util.Map<?, ?> map, boolean dropToInv, int fortune) {
-        // Fortune Multiplier
+        // Vanilla Fortune Multiplier
         if (fortune > 0) {
             int bonus = 0;
             for (int i = 0; i < fortune; i++) {
                 if (random.nextBoolean()) bonus++;
             }
             dropItem.setAmount(dropItem.getAmount() + bonus);
+        }
+
+        // AuraSkills Farming Fortune (Farmer Ability, etc)
+        // 100 Fortune = +1 guaranteed drop, 50 Fortune = 50% chance for +1
+        double auraFortune = plugin.getAuraSkillsManager().getFarmingFortune(player);
+        if (auraFortune > 0) {
+            int extraDrops = (int) (auraFortune / 100);
+            double leftOverChance = auraFortune % 100;
+            if ((random.nextDouble() * 100.0) < leftOverChance) {
+                extraDrops++;
+            }
+            dropItem.setAmount(dropItem.getAmount() + extraDrops);
         }
 
         // --- WEIGHT / RARITY SYSTEM ---
@@ -395,10 +406,9 @@ public class BlockBreakListener implements Listener {
             double min = Double.parseDouble(parts[0]);
             double max = Double.parseDouble(parts[1]);
 
-            // AuraSkills Quality Luck (Geneticist or Farming level)
-            double luckBonus = 0;
-            int geneticistLevel = plugin.getAuraSkillsManager().getAbilityLevel(player, "geneticist");
-            if (geneticistLevel > 0) luckBonus = (geneticistLevel * 0.005); // +0.5% per level
+            // Fetch true native Farming Luck from AuraSkills (combines Bountiful Harvest, Geneticist, equipment stats, etc.)
+            // Convert Farming Luck to roll bonus (e.g. 100 Luck = +0.1 to roll, giving +10% higher rarity)
+            double luckBonus = plugin.getAuraSkillsManager().getFarmingLuck(player) * 0.001;
 
             Random random = new Random();
             double roll = min + (random.nextDouble() * (max - min)) + luckBonus;
@@ -438,6 +448,9 @@ public class BlockBreakListener implements Listener {
     }
 
     private void handleSweep(Player player, Block center, ConfigurationSection config, String blockKey) {
+        // Only run if sweep is explicitly enabled in config.yml
+        if (!plugin.getConfigManager().getConfig("config.yml").getBoolean("settings.sweep.enabled", false)) return;
+
         ItemStack tool = player.getInventory().getItemInMainHand();
         if (tool == null || !tool.hasItemMeta()) return;
 
@@ -475,7 +488,7 @@ public class BlockBreakListener implements Listener {
                         plugin.getAuraSkillsManager().giveXP(player, b.getType());
                         
                         // Regen
-                        int delay = config.getInt("regen-delay", 10);
+                        int delay = calculateDelayForPlayer(player, config.getInt("regen-delay", 10));
                         List<String> rb = config.getStringList("replace-blocks");
                         List<String> db = config.getStringList("delay-blocks");
                         plugin.getRegenManager().scheduleRegeneration(b, delay, rb, db, targetMat, blockKey);
@@ -491,5 +504,21 @@ public class BlockBreakListener implements Listener {
  
     private ConfigurationSection getBlockConfig(Block block, String blockKey) {
         return plugin.getConfigManager().getConfig("crops.yml").getConfigurationSection("crops." + blockKey);
+    }
+
+    private int calculateDelayForPlayer(Player player, int baseDelay) {
+        if (plugin.getAuraSkillsManager().isReplenishActive(player)) {
+            return 0; // Instant replant (Replenish Ability)
+        }
+        
+        // Apply Growth Aura reduction
+        double growthAuraReduction = plugin.getAuraSkillsManager().getGrowthAuraReduction(player);
+        if (growthAuraReduction > 0) {
+            double multiplier = 1.0 - (growthAuraReduction / 100.0);
+            if (multiplier < 0) multiplier = 0; // Prevent negative delays
+            return (int) Math.round(baseDelay * multiplier);
+        }
+        
+        return baseDelay;
     }
 }

@@ -8,20 +8,19 @@ import id.seria.farm.inventory.utils.PageUtil;
 import id.seria.farm.inventory.utils.StaticColors;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
-import net.kyori.adventure.text.Component;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.Inventory;
-import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
-import org.jetbrains.annotations.NotNull;
-import java.util.Arrays;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import id.seria.farm.managers.GuiManager;
 
-public class RegionSelectionMenu implements Listener, InventoryHolder {
-    private static final Component NAME = StaticColors.getHexMsg("&#ffa500&lRegion Menu");
+public class RegionSelectionMenu implements Listener {
     private final SeriaFarmPlugin plugin;
     private int page;
 
@@ -33,110 +32,82 @@ public class RegionSelectionMenu implements Listener, InventoryHolder {
 
     public Inventory reg_sel(Player player, int page) {
         this.page = page;
-        Inventory inventory = Bukkit.createInventory(this, 54, NAME);
-        int itemsPerPage = 28;
+        Map<String, String> placeholders = new HashMap<>();
+        placeholders.put("%player_name%", player.getName());
+
+        Inventory inventory = plugin.getGuiManager().createInventory("region-selection-menu", placeholders);
         
-        inventory.setItem(44, InvUtils.createItemStacks(Material.RED_STAINED_GLASS_PANE, StaticColors.getHexMsg("&#ffa500Next Page"), StaticColors.getHexMsg("&7Click To Go To The Next Page"), ""));
-        inventory.setItem(36, InvUtils.createItemStacks(Material.RED_STAINED_GLASS_PANE, StaticColors.getHexMsg("&#ffa500Previous Page"), StaticColors.getHexMsg("&7Click To Go To The Previous Page"), ""));
-        inventory.setItem(45, InvUtils.createItemStacks(Material.PLAYER_HEAD, StaticColors.getHexMsg("&#ffa500" + player.getName()), StaticColors.getHexMsg("&7A Super Cool Farmer"), ""));
-        inventory.setItem(53, InvUtils.createItemStacks(Material.BARRIER, StaticColors.getHexMsg("&cClose | Exit"), StaticColors.getHexMsg("&7Closes The Current Gui"), ""));
-
-        if (page == 1) {
-            inventory.setItem(10, InvUtils.createItemStacks(Material.MINECART, StaticColors.getHexMsg("&#ffa500Global Setting"), StaticColors.getHexMsg("&7Manage Global Regeneration"), ""));
-        }
-
         List<String> list = plugin.getRegenManager().getRegionNames();
+        list.sort(Comparator.naturalOrder());
+
+        int itemsPerPage = 21; // Available slots for regions
         List<String> pageItems = PageUtil.getpageitems(list, page, itemsPerPage);
         
+        // Update Nav buttons aesthetics based on page validity
         if (PageUtil.isPageValid(list, page - 1, itemsPerPage)) {
-            ItemStack item = inventory.getItem(36);
-            if (item != null) inventory.setItem(36, item.withType(Material.GREEN_STAINED_GLASS_PANE));
+            ItemStack prev = inventory.getItem(36);
+            if (prev != null) inventory.setItem(36, InvUtils.applyMeta(prev.withType(Material.GREEN_STAINED_GLASS_PANE), null));
         }
 
         if (PageUtil.isPageValid(list, page + 1, itemsPerPage)) {
-            ItemStack item = inventory.getItem(44);
-            if (item != null) inventory.setItem(44, item.withType(Material.GREEN_STAINED_GLASS_PANE));
+            ItemStack next = inventory.getItem(44);
+            if (next != null) inventory.setItem(44, InvUtils.applyMeta(next.withType(Material.GREEN_STAINED_GLASS_PANE), null));
         }
 
-        int slot = 10;
-        List<Integer> skipSlots = Arrays.asList(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 17, 18, 26, 27, 35, 36, 44, 46, 47, 48, 49, 50, 51, 52, 53, 45);
-
+        int slot = 0;
         for (String regionName : pageItems) {
-            if (page == 1 && slot == 10) { slot++; continue; }
-            while (skipSlots.contains(slot)) slot++;
-            if (slot >= 44) break;
+            // Find next empty slot
+            while (slot < inventory.getSize() && inventory.getItem(slot) != null && inventory.getItem(slot).getType() != Material.AIR) {
+                slot++;
+            }
+            if (slot >= inventory.getSize()) break;
 
-            ItemStack item = InvUtils.createItemStacks(Material.CHEST_MINECART, StaticColors.getHexMsg("&#ffa500Region Setting : [" + regionName + "]"), StaticColors.getHexMsg("&7Manage Region Regeneration"), "");
+            ItemStack item = InvUtils.createItemStacks(Material.CHEST_MINECART, 
+                StaticColors.getHexMsg("&#ffa500Region Setting : [" + regionName + "]"), 
+                StaticColors.getHexMsg("&7Manage Region Regeneration"), "");
             LocalizedName.set(item, regionName);
             inventory.setItem(slot, item);
             slot++;
         }
 
-        ItemStack glass = InvUtils.createItemStacks(Material.ORANGE_STAINED_GLASS_PANE, " ", "", "");
-        for (int n : new int[]{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 17, 18, 26, 27, 35, 46, 47, 48, 49, 50, 51, 52}) {
-            if (inventory.getItem(n) == null) inventory.setItem(n, glass);
-        }
-
         return inventory;
-    }
-
-    @Override
-    public @NotNull Inventory getInventory() {
-        return null;
     }
 
     @EventHandler
     public void oninvcclick(InventoryClickEvent event) {
-        String title = SeriaFarmPlugin.MINI_MESSAGE.serialize(event.getView().title());
-        boolean isHolder = event.getInventory().getHolder() instanceof RegionSelectionMenu;
-        boolean isTitle = title.contains("Region Menu");
-
-        if (!isHolder && !isTitle) return;
+        if (!(event.getInventory().getHolder() instanceof GuiManager.MenuHolder holder)) return;
+        if (!holder.getMenuKey().equals("region-selection-menu")) return;
 
         event.setCancelled(true);
         Player player = (Player) event.getWhoClicked();
-        
-        // Debug Logging
-        
-
-        if (event.getRawSlot() >= 54) return;
-
-        if (event.getRawSlot() == 53) {
-            Bukkit.getScheduler().runTask(plugin, () -> player.openInventory(new MainMenu(plugin).mainmenu(player)));
-            return;
-        }
-
         ItemStack clicked = event.getCurrentItem();
         if (clicked == null || clicked.getType() == Material.AIR) return;
 
-        RegionSelectionMenu holder;
-        if (isHolder) {
-            holder = (RegionSelectionMenu) event.getInventory().getHolder();
-        } else {
-            // Fallback to title-based identification logic if holder fails
-            return; 
-        }
+        String action = LocalizedName.get(clicked);
 
-        int currentPage = holder.getPage();
-
-        if (event.getRawSlot() == 36 && clicked.getType() == Material.GREEN_STAINED_GLASS_PANE) {
-            Bukkit.getScheduler().runTask(plugin, () -> player.openInventory(reg_sel(player, currentPage - 1)));
-        } else if (event.getRawSlot() == 44 && clicked.getType() == Material.GREEN_STAINED_GLASS_PANE) {
-            Bukkit.getScheduler().runTask(plugin, () -> player.openInventory(reg_sel(player, currentPage + 1)));
-        } else if (event.getRawSlot() == 10 && currentPage == 1) {
-            Bukkit.getScheduler().runTask(plugin, () -> player.openInventory(new id.seria.farm.inventory.maintree.GlobalBlocksMenu(plugin).blockmenu(player, 1)));
-        } else {
-            if (event.getRawSlot() >= 10 && event.getRawSlot() <= 43) {
-                String regionName = LocalizedName.get(clicked);
-                if (regionName.equals("0")) {
-                     regionName = InvUtils.extractStr(SeriaFarmPlugin.MINI_MESSAGE.serialize(clicked.getItemMeta().displayName()));
+        switch (action) {
+            case "open_global":
+                Bukkit.getScheduler().runTask(plugin, () -> player.openInventory(new id.seria.farm.inventory.maintree.GlobalBlocksMenu(plugin).blockmenu(player, 1)));
+                break;
+            case "prev_page":
+                if (clicked.getType() == Material.GREEN_STAINED_GLASS_PANE) {
+                    Bukkit.getScheduler().runTask(plugin, () -> player.openInventory(reg_sel(player, page - 1)));
                 }
-                
-                if (regionName != null && !regionName.equals("0")) {
-                    final String finalRegion = regionName;
-                    Bukkit.getScheduler().runTask(plugin, () -> player.openInventory(new PreRegionMenu(plugin).preregenmenu(player, finalRegion)));
+                break;
+            case "next_page":
+                if (clicked.getType() == Material.GREEN_STAINED_GLASS_PANE) {
+                    Bukkit.getScheduler().runTask(plugin, () -> player.openInventory(reg_sel(player, page + 1)));
                 }
-            }
+                break;
+            case "close_to_main":
+                Bukkit.getScheduler().runTask(plugin, () -> player.openInventory(new MainMenu(plugin).mainmenu(player)));
+                break;
+            default:
+                // Handle region selection
+                if (!action.isEmpty() && !action.equals("info_player")) {
+                    Bukkit.getScheduler().runTask(plugin, () -> player.openInventory(new PreRegionMenu(plugin).preregenmenu(player, action)));
+                }
+                break;
         }
     }
 }

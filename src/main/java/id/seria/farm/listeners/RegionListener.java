@@ -1,7 +1,6 @@
 package id.seria.farm.listeners;
 
 import id.seria.farm.SeriaFarmPlugin;
-import id.seria.farm.inventory.utils.StaticColors;
 import org.bukkit.Location;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;

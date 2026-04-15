@@ -17,6 +17,7 @@ id\seria\farm\inventory\edittree\DropsMenu.class
 id\seria\farm\managers\VisualManager$1.class
 id\seria\farm\inventory\edittree\BlockMenu.class
 id\seria\farm\managers\FarmManager.class
+id\seria\farm\listeners\AuraSkillsListener.class
 id\seria\farm\inventory\edittree\SkillDetailMenu.class
 id\seria\farm\listeners\ChatInputListener$InputContext.class
 id\seria\farm\listeners\RegionListener.class
@@ -30,6 +31,7 @@ id\seria\farm\utils\WandUtils.class
 id\seria\farm\inventory\edittree\ReplaceBlockMenu.class
 id\seria\farm\listeners\CropProtectionListener.class
 id\seria\farm\managers\AuraSkillsManager$SkillXP.class
+id\seria\farm\managers\GuiManager$GuiItem.class
 id\seria\farm\managers\DatabaseManager.class
 id\seria\farm\models\RegenBlock.class
 id\seria\farm\inventory\edittree\RequiredToolsMenu.class
@@ -47,5 +49,7 @@ id\seria\farm\inventory\addtree\AddBlocksMenu.class
 id\seria\farm\inventory\edittree\RegionEdit\PreRegionMenu.class
 id\seria\farm\utils\RarityUtils.class
 id\seria\farm\inventory\maintree\GlobalBlockEditMenu.class
+id\seria\farm\managers\GuiManager.class
 id\seria\farm\inventory\utils\PageUtil.class
+id\seria\farm\managers\GuiManager$MenuHolder.class
 id\seria\farm\hooks\HookManager.class

@@ -1,28 +1,24 @@
 package id.seria.farm.inventory.edittree.RegionEdit;
 
 import id.seria.farm.SeriaFarmPlugin;
-import id.seria.farm.inventory.utils.InvUtils;
-import id.seria.farm.inventory.utils.StaticColors;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
-import net.kyori.adventure.text.Component;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
-import id.seria.farm.inventory.edittree.BlockMenu;
 import id.seria.farm.inventory.utils.LocalizedName;
 import org.bukkit.Location;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.inventory.Inventory;
-import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
-import org.jetbrains.annotations.NotNull;
+import java.util.HashMap;
+import java.util.Map;
+import id.seria.farm.managers.GuiManager;
 
-public class PreRegionMenu implements Listener, InventoryHolder {
+public class PreRegionMenu implements Listener {
     private final SeriaFarmPlugin plugin;
-    private static final Component name = StaticColors.getHexMsg("&9&lRegion Info Menu");
     private String regionName;
 
     public PreRegionMenu(SeriaFarmPlugin plugin) {
@@ -34,7 +30,7 @@ public class PreRegionMenu implements Listener, InventoryHolder {
     public Inventory preregenmenu(Player player, String string) {
         this.regionName = string;
         plugin.getVisualManager().setFocusedRegion(player, string);
-        Inventory inventory = Bukkit.createInventory(this, 36, name);
+        
         FileConfiguration config = plugin.getConfigManager().getConfig("regions.yml");
         String path = "regions." + string + ".";
 
@@ -42,109 +38,74 @@ public class PreRegionMenu implements Listener, InventoryHolder {
         String[] parts = locStr.split(";");
         String displayLoc = parts.length >= 4 ? parts[1] + " " + parts[2] + " " + parts[3] : "Unknown";
 
-        // Slot 11: Info Item
-        ItemStack info = InvUtils.createItemStacks(Material.SEAGRASS, StaticColors.getHexMsg("&9[" + string + "]"), 
-            StaticColors.getHexMsg("&7World: " + (parts.length > 0 ? parts[0] : "world")), 
-            StaticColors.getHexMsg("&7Location: " + displayLoc), 
-            "", StaticColors.getHexMsg("&7Click To &aTeleport"));
-        LocalizedName.set(info, string);
-        inventory.setItem(11, info);
+        Map<String, String> placeholders = new HashMap<>();
+        placeholders.put("%region%", string);
+        placeholders.put("%world%", parts.length > 0 ? parts[0] : "world");
+        placeholders.put("%loc%", displayLoc);
+        placeholders.put("%status%", config.getBoolean(path + "enabled", true) ? "&aEnabled" : "&cDisabled");
+        placeholders.put("%mode%", config.getBoolean(path + "per-region-regen", true) ? "&aEnabled" : "&cDisabled");
+        placeholders.put("%perms%", config.getBoolean(path + "require-permission", false) ? "&aEnabled" : "&cDisabled");
+        placeholders.put("%place%", config.getBoolean(path + "allow-block-place", false) ? "&aEnabled" : "&cDisabled");
 
-        inventory.setItem(20, InvUtils.createItemStacks(Material.GREEN_STAINED_GLASS_PANE, StaticColors.getHexMsg("&9Regeneration Status"), StaticColors.getHexMsg("&7Toggle Whether This Region Has Regeneration"), "", 
-            StaticColors.getHexMsg("&7Current Status: " + (config.getBoolean(path + "enabled", true) ? "&aEnabled" : "&cDisabled"))));
-        
-        inventory.setItem(13, InvUtils.createItemStacks(Material.IRON_BARS, StaticColors.getHexMsg("&9Per Region Regeneration"), StaticColors.getHexMsg("&7Should Region Regenerate As Per Region Setting"), "", 
-            StaticColors.getHexMsg("&7Current Status: " + (config.getBoolean(path + "per-region-regen", true) ? "&aEnabled" : "&cDisabled"))));
-        
-        inventory.setItem(22, InvUtils.createItemStacks(Material.GOLDEN_PICKAXE, StaticColors.getHexMsg("&9Per Region Perms"), StaticColors.getHexMsg("&7Does Player Require Permission"), "", 
-            StaticColors.getHexMsg("&7Current Status: " + (config.getBoolean(path + "require-permission", false) ? "&aEnabled" : "&cDisabled"))));
-        
-        inventory.setItem(15, InvUtils.createItemStacks(Material.GRASS_BLOCK, StaticColors.getHexMsg("&9Allow Block Place"), StaticColors.getHexMsg("&7Players Can Place Block"), "", 
-            StaticColors.getHexMsg("&7Current Status: " + (config.getBoolean(path + "allow-block-place", false) ? "&aEnabled" : "&cDisabled"))));
-        
-        inventory.setItem(24, InvUtils.createItemStacks(Material.MINECART, StaticColors.getHexMsg("&9Edit Blocks Menu"), StaticColors.getHexMsg("&7Edit How Block Regenerates")));
-        
-        // Slot 31: Scan Region
-        inventory.setItem(31, InvUtils.createItemStacks(Material.ENDER_EYE, StaticColors.getHexMsg("&b&lSCAN REGION"), 
-            StaticColors.getHexMsg("&7Detects all blocks inside the region."), 
-            StaticColors.getHexMsg("&7and automatically adds them to the list."), 
-            "", StaticColors.getHexMsg("&eLeft-Click To Start Scanning")));
+        Inventory inventory = plugin.getGuiManager().createInventory("pre-region-menu", placeholders);
 
-        inventory.setItem(35, InvUtils.createItemStacks(Material.BARRIER, StaticColors.getHexMsg("&cClose | Exit"), StaticColors.getHexMsg("&7Closes The Current Gui"), ""));
+        // Metadata for handlers (The info item in slot 11)
+        ItemStack infoItem = inventory.getItem(11);
+        if (infoItem != null) LocalizedName.set(infoItem, string);
 
-        ItemStack blueGlass = InvUtils.createItemStacks(Material.BLUE_STAINED_GLASS_PANE, " ", "", "");
-        for (int n : new int[]{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 17, 18, 26, 28, 29, 30, 32, 33, 34}) {
-            inventory.setItem(n, blueGlass);
-        }
-        
         return inventory;
-    }
-
-    @Override
-    public @NotNull Inventory getInventory() {
-        return null; // Holder identification only
     }
 
     @EventHandler
     public void oninvcclick(InventoryClickEvent event) {
-        String title = SeriaFarmPlugin.MINI_MESSAGE.serialize(event.getView().title());
-        boolean isHolder = event.getInventory().getHolder() instanceof PreRegionMenu;
-        boolean isTitle = title.contains("Region Info Menu");
-
-        if (!isHolder && !isTitle) return;
+        if (!(event.getInventory().getHolder() instanceof GuiManager.MenuHolder holder)) return;
+        if (!holder.getMenuKey().equals("pre-region-menu")) return;
 
         event.setCancelled(true);
         Player player = (Player) event.getWhoClicked();
-        
-        // Debug Logging
-        
+        ItemStack clicked = event.getCurrentItem();
+        if (clicked == null || clicked.getType() == Material.AIR) return;
 
-        PreRegionMenu holder;
-        if (isHolder) {
-            holder = (PreRegionMenu) event.getInventory().getHolder();
-        } else {
-            // Cannot reliably proceed without holder state in this architecture
-            return; 
-        }
-
-        final String regionName = holder.getRegionName();
-        if (regionName == null || regionName.isEmpty()) {
+        String action = LocalizedName.get(clicked);
         
-            return;
-        }
+        // Find regionName from slot 11 metadata
+        ItemStack infoItem = event.getInventory().getItem(11);
+        if (infoItem == null) return;
+        final String regionName = LocalizedName.get(infoItem);
+        if (regionName == null || regionName.isEmpty()) return;
 
         FileConfiguration config = plugin.getConfigManager().getConfig("regions.yml");
         String path = "regions." + regionName + ".";
 
-        switch (event.getRawSlot()) {
-            case 35: // Back
+        switch (action) {
+            case "back_to_list":
                 Bukkit.getScheduler().runTask(plugin, () -> player.openInventory(new RegionSelectionMenu(plugin).reg_sel(player, 1)));
                 plugin.getVisualManager().setFocusedRegion(player, null);
                 break;
-            case 11: // Teleport
+            case "teleport":
                 teleportLogic(player, config, path, regionName);
                 break;
-            case 20: // Enabled
+            case "toggle_enabled":
                 config.set(path + "enabled", !config.getBoolean(path + "enabled", true));
                 saveAndRefresh(player, regionName);
                 break;
-            case 13: // Per Region Regen
+            case "toggle_per_region":
                 config.set(path + "per-region-regen", !config.getBoolean(path + "per-region-regen", true));
                 saveAndRefresh(player, regionName);
                 break;
-            case 22: // Permission
+            case "toggle_perms":
                 config.set(path + "require-permission", !config.getBoolean(path + "require-permission", false));
                 saveAndRefresh(player, regionName);
                 break;
-            case 15: // Allow Block Place
+            case "toggle_place":
                 config.set(path + "allow-block-place", !config.getBoolean(path + "allow-block-place", false));
                 saveAndRefresh(player, regionName);
                 break;
-            case 24: // Edit Blocks
+            case "edit_blocks":
                 YamlConfiguration mConfig = (YamlConfiguration) plugin.getConfigManager().getConfig("crops.yml");
                 Bukkit.getScheduler().runTask(plugin, () -> player.openInventory(new id.seria.farm.inventory.edittree.BlockMenu(plugin).blockmenu(player, 1, mConfig, regionName)));
                 break;
-            case 31: // SCAN REGION
+            case "scan_region":
                 performScan(player, config, path, regionName);
                 break;
         }

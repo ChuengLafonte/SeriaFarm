@@ -1,10 +1,7 @@
 package id.seria.farm.inventory.maintree;
 
 import id.seria.farm.SeriaFarmPlugin;
-import id.seria.farm.inventory.utils.InvUtils;
 import id.seria.farm.inventory.utils.LocalizedName;
-import id.seria.farm.inventory.utils.StaticColors;
-import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
@@ -13,94 +10,38 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.InventoryHolder;
+import id.seria.farm.managers.GuiManager;
+import java.util.*;
 import id.seria.farm.listeners.ChatInputListener;
 import id.seria.farm.inventory.edittree.ReplaceBlockMenu;
 import id.seria.farm.inventory.edittree.DropsMenu;
 
-public class GlobalBlockEditMenu implements Listener, InventoryHolder {
+public class GlobalBlockEditMenu implements Listener {
     private final SeriaFarmPlugin plugin;
     private String matName;
-    private static final net.kyori.adventure.text.Component name = StaticColors.getHexMsg("&#9370db&lPlant Editor");
 
     public GlobalBlockEditMenu(SeriaFarmPlugin plugin) {
         this.plugin = plugin;
     }
 
-    @Override
-    public org.bukkit.inventory.Inventory getInventory() { return null; }
     public String getMatName() { return matName; }
 
     public Inventory open(Player player, String matName) {
         this.matName = matName;
-        Inventory inventory = Bukkit.createInventory(this, 27, name); // 3 Rows as per Wiki
         YamlConfiguration config = (YamlConfiguration) plugin.getConfigManager().getConfig("crops.yml");
-        String path = "crops.global." + matName.replace("global:", "");
-        String rawMat = matName.replace("global:", "");
-        String displayName = config.getString(path + ".display-name", rawMat.replace("_", " "));
+        String materialKey = matName.replace("global:", "");
+        String path = "crops.global." + materialKey;
         
+        String displayName = config.getString(path + ".display-name", materialKey.replace("_", " "));
         int delay = config.getInt(path + ".regen-delay", 20);
 
-        // Background / Fillers (Gray/Light Gray theme)
-        ItemStack spacer = InvUtils.createItemStacks(Material.LIGHT_GRAY_STAINED_GLASS_PANE, " ", "", "");
-        ItemStack divider = InvUtils.createItemStacks(Material.GRAY_STAINED_GLASS_PANE, " ", "", "");
-        
-        for (int i = 0; i < 27; i++) {
-            inventory.setItem(i, spacer);
-        }
-        inventory.setItem(9, divider); // Vertical divider start
-        inventory.setItem(6, InvUtils.createItemStacks(Material.WHITE_STAINED_GLASS_PANE, " ", "", ""));
-        inventory.setItem(8, InvUtils.createItemStacks(Material.WHITE_STAINED_GLASS_PANE, " ", "", ""));
+        Map<String, String> placeholders = new HashMap<>();
+        placeholders.put("%display_name%", displayName);
+        placeholders.put("%delay%", String.valueOf(delay));
 
-        // Slot 0: Display Name (Name Tag)
-        inventory.setItem(0, InvUtils.createItemStacks(Material.NAME_TAG, 
-            StaticColors.getHexMsg("&#9370dbDisplay Name"), 
-            "&7Current: &f" + displayName, 
-            "&eClick to rename"));
+        Inventory inventory = plugin.getGuiManager().createInventory("catalog-edit-menu", placeholders);
 
-        // Slot 2: Storage/Category (Barrel)
-        inventory.setItem(2, InvUtils.createItemStacks(Material.BARREL, 
-            StaticColors.getHexMsg("&#9370dbCategory Settings"), 
-            "&7Manage how this plant is grouped.", 
-            "&eStatus: &fGlobal"));
-
-        // Slot 4: Yields/Products (Bundle)
-        inventory.setItem(4, InvUtils.createItemStacks(Material.BUNDLE, 
-            StaticColors.getHexMsg("&#9370dbPlant Yields"), 
-            "&7Customize what this plant drops.", 
-            "&eClick to edit drops"));
-
-        // Slot 5: Watering / Harvest Time (Clock)
-        inventory.setItem(5, InvUtils.createItemStacks(Material.CLOCK, 
-            StaticColors.getHexMsg("&#9370dbHarvest Time"), 
-            "&7Duration: &f" + delay + "s", 
-            "&7Watering: &fNot Required", 
-            "", 
-            "&eL-Click to edit time", 
-            "&eR-Click to toggle water"));
-
-        // Slot 10: AuraSkills Requirements (Anvil)
-        inventory.setItem(10, InvUtils.createItemStacks(Material.ANVIL, 
-            StaticColors.getHexMsg("&#9370dbAuraSkills Requirements"), 
-            "&7Add level requirements for skills", 
-            "", "&eClick to edit"));
-
-        // Slot 11: Soil Requirement (Farmland)
-        inventory.setItem(11, InvUtils.createItemStacks(Material.FARMLAND, 
-            StaticColors.getHexMsg("&#9370dbSoil Requirement"), 
-            "&7Required block underneath.", 
-            "&eCurrent: &fVanilla/Auto"));
-
-        // Slot 13: Sprout Type (Block Visualization)
-        inventory.setItem(13, InvUtils.createItemStacks(Material.OAK_SAPLING, 
-            StaticColors.getHexMsg("&#9370dbSprout Type"), 
-            "&7The block appearing while growing.", 
-            "&eClick to select block"));
-
-        // Navigation
-        inventory.setItem(18, InvUtils.createItemStacks(Material.ARROW, StaticColors.getHexMsg("&cBack"), "&7Return to Catalog", ""));
-        
-        // Metadata for handlers
+        // Metadata for handlers (The invisible info item)
         ItemStack info = new ItemStack(Material.PAPER);
         LocalizedName.set(info, matName);
         inventory.setItem(26, info);
@@ -110,29 +51,36 @@ public class GlobalBlockEditMenu implements Listener, InventoryHolder {
 
     @EventHandler
     public void oninvcclick(InventoryClickEvent event) {
-        if (!(event.getInventory().getHolder() instanceof GlobalBlockEditMenu)) return;
-        event.setCancelled(true);
+        if (!(event.getInventory().getHolder() instanceof GuiManager.MenuHolder holder)) return;
+        if (!holder.getMenuKey().equals("catalog-edit-menu")) return;
         
+        event.setCancelled(true);
         Player player = (Player) event.getWhoClicked();
-        GlobalBlockEditMenu holder = (GlobalBlockEditMenu) event.getInventory().getHolder();
-        String matName = holder.getMatName();
-        String path = "crops.global." + matName.replace("global:", "");
+        ItemStack clicked = event.getCurrentItem();
+        if (clicked == null || clicked.getType() == Material.AIR) return;
 
+        String action = LocalizedName.get(clicked);
+        
+        // Find the matName from the hidden paper in slot 26
+        ItemStack infoItem = event.getInventory().getItem(26);
+        if (infoItem == null) return;
+        String matName = LocalizedName.get(infoItem);
+        String path = "crops.global." + matName.replace("global:", "");
         YamlConfiguration config = (YamlConfiguration) plugin.getConfigManager().getConfig("crops.yml");
 
-        switch (event.getRawSlot()) {
-            case 0: // Display Name
+        switch (action) {
+            case "edit_name":
                 ChatInputListener.requestInput(player, "Display Name", "&fColor coded name (e.g. &#ffaa00Gold...)", input -> {
-                    config.set("crops.global." + matName + ".display-name", input);
-                plugin.getConfigManager().saveConfig("crops.yml");
-                plugin.getConfigManager().sendPrefixedMessage(player, "&aDisplay Name updated!");
-                player.openInventory(open(player, matName));
+                    config.set(path + ".display-name", input);
+                    plugin.getConfigManager().saveConfig("crops.yml");
+                    plugin.getConfigManager().sendPrefixedMessage(player, "&aDisplay Name updated!");
+                    player.openInventory(open(player, matName));
                 }, () -> player.openInventory(open(player, matName)));
                 break;
-            case 18: // Back
+            case "back_to_catalog":
                 player.openInventory(new GlobalBlocksMenu(plugin).blockmenu(player, 1));
                 break;
-            case 5: // Harvest Time
+            case "edit_time":
                 ChatInputListener.requestInput(player, "Harvest Time", "Seconds (e.g. 30)", input -> {
                     try {
                         config.set(path + ".regen-delay", Integer.parseInt(input));
@@ -142,13 +90,13 @@ public class GlobalBlockEditMenu implements Listener, InventoryHolder {
                     player.openInventory(open(player, matName));
                 }, () -> player.openInventory(open(player, matName)));
                 break;
-            case 4: // Drops
+            case "edit_drops":
                 new DropsMenu(plugin).open(player, matName, "global", path);
                 break;
-            case 13: // Sprout Type
+            case "edit_sprout":
                 new ReplaceBlockMenu(plugin).open(player, matName, "global", "delay-blocks", path);
                 break;
-            case 10: // AuraSkills
+            case "edit_skills":
                 new id.seria.farm.inventory.edittree.RequiredSkillsMenu(plugin).open(player, matName, "global", path);
                 break;
         }

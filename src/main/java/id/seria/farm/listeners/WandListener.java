@@ -1,7 +1,6 @@
 package id.seria.farm.listeners;
 
 import id.seria.farm.SeriaFarmPlugin;
-import id.seria.farm.inventory.utils.StaticColors;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.Location;
 import org.bukkit.Material;

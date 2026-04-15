@@ -5,8 +5,6 @@ import id.seria.farm.inventory.utils.InvUtils;
 import id.seria.farm.inventory.utils.LocalizedName;
 import id.seria.farm.inventory.utils.PageUtil;
 import id.seria.farm.inventory.utils.StaticColors;
-import net.kyori.adventure.text.Component;
-import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -14,74 +12,49 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
-import java.util.Arrays;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
+import id.seria.farm.managers.GuiManager;
 
 public class AddMenu implements Listener {
-    private final Component name = StaticColors.getHexMsg("&#ffa500&lAdd Menu");
+    private final SeriaFarmPlugin plugin = SeriaFarmPlugin.getInstance();
+    private int page;
 
     public Inventory addmenu(Player player, int page) {
-        Inventory inventory = Bukkit.createInventory(null, 54, this.name);
+        this.page = page;
+        Map<String, String> placeholders = new HashMap<>();
+        placeholders.put("%player_name%", player.getName());
 
-        inventory.setItem(44, InvUtils.createItemStacks(Material.RED_STAINED_GLASS_PANE,
-                StaticColors.getHexMsg("&aNext Page"), StaticColors.getHexMsg("&7Click To Go To The Next Page"), ""));
-        inventory.setItem(36,
-                InvUtils.createItemStacks(Material.RED_STAINED_GLASS_PANE, StaticColors.getHexMsg("&aPrevious Page"),
-                        StaticColors.getHexMsg("&7Click To Go To The Previous Page"), ""));
-        inventory.setItem(45,
-                InvUtils.createItemStacks(Material.PLAYER_HEAD, StaticColors.getHexMsg("&#ffa500" + player.getName()),
-                        "", StaticColors.getHexMsg("&7A Super Cool Farmer")));
-        inventory.setItem(53, InvUtils.createItemStacks(Material.BARRIER, StaticColors.getHexMsg("&4Close | Exit"),
-                StaticColors.getHexMsg("&7Closes The Current Gui"), ""));
+        Inventory inventory = plugin.getGuiManager().createInventory("add-main-menu", placeholders);
 
-        // Slot 10: Global
-        ItemStack globalItem = InvUtils.createItemStacks(Material.MINECART, StaticColors.getHexMsg("&#ffa500Global Setting"),
-                        StaticColors.getHexMsg("&7Add Blocks To Global Regeneration"),
-                        StaticColors.getHexMsg("&7Regeneration Should Be Set To Global"));
-        LocalizedName.set(globalItem, "global");
-        inventory.setItem(10, globalItem);
-
-        List<String> list = SeriaFarmPlugin.getInstance().getRegenManager().getRegionNames();
+        List<String> list = plugin.getRegenManager().getRegionNames();
         list.sort(Comparator.naturalOrder());
 
-        int itemsPerPage = (page == 1) ? 27 : 28;
-
-        if (PageUtil.isPageValid(list, page - 1, itemsPerPage)) {
-            ItemStack item = inventory.getItem(36);
-            if (item != null) inventory.setItem(36, item.withType(Material.GREEN_STAINED_GLASS_PANE));
-        }
-        LocalizedName.set(Objects.requireNonNull(inventory.getItem(36)), String.valueOf(page - 1));
-
-        if (PageUtil.isPageValid(list, page + 1, itemsPerPage)) {
-            ItemStack item = inventory.getItem(44);
-            if (item != null) inventory.setItem(44, item.withType(Material.GREEN_STAINED_GLASS_PANE));
-        }
-        LocalizedName.set(Objects.requireNonNull(inventory.getItem(44)), String.valueOf(page + 1));
-
-        ItemStack glass = InvUtils.createItemStacks(Material.ORANGE_STAINED_GLASS_PANE, " ", "", "");
-        for (int n : new int[] { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 17, 18, 26, 27, 35, 46, 47, 48, 49, 50, 51, 52 }) {
-            inventory.setItem(n, glass);
-        }
-
-        int slot = (page == 1) ? 11 : 10;
+        int itemsPerPage = 21; // Available slots for regions
         List<String> pageItems = PageUtil.getpageitems(list, page, itemsPerPage);
 
-        List<Integer> skipSlots = Arrays.asList(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 17, 18, 26, 27, 35, 36, 44, 45, 46, 47,
-                48, 49, 50, 51, 52, 53);
+        // Update Nav buttons aesthetics based on page validity (Dynamic coloring)
+        if (PageUtil.isPageValid(list, page - 1, itemsPerPage)) {
+            ItemStack prev = inventory.getItem(36);
+            if (prev != null) inventory.setItem(36, InvUtils.applyMeta(prev.withType(Material.GREEN_STAINED_GLASS_PANE), null));
+        }
+        if (PageUtil.isPageValid(list, page + 1, itemsPerPage)) {
+            ItemStack next = inventory.getItem(44);
+            if (next != null) inventory.setItem(44, InvUtils.applyMeta(next.withType(Material.GREEN_STAINED_GLASS_PANE), null));
+        }
 
+        int slot = 0;
         for (String regionName : pageItems) {
-            while (skipSlots.contains(slot))
+            // Find next empty slot
+            while (slot < inventory.getSize() && inventory.getItem(slot) != null && inventory.getItem(slot).getType() != Material.AIR) {
                 slot++;
-            if (slot >= 54)
-                break;
+            }
+            if (slot >= inventory.getSize()) break;
 
             ItemStack regionItem = InvUtils.createItemStacks(Material.CHEST_MINECART,
                             StaticColors.getHexMsg("&#ffa500Region Setting : [" + regionName + "]"),
                             StaticColors.getHexMsg("&7Add Blocks To Region Regeneration"),
                             StaticColors.getHexMsg("&7Regeneration Should Be Set To Regional"));
-            LocalizedName.set(regionItem, regionName);
+            LocalizedName.set(regionItem, "region:" + regionName);
             inventory.setItem(slot, regionItem);
             slot++;
         }
@@ -91,34 +64,39 @@ public class AddMenu implements Listener {
 
     @EventHandler
     public void oninvcclick(InventoryClickEvent event) {
-        if (!event.getView().title().equals(this.name))
-            return;
+        if (!(event.getInventory().getHolder() instanceof GuiManager.MenuHolder holder)) return;
+        if (!holder.getMenuKey().equals("add-main-menu")) return;
+
         event.setCancelled(true);
-
-        if (event.getRawSlot() >= 54)
-            return;
         Player player = (Player) event.getWhoClicked();
-
-        if (event.getRawSlot() == 53) {
-            player.closeInventory();
-            return;
-        }
-
         ItemStack clicked = event.getCurrentItem();
-        if (clicked == null || clicked.getType() == Material.AIR)
-            return;
+        if (clicked == null || clicked.getType() == Material.AIR) return;
 
-        int currentPage = Integer.parseInt(LocalizedName.get(event.getInventory().getItem(44))) - 1;
+        String action = LocalizedName.get(clicked);
 
-        if (event.getRawSlot() == 36 && clicked.getType() == Material.GREEN_STAINED_GLASS_PANE) {
-            player.openInventory(addmenu(player, currentPage - 1));
-        } else if (event.getRawSlot() == 44 && clicked.getType() == Material.GREEN_STAINED_GLASS_PANE) {
-            player.openInventory(addmenu(player, currentPage + 1));
-        } else {
-            String target = LocalizedName.get(clicked);
-            if (target != null) {
-                player.openInventory(new AddBlocksMenu().addblocks_menu(player, target));
-            }
+        switch (action) {
+            case "close_menu":
+                player.closeInventory();
+                break;
+            case "add_global":
+                player.openInventory(new id.seria.farm.inventory.addtree.AddBlocksMenu().addblocks_menu(player, "global"));
+                break;
+            case "prev_page":
+                if (clicked.getType() == Material.GREEN_STAINED_GLASS_PANE) {
+                    player.openInventory(addmenu(player, page - 1));
+                }
+                break;
+            case "next_page":
+                if (clicked.getType() == Material.GREEN_STAINED_GLASS_PANE) {
+                    player.openInventory(addmenu(player, page + 1));
+                }
+                break;
+            default:
+                if (action.startsWith("region:")) {
+                    String regionName = action.replace("region:", "");
+                    player.openInventory(new id.seria.farm.inventory.addtree.AddBlocksMenu().addblocks_menu(player, regionName));
+                }
+                break;
         }
     }
 }

@@ -6,10 +6,13 @@ import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class AuraSkillsManager {
 
     private final Map<Material, SkillXP> xpMapping = new HashMap<>();
+    private final Map<UUID, Long> activeReplenish = new ConcurrentHashMap<>();
 
     public AuraSkillsManager(SeriaFarmPlugin plugin) {
         loadMapping();
@@ -132,6 +135,71 @@ public class AuraSkillsManager {
         } catch (Exception e) {
             return 0;
         }
+    }
+
+    public double getFarmingLuck(Player player) {
+        if (!SeriaFarmPlugin.getInstance().getHookManager().isAuraSkillsEnabled()) return 0.0;
+        try {
+            dev.aurelium.auraskills.api.AuraSkillsApi api = dev.aurelium.auraskills.api.AuraSkillsApi.get();
+            dev.aurelium.auraskills.api.user.SkillsUser user = api.getUser(player.getUniqueId());
+            dev.aurelium.auraskills.api.stat.Stat stat = api.getGlobalRegistry().getStat(dev.aurelium.auraskills.api.registry.NamespacedId.of("auraskills", "farming_luck"));
+            if (stat != null && user != null) {
+                return user.getStatLevel(stat); // This automatically includes Bountiful Harvest and Geneticist!
+            }
+        } catch (NoClassDefFoundError | Exception ignored) {}
+        return 0.0;
+    }
+
+    public double getGrowthAuraReduction(Player player) {
+        if (!SeriaFarmPlugin.getInstance().getHookManager().isAuraSkillsEnabled()) return 0.0;
+        try {
+            dev.aurelium.auraskills.api.AuraSkillsApi api = dev.aurelium.auraskills.api.AuraSkillsApi.get();
+            dev.aurelium.auraskills.api.user.SkillsUser user = api.getUser(player.getUniqueId());
+            dev.aurelium.auraskills.api.ability.Ability ability = api.getGlobalRegistry().getAbility(dev.aurelium.auraskills.api.registry.NamespacedId.of("auraskills", "growth_aura"));
+            if (ability != null && user != null) {
+                int level = user.getAbilityLevel(ability);
+                if (level > 0) {
+                    try {
+                        // Attempt to fetch native config value
+                        return (double) ability.getClass().getMethod("getValue", int.class).invoke(ability, level);
+                    } catch (Exception e) {
+                        // Fallback: 5% reduction per level
+                        return level * 5.0; 
+                    }
+                }
+            }
+        } catch (NoClassDefFoundError | Exception ignored) {}
+        return 0.0;
+    }
+
+    public double getFarmingFortune(Player player) {
+
+        if (!SeriaFarmPlugin.getInstance().getHookManager().isAuraSkillsEnabled()) return 0.0;
+        try {
+            dev.aurelium.auraskills.api.AuraSkillsApi api = dev.aurelium.auraskills.api.AuraSkillsApi.get();
+            dev.aurelium.auraskills.api.user.SkillsUser user = api.getUser(player.getUniqueId());
+            dev.aurelium.auraskills.api.stat.Stat stat = api.getGlobalRegistry().getStat(dev.aurelium.auraskills.api.registry.NamespacedId.of("auraskills", "farming_fortune"));
+            if (stat != null && user != null) {
+                return user.getStatLevel(stat);
+            }
+        } catch (NoClassDefFoundError | Exception ignored) {}
+        return 0.0;
+    }
+
+    public void setReplenishActive(UUID uuid, long expiryTimeMs) {
+
+        activeReplenish.put(uuid, expiryTimeMs);
+    }
+
+    public boolean isReplenishActive(Player player) {
+        Long expiry = activeReplenish.get(player.getUniqueId());
+        if (expiry == null) return false;
+        
+        if (System.currentTimeMillis() > expiry) {
+            activeReplenish.remove(player.getUniqueId());
+            return false;
+        }
+        return true;
     }
 
     private static class SkillXP {

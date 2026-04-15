@@ -19,6 +19,7 @@ public class SeriaFarmPlugin extends JavaPlugin {
     private HookManager hookManager;
     private AuraSkillsManager auraSkillsManager;
     private RequirementEngine requirementEngine;
+    private GuiManager guiManager;
     public static org.bukkit.NamespacedKey key;
     public static org.bukkit.NamespacedKey chanceKey;
     public static org.bukkit.NamespacedKey weightKey;
@@ -45,12 +46,13 @@ public class SeriaFarmPlugin extends JavaPlugin {
 
         hookManager = new HookManager(this);
         requirementEngine = new RequirementEngine(this);
+        guiManager = new GuiManager(this);
 
         regenManager = new RegenManager(this);
         farmManager = new FarmManager(this);
         visualManager = new VisualManager(this);
         auraSkillsManager = new AuraSkillsManager(this);
-        
+
         // Inject drop tables AFTER systems are ready
         configManager.injectDropTablesIntoCrops();
 
@@ -81,6 +83,11 @@ public class SeriaFarmPlugin extends JavaPlugin {
         pm.registerEvents(new BlockPlaceListener(this), this);
         pm.registerEvents(new CropProtectionListener(this), this);
 
+        // Register AuraSkills event listener only if plugin exists
+        if (pm.isPluginEnabled("AuraSkills")) {
+            pm.registerEvents(new AuraSkillsListener(this), this);
+        }
+
         // Register Commands
         id.seria.farm.commands.SFarmCommand sfarmCommand = new id.seria.farm.commands.SFarmCommand(this);
         getCommand("sfarm").setExecutor(sfarmCommand);
@@ -91,17 +98,49 @@ public class SeriaFarmPlugin extends JavaPlugin {
 
     @Override
     public void onDisable() {
-        if (regenManager != null) regenManager.shutdown();
-        if (databaseManager != null) databaseManager.close();
+        if (regenManager != null)
+            regenManager.shutdown();
+        if (databaseManager != null)
+            databaseManager.close();
     }
 
-    public static SeriaFarmPlugin getInstance() { return instance; }
-    public ConfigManager getConfigManager() { return configManager; }
-    public DatabaseManager getDatabaseManager() { return databaseManager; }
-    public RegenManager getRegenManager() { return regenManager; }
-    public FarmManager getFarmManager() { return farmManager; }
-    public VisualManager getVisualManager() { return visualManager; }
-    public HookManager getHookManager() { return hookManager; }
-    public AuraSkillsManager getAuraSkillsManager() { return auraSkillsManager; }
-    public RequirementEngine getRequirementEngine() { return requirementEngine; }
+    public static SeriaFarmPlugin getInstance() {
+        return instance;
+    }
+
+    public ConfigManager getConfigManager() {
+        return configManager;
+    }
+
+    public DatabaseManager getDatabaseManager() {
+        return databaseManager;
+    }
+
+    public RegenManager getRegenManager() {
+        return regenManager;
+    }
+
+    public FarmManager getFarmManager() {
+        return farmManager;
+    }
+
+    public VisualManager getVisualManager() {
+        return visualManager;
+    }
+
+    public HookManager getHookManager() {
+        return hookManager;
+    }
+
+    public AuraSkillsManager getAuraSkillsManager() {
+        return auraSkillsManager;
+    }
+
+    public RequirementEngine getRequirementEngine() {
+        return requirementEngine;
+    }
+
+    public GuiManager getGuiManager() {
+        return guiManager;
+    }
 }
