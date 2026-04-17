@@ -28,7 +28,11 @@ public class InteractListener implements Listener {
 
     private final SeriaFarmPlugin plugin;
     private final Random random = new Random();
-    private int hologramTick = 0;
+    
+    // Cache for hologram optimization
+    private final java.util.Map<java.util.UUID, String> lastTargetLocation = new java.util.HashMap<>();
+    private final java.util.Map<java.util.UUID, Integer> lastWaterLevel = new java.util.HashMap<>();
+    private final java.util.Map<java.util.UUID, Long> hologramCooldown = new java.util.HashMap<>();
  
     public InteractListener(SeriaFarmPlugin plugin) {
         this.plugin = plugin;
@@ -37,7 +41,7 @@ public class InteractListener implements Listener {
     @EventHandler(priority = EventPriority.HIGH)
     public void onPlayerInteract(PlayerInteractEvent event) {
         // 0. Global enable check + off-hand guard
-        if (!plugin.getConfigManager().getConfig("config.yml").getBoolean("settings.enabled", true)) return;
+        if (!plugin.getConfigManager().getSettings().enabled) return;
         if (event.getHand() == EquipmentSlot.OFF_HAND) return;
         if (event.getAction() != Action.RIGHT_CLICK_BLOCK) return;
 
@@ -55,19 +59,19 @@ public class InteractListener implements Listener {
             WateringToolManager.WateringTool toolCfg = plugin.getWateringToolManager().getToolConfig(itemInHand);
             if (toolCfg != null) {
                 if (state.isRotten()) {
-                    plugin.getConfigManager().sendPrefixedMessage(player, "&cTanaman sudah kekeringan dan mati, segera hancurkan!");
+                    player.sendMessage(plugin.getConfigManager().getMessage("garden-rot-warning"));
                     return;
                 }
                 int capacity = plugin.getWateringToolManager().getCapacity(itemInHand);
                 if (capacity <= 0) {
-                    plugin.getConfigManager().sendPrefixedMessage(player, "&cWatering tool kosong!");
+                    player.sendMessage(plugin.getConfigManager().getMessage("watering-tool-empty"));
                     return;
                 }
                 int added = plugin.getCustomPlantManager().water(block.getLocation(), toolCfg.perUse());
                 ItemStack newItem = plugin.getWateringToolManager().consume(itemInHand);
                 player.getInventory().setItemInMainHand(newItem);
                 if (state != null) plugin.getHologramManager().show(player, block.getLocation(), state);
-                if (added == 0) plugin.getConfigManager().sendPrefixedMessage(player, "&eTanaman sudah penuh air!");
+                if (added == 0) player.sendMessage(plugin.getConfigManager().getMessage("garden-water-full"));
                 return;
             }
 
@@ -120,20 +124,18 @@ public class InteractListener implements Listener {
         // ─── B. PLANTING a seed on composted soil ────────────────────────────
         if (!itemInHand.getType().isAir() && plugin.getCustomPlantManager().isValidSoil(block)) {
             String seedId = plugin.getHookManager().getItemIdentifier(itemInHand);
-            plugin.getLogger().info("[DEBUG] PLANT CHECK: block=" + block.getType() + " seedId=" + seedId);
             String cropKey = plugin.getCustomPlantManager().findCropBySeed(seedId);
-            plugin.getLogger().info("[DEBUG] PLANT CHECK: cropKey=" + cropKey);
             if (cropKey != null) {
                 event.setCancelled(true);
                 Block above = block.getRelative(0, 1, 0);
                 if (above.getType() != Material.AIR && above.getType() != Material.CAVE_AIR) {
-                    plugin.getConfigManager().sendPrefixedMessage(player, "&cTidak ada ruang untuk menanam!");
+                    player.sendMessage(plugin.getConfigManager().getMessage("garden-no-space"));
                     return;
                 }
                 
                 // Verify soil ownership instead of checking slot capacity
                 if (!plugin.getSoilSlotManager().isSoilOwner(block.getLocation(), player.getUniqueId()) && !player.hasPermission("seriafarm.admin")) {
-                    plugin.getConfigManager().sendPrefixedMessage(player, "&cIni bukan ladang milikmu!");
+                    player.sendMessage(plugin.getConfigManager().getMessage("garden-not-yours"));
                     return;
                 }
 
@@ -153,7 +155,7 @@ public class InteractListener implements Listener {
                 plugin.getCustomPlantManager().plant(above.getLocation(), player, cropKey);
                 // NOTE: Do NOT call startAdHocTracking — garden crops are managed by
                 // the watering engine, NOT the vanilla regen system.
-                plugin.getConfigManager().sendPrefixedMessage(player, "&aTanam berhasil! Siram tanamanmu agar tumbuh.");
+                player.sendMessage(plugin.getConfigManager().getMessage("garden-plant-success"));
                 return;
             }
         }
@@ -211,7 +213,7 @@ public class InteractListener implements Listener {
         if (!blockKey.startsWith("global.")) return;
         
         // 2.2 Global blocks: Check harvest toggle
-        if (!plugin.getConfigManager().getConfig("config.yml").getBoolean("settings.global-right-click-harvest", true)) {
+        if (!plugin.getConfigManager().getSettings().globalRightClickHarvest) {
             return;
         }
  
@@ -232,20 +234,62 @@ public class InteractListener implements Listener {
     // ─── Hologram trigger via PlayerMoveEvent ────────────────────────────────
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onPlayerMove(PlayerMoveEvent event) {
-        if (++hologramTick % 4 != 0) return;
         Player player = event.getPlayer();
+        long now = System.currentTimeMillis();
+        
+        // Optimized frequency: Check every 250ms per player instead of shared ticks
+        Long lastCheck = hologramCooldown.get(player.getUniqueId());
+        if (lastCheck != null && now - lastCheck < 250) return;
+        hologramCooldown.put(player.getUniqueId(), now);
+        
         ItemStack hand = player.getInventory().getItemInMainHand();
-        if (plugin.getWateringToolManager().getToolConfig(hand) == null) {
-            plugin.getHologramManager().hide(player);
+        Material handType = hand.getType();
+        
+        // CHECK: Is the player holding a Bucket OR a configured Watering Tool?
+        boolean isWateringTool = plugin.getWateringToolManager().getToolConfig(hand) != null;
+        boolean isBucket = handType == Material.BUCKET || handType == Material.WATER_BUCKET || handType == Material.LAVA_BUCKET;
+        
+        // Fallback catch-all for buckets (case-insensitive)
+        if (!isBucket && handType.name().contains("BUCKET")) isBucket = true;
+        
+        if (!isWateringTool && !isBucket) {
+            String removed = lastTargetLocation.remove(player.getUniqueId());
+            if (removed != null) {
+                plugin.getHologramManager().hide(player);
+            }
+            lastWaterLevel.remove(player.getUniqueId());
             return;
         }
+
+        // RAYTRACE: Limited distance (5 blocks)
         Block target = player.getTargetBlockExact(5);
+        
+        // OPTIMIZATION: Check if looking at nothing or a non-custom plant
         if (target == null || !plugin.getCustomPlantManager().isCustomPlant(target.getLocation())) {
-            plugin.getHologramManager().hide(player);
+            String removed = lastTargetLocation.remove(player.getUniqueId());
+            if (removed != null) {
+                plugin.getHologramManager().hide(player);
+            }
+            lastWaterLevel.remove(player.getUniqueId());
             return;
         }
+
+        // CACHE CHECK: If same block and same water level, skip update
+        String locKey = plugin.getRegenManager().toKey(target.getLocation());
         CustomPlantState state = plugin.getCustomPlantManager().getState(target.getLocation());
-        if (state != null) plugin.getHologramManager().show(player, target.getLocation(), state);
+        
+        if (state != null) {
+            String prevLoc = lastTargetLocation.get(player.getUniqueId());
+            Integer prevLevel = lastWaterLevel.get(player.getUniqueId());
+            
+            if (locKey.equals(prevLoc) && prevLevel != null && prevLevel == state.getWateringLevel()) {
+                return; // Nothing changed, avoid packet/teleport overhead
+            }
+            
+            lastTargetLocation.put(player.getUniqueId(), locKey);
+            lastWaterLevel.put(player.getUniqueId(), state.getWateringLevel());
+            plugin.getHologramManager().show(player, target.getLocation(), state);
+        }
     }
 
     private boolean isFullyGrown(Block block) {
@@ -286,7 +330,7 @@ public class InteractListener implements Listener {
         if (rewards == null) return;
  
         int xp = rewards.getInt("xp", 0);
-        if (xp > 0) player.giveExp(xp);
+        if (xp > 0) plugin.getExperienceManager().giveXP(player, xp);
  
         for (String cmd : rewards.getStringList("commands")) {
             org.bukkit.Bukkit.dispatchCommand(org.bukkit.Bukkit.getConsoleSender(), cmd.replace("%player%", player.getName()));
@@ -294,9 +338,9 @@ public class InteractListener implements Listener {
  
         List<?> drops = rewards.getList("drops");
         if (drops != null) {
-            boolean dropToInv = plugin.getConfigManager().getConfig("config.yml").getBoolean("settings.drop-to-inventory", false);
+            boolean dropToInv = plugin.getConfigManager().getSettings().dropToInventory;
             int playerLevel = plugin.getAuraSkillsManager().getFarmingLevel(player);
-            double globalScaling = plugin.getConfigManager().getConfig("config.yml").getDouble("settings.global-level-scaling", 0.1);
+            double globalScaling = plugin.getConfigManager().getSettings().globalLevelScaling;
 
             boolean hasCommonDrop = false;
             java.util.List<java.util.Map<?, ?>> weightedPool = new java.util.ArrayList<>();

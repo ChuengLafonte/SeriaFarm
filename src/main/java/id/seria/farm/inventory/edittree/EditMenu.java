@@ -30,6 +30,8 @@ public class EditMenu implements Listener {
         
         int delay = config.getInt(path + ".regen-delay", 20);
         int xp = config.getInt(path + ".rewards.xp", 0);
+        double rottenXpMulti = config.getDouble(path + ".rotten-rewards.xp-multiplier", 0.2);
+        double seedReturn = config.getDouble(path + ".seed-return-chance", 80.0);
 
         Map<String, String> placeholders = new HashMap<>();
         placeholders.put("%material%", materialKey);
@@ -37,6 +39,8 @@ public class EditMenu implements Listener {
         placeholders.put("%status%", config.getBoolean(path + ".enabled", true) ? "&aEnabled" : "&cDisabled");
         placeholders.put("%delay%", String.valueOf(delay));
         placeholders.put("%xp%", String.valueOf(xp));
+        placeholders.put("%rotten_xp_multi%", String.valueOf((int)(rottenXpMulti * 100)));
+        placeholders.put("%seed_return%", String.valueOf((int)seedReturn));
 
         Inventory inventory = plugin.getGuiManager().createInventory("edit-menu", placeholders);
 
@@ -112,7 +116,10 @@ public class EditMenu implements Listener {
                 new SproutBlockMenu(plugin).open(player, finalMatName, finalRegionName, "delay-blocks", path);
                 break;
             case "edit_drops":
-                new DropsMenu(plugin).open(player, finalMatName, finalRegionName, path);
+                new DropsMenu(plugin).open(player, finalMatName, finalRegionName, path + ".rewards");
+                break;
+            case "edit_rotten_drops":
+                new DropsMenu(plugin).open(player, finalMatName, finalRegionName, path + ".rotten-rewards");
                 break;
             case "edit_xp":
                 ChatInputListener.requestInput(player, "Customize XP Drops", "Integer value", input -> {
@@ -122,6 +129,32 @@ public class EditMenu implements Listener {
                         plugin.getConfigManager().sendPrefixedMessage(player, "&aXP Drop updated to &f" + input);
                     } catch (NumberFormatException e) {
                         plugin.getConfigManager().sendPrefixedMessage(player, "&cInvalid input. Please enter a number.");
+                    }
+                    player.openInventory(emenu(player, config, finalMatName, file, finalRegionName));
+                }, () -> player.openInventory(emenu(player, config, finalMatName, file, finalRegionName)));
+                break;
+            case "edit_rotten_xp":
+                ChatInputListener.requestInput(player, "Rotten XP Percentage", "0-100 (e.g. 20)", input -> {
+                    try {
+                        double val = Double.parseDouble(input) / 100.0;
+                        config.set(path + ".rotten-rewards.xp-multiplier", val);
+                        plugin.getConfigManager().saveConfig("crops.yml");
+                        plugin.getConfigManager().sendPrefixedMessage(player, "&aRotten XP set to &f" + (int)(val*100) + "%");
+                    } catch (NumberFormatException e) {
+                        plugin.getConfigManager().sendPrefixedMessage(player, "&cInvalid input.");
+                    }
+                    player.openInventory(emenu(player, config, finalMatName, file, finalRegionName));
+                }, () -> player.openInventory(emenu(player, config, finalMatName, file, finalRegionName)));
+                break;
+            case "edit_seed_return":
+                ChatInputListener.requestInput(player, "Seed Return %", "0-100 (e.g. 80)", input -> {
+                    try {
+                        double val = Double.parseDouble(input);
+                        config.set(path + ".seed-return-chance", val);
+                        plugin.getConfigManager().saveConfig("crops.yml");
+                        plugin.getConfigManager().sendPrefixedMessage(player, "&aSeed return chance set to &f" + (int)val + "%");
+                    } catch (NumberFormatException e) {
+                        plugin.getConfigManager().sendPrefixedMessage(player, "&cInvalid input.");
                     }
                     player.openInventory(emenu(player, config, finalMatName, file, finalRegionName));
                 }, () -> player.openInventory(emenu(player, config, finalMatName, file, finalRegionName)));

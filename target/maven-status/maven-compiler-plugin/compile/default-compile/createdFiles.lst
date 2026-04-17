@@ -7,11 +7,15 @@ id\seria\farm\managers\RequirementEngine.class
 id\seria\farm\inventory\edittree\EditMenu.class
 id\seria\farm\inventory\watering\WateringSettingsMenu.class
 id\seria\farm\inventory\watering\SoilRequirementMenu.class
+id\seria\farm\tasks\GrowthTask.class
 id\seria\farm\inventory\addtree\AddMenu.class
 id\seria\farm\SeriaFarmPlugin.class
 id\seria\farm\inventory\maintree\ToggleMenu.class
+id\seria\farm\listeners\BentoBoxListener.class
 id\seria\farm\managers\VisualManager.class
 id\seria\farm\managers\CustomPlantHologramManager.class
+id\seria\farm\listeners\CropPhysicsListener.class
+id\seria\farm\listeners\SoilListener.class
 id\seria\farm\commands\SFarmCommand.class
 id\seria\farm\commands\SFarmTabCompleter.class
 id\seria\farm\inventory\utils\LocalizedName.class
@@ -19,8 +23,10 @@ id\seria\farm\inventory\edittree\RequiredSkillsMenu.class
 id\seria\farm\inventory\edittree\SproutBlockMenu.class
 id\seria\farm\managers\WateringToolManager$WateringTool.class
 id\seria\farm\inventory\edittree\DropsMenu.class
+id\seria\farm\managers\ConfigManager$Settings.class
 id\seria\farm\managers\VisualManager$1.class
 id\seria\farm\inventory\edittree\BlockMenu.class
+id\seria\farm\managers\ExperienceManager.class
 id\seria\farm\managers\FarmManager.class
 id\seria\farm\listeners\AuraSkillsListener.class
 id\seria\farm\inventory\edittree\SkillDetailMenu.class
@@ -63,5 +69,6 @@ id\seria\farm\inventory\maintree\GlobalBlockEditMenu.class
 id\seria\farm\managers\GuiManager.class
 id\seria\farm\inventory\utils\PageUtil.class
 id\seria\farm\managers\GuiManager$MenuHolder.class
+id\seria\farm\managers\SoilSlotManager$SoilBlock.class
 id\seria\farm\hooks\HookManager.class
 id\seria\farm\SeriaFarmPlugin$1.class

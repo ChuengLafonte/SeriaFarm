@@ -66,9 +66,9 @@ crops:
     shining_wheat:
       display-name: "&e✦ Shining Wheat"
       material: WHEAT
-      seed-item: "mi:MISCELLANEOUS:SHINNING_WHEAT_SEED"
+      seed: "shining_wheat_seed"
       soil:
-        - "mi:MISCELLANEOUS:COMPOSTED_SOIL"
+        - "composted_soil"
       regen-delay: 300
       farming-level: 5
       watering:
@@ -78,15 +78,20 @@ crops:
         decay-interval: 120
         rot-threshold: 600
         hologram-height: 1.6
+      seed-return-chance: 80.0
       rewards:
+        xp: 10
+        drops: []
+      rotten-rewards:
+        xp-multiplier: 0.2
         drops: []
 
     crystalized_potato:
       display-name: "&b✦ Crystalized Potato"
       material: POTATO
-      seed-item: "mi:MISCELLANEOUS:CRYSTALIZED_POTATO_SEED"
+      seed: "crystalized_potato_seed"
       soil:
-        - "mi:MISCELLANEOUS:COMPOSTED_SOIL"
+        - "composted_soil"
       regen-delay: 360
       farming-level: 10
       watering:
@@ -96,15 +101,20 @@ crops:
         decay-interval: 120
         rot-threshold: 600
         hologram-height: 1.6
+      seed-return-chance: 80.0
       rewards:
+        xp: 20
+        drops: []
+      rotten-rewards:
+        xp-multiplier: 0.2
         drops: []
 
     shining_golden_carrot:
       display-name: "&6✦ Shining Golden Carrot"
       material: CARROT
-      seed-item: "mi:MISCELLANEOUS:SHINNING_GOLDEN_CARROT_SEED"
+      seed: "shining_golden_carrot_seed"
       soil:
-        - "mi:MISCELLANEOUS:COMPOSTED_SOIL"
+        - "composted_soil"
       regen-delay: 420
       farming-level: 15
       watering:
@@ -114,15 +124,20 @@ crops:
         decay-interval: 120
         rot-threshold: 600
         hologram-height: 1.6
+      seed-return-chance: 80.0
       rewards:
+        xp: 30
+        drops: []
+      rotten-rewards:
+        xp-multiplier: 0.2
         drops: []
 
     fermented_beetroot:
       display-name: "&d✦ Fermented Beetroot"
       material: BEETROOT
-      seed-item: "mi:MISCELLANEOUS:FERMENTED_BEETROOT_SEED"
+      seed: "fermented_beetroot_seed"
       soil:
-        - "mi:MISCELLANEOUS:COMPOSTED_SOIL"
+        - "composted_soil"
       regen-delay: 480
       farming-level: 20
       watering:
@@ -132,7 +147,12 @@ crops:
         decay-interval: 120
         rot-threshold: 600
         hologram-height: 1.6
+      seed-return-chance: 80.0
       rewards:
+        xp: 40
+        drops: []
+      rotten-rewards:
+        xp-multiplier: 0.2
         drops: []
 
   # ─── Region Overrides ────────────────────────────────────────────

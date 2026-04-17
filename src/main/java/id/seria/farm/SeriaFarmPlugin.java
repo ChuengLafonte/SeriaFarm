@@ -21,6 +21,7 @@ public class SeriaFarmPlugin extends JavaPlugin {
     private RequirementEngine requirementEngine;
     private GuiManager guiManager;
     private CustomPlantManager customPlantManager;
+    private ExperienceManager experienceManager;
     private SoilSlotManager soilSlotManager;
     private WateringToolManager wateringToolManager;
     private CustomPlantHologramManager hologramManager;
@@ -44,6 +45,7 @@ public class SeriaFarmPlugin extends JavaPlugin {
         // Initialize Managers
         configManager = new ConfigManager(this);
         configManager.loadConfigs();
+        experienceManager = new ExperienceManager(this);
 
         databaseManager = new DatabaseManager(this);
         databaseManager.initialize();
@@ -68,6 +70,7 @@ public class SeriaFarmPlugin extends JavaPlugin {
         customPlantManager.loadFromDatabase();
         hologramManager = new CustomPlantHologramManager(this);
         id.seria.farm.tasks.WaterDecayTask.start(this);
+        id.seria.farm.tasks.GrowthTask.start(this);
 
         // Register Listeners
         org.bukkit.plugin.PluginManager pm = getServer().getPluginManager();
@@ -95,7 +98,9 @@ public class SeriaFarmPlugin extends JavaPlugin {
         pm.registerEvents(new RegionListener(this), this);
         pm.registerEvents(new GrowthListener(this), this);
         pm.registerEvents(new BlockPlaceListener(this), this);
+        pm.registerEvents(new SoilListener(this), this);
         pm.registerEvents(new CropProtectionListener(this), this);
+        pm.registerEvents(new CropPhysicsListener(this), this);
         pm.registerEvents(new id.seria.farm.inventory.watering.WateringToolsMenu(this), this);
         pm.registerEvents(new id.seria.farm.inventory.watering.WateringSettingsMenu(this), this);
         pm.registerEvents(new id.seria.farm.inventory.watering.SoilRequirementMenu(this), this);
@@ -106,6 +111,11 @@ public class SeriaFarmPlugin extends JavaPlugin {
                 hologramManager.cleanup(e.getPlayer().getUniqueId());
             }
         }, this);
+
+        // Register BentoBox event listener only if plugin exists
+        if (pm.isPluginEnabled("BentoBox")) {
+            pm.registerEvents(new BentoBoxListener(this), this);
+        }
 
         // Register AuraSkills event listener only if plugin exists
         if (pm.isPluginEnabled("AuraSkills")) {
@@ -170,6 +180,10 @@ public class SeriaFarmPlugin extends JavaPlugin {
 
     public CustomPlantManager getCustomPlantManager() {
         return customPlantManager;
+    }
+
+    public ExperienceManager getExperienceManager() {
+        return experienceManager;
     }
 
     public SoilSlotManager getSoilSlotManager() {

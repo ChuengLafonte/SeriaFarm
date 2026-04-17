@@ -12,6 +12,8 @@ import org.bukkit.block.data.BlockData;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitTask;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -37,24 +39,82 @@ public class RegenManager {
     public RegenManager(SeriaFarmPlugin plugin) {
         this.plugin = plugin;
         refreshCaches();
+        loadActiveRegens(); 
         startTicking();
     }
 
-    private void startTicking() {
+    public void startTicking() {
+        if (task != null) task.cancel();
+        double intervalSeconds = plugin.getConfigManager().getSettings().regenTickInterval;
+        long intervalTicks = (long) (intervalSeconds * 20L);
+        if (intervalTicks < 1) intervalTicks = 1;
+
         task = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
             if (activeRegens.isEmpty()) return;
             
             long now = System.currentTimeMillis();
             activeRegens.values().removeIf(regen -> {
+                boolean finished = false;
                 if (regen.isGrowth()) {
-                    return handleGrowthTick(regen, now);
+                    finished = handleGrowthTick(regen, now);
                 } else if (now >= regen.getRestoreTime()) {
                     restoreBlock(regen);
-                    return true;
+                    finished = true;
                 }
-                return false;
+
+                if (finished) {
+                    plugin.getDatabaseManager().removeRegeneratingBlock(regen.getLocation());
+                }
+                return finished;
             });
-        }, 10L, 10L);
+        }, intervalTicks, intervalTicks);
+    }
+
+    private void loadActiveRegens() {
+        String sql = "SELECT * FROM regenerating_blocks";
+        try (PreparedStatement ps = plugin.getDatabaseManager().getConnection().prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            
+            int count = 0;
+            while (rs.next()) {
+                String worldName = rs.getString("world");
+                org.bukkit.World world = Bukkit.getWorld(worldName);
+                if (world == null) continue;
+
+                Location loc = new Location(world, rs.getInt("x"), rs.getInt("y"), rs.getInt("z"));
+                Material originalMat = Material.valueOf(rs.getString("original_mat"));
+                String originalDataStr = rs.getString("original_data");
+                BlockData originalData = originalDataStr != null ? Bukkit.createBlockData(originalDataStr) : Bukkit.createBlockData(originalMat);
+                long restoreTime = rs.getLong("restore_time");
+
+                List<String> replaceBlocks = java.util.Arrays.asList(rs.getString("replace_blocks").split(";"));
+                List<String> delayBlocks = java.util.Arrays.asList(rs.getString("delay_blocks").split(";"));
+                String materialKey = rs.getString("material_key");
+
+                RegenBlock regen = new RegenBlock(loc, originalMat, originalData, restoreTime, replaceBlocks, delayBlocks, materialKey);
+                regen.setGrowth(rs.getInt("is_growth") == 1);
+                regen.setGrowthMode(rs.getString("growth_mode"));
+                regen.setMaxStage(rs.getInt("max_stage"));
+                regen.setCurrentStage(rs.getInt("current_stage"));
+                regen.setStartTime(System.currentTimeMillis() - (restoreTime - System.currentTimeMillis())); // Approximate for vanilla growth smoothing
+
+                // Recalculate step duration for vanilla growth
+                if (regen.isGrowth() && regen.getMaxStage() > 0 && "VANILLA".equalsIgnoreCase(regen.getGrowthMode())) {
+                    long totalDuration = restoreTime - System.currentTimeMillis(); // Note: this is rough, but better than 0
+                    // Actually, step duration is usually based on the config. 
+                    // Let's recalculate based on the original delay if possible, but keep it simple.
+                    ConfigurationSection config = plugin.getConfigManager().getConfig("crops.yml").getConfigurationSection("crops." + materialKey);
+                    int delay = config != null ? config.getInt("regen-delay", 45) : 45;
+                    regen.setStepDuration((delay * 1000L) / regen.getMaxStage());
+                }
+
+                activeRegens.put(toKey(loc), regen);
+                count++;
+            }
+            if (count > 0) plugin.getLogger().info("Recovered " + count + " pending regenerations from database.");
+        } catch (Exception e) {
+            plugin.getLogger().warning("Failed to recovery pending regens: " + e.getMessage());
+        }
     }
 
     private boolean handleGrowthTick(RegenBlock regen, long now) {
@@ -179,6 +239,7 @@ public class RegenManager {
 
     public void cancelRegeneration(Location loc) {
         activeRegens.remove(toKey(loc));
+        plugin.getDatabaseManager().removeRegeneratingBlock(loc);
     }
  
     public void scheduleRegeneration(Block block, int delaySeconds, List<String> replaceBlocks, List<String> delayBlocks, Material fallbackMat, String materialKey) {
@@ -204,6 +265,7 @@ public class RegenManager {
         }
         
         activeRegens.put(toKey(loc), regen);
+        plugin.getDatabaseManager().saveRegeneratingBlock(regen);
     }
 
     public Block getVerticalRoot(Block block) {
@@ -224,13 +286,13 @@ public class RegenManager {
 
     private boolean isVerticalCrop(Material mat) {
         return mat == Material.BAMBOO || mat == Material.BAMBOO_SAPLING || 
-               mat == Material.SUGAR_CANE || mat == Material.WHEAT || 
+               mat == Material.SUGAR_CANE || 
                mat == Material.CACTUS;
     }
 
     private Material getBaseMaterial(Material current) {
         if (current == Material.BAMBOO || current == Material.BAMBOO_SAPLING) return Material.BAMBOO;
-        if (current == Material.SUGAR_CANE || current == Material.WHEAT) return Material.SUGAR_CANE;
+        if (current == Material.SUGAR_CANE) return Material.SUGAR_CANE;
         if (current == Material.CACTUS) return Material.CACTUS;
         return current;
     }
@@ -284,6 +346,7 @@ public class RegenManager {
             long offset = (long) (currentAge * regen.getStepDuration());
             regen.setStartTime(now - offset);
             activeRegens.put(toKey(loc), regen);
+            plugin.getDatabaseManager().saveRegeneratingBlock(regen);
         }
     }
 
@@ -371,6 +434,7 @@ public class RegenManager {
                 block.setBlockData(regen.getOriginalData(), true);
             }
         }
+        plugin.getDatabaseManager().removeRegeneratingBlock(regen.getLocation());
     }
  
     private Material pickMaterial(List<String> replaceBlocks) {

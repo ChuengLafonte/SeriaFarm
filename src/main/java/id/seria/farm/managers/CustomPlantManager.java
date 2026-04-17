@@ -130,20 +130,21 @@ public class CustomPlantManager {
         return after - before;
     }
 
-    /**
-     * Called by WaterDecayTask every decay-interval seconds.
-     * Handles: water decay → rot check → growth advancement.
-     */
     public void tickDecay() {
         long now = System.currentTimeMillis();
         for (CustomPlantState state : cache.values()) {
             if (state.isRotten()) continue;
 
+            // PERFORMANCE: Only process if chunk is loaded
+            Location loc = state.getLocation();
+            if (loc.getWorld() == null || !loc.getWorld().isChunkLoaded(loc.getBlockX() >> 4, loc.getBlockZ() >> 4)) {
+                continue; 
+            }
+
             ConfigurationSection waterCfg = getWaterConfig(state.getCropKey());
             if (waterCfg == null || !waterCfg.getBoolean("enabled", false)) continue;
 
             int decayRate         = waterCfg.getInt("decay-rate", 1);
-            int decayIntervalSecs = waterCfg.getInt("decay-interval", 120);
             long rotThresholdMs   = waterCfg.getLong("rot-threshold", 600) * 1000L;
 
             // ── Water decay ───────────────────────────────────────────────
@@ -159,28 +160,65 @@ public class CustomPlantManager {
                 }
             }
 
-            // ── Growth advancement (only when watered) ────────────────────
-            if (newLevel > 0) {
-                int regenDelaySecs = getRegenDelaySecs(state.getCropKey());
-                long wateredMs = now - state.getPlantedAt();
-                
-                org.bukkit.Bukkit.getScheduler().runTask(plugin, () -> {
-                    Location loc = state.getLocation();
-                    if (loc.getWorld() == null) return;
-                    Block b = loc.getBlock();
-                    if (b.getBlockData() instanceof Ageable ag && ag.getAge() < ag.getMaximumAge()) {
-                        int exactAge = (int) Math.floor(((double)wateredMs / (regenDelaySecs * 1000L)) * ag.getMaximumAge());
-                        exactAge = Math.min(ag.getMaximumAge(), Math.max(ag.getAge(), exactAge));
-                        if (exactAge != ag.getAge()) {
-                            ag.setAge(exactAge);
-                            b.setBlockData(ag, true);
-                        }
-                    }
-                });
-            }
-
             updateAsync(state);
         }
+    }
+
+    /**
+     * Called by GrowthTask every growth-tick-interval seconds.
+     * Updates the physical block age based on time elapsed since planting.
+     */
+    public void tickGrowth() {
+        long now = System.currentTimeMillis();
+        List<Runnable> syncTasks = new java.util.ArrayList<>();
+
+        for (CustomPlantState state : cache.values()) {
+            if (state.isRotten() || state.getWateringLevel() <= 0) continue;
+
+            // PERFORMANCE: Only process if chunk is loaded
+            Location loc = state.getLocation();
+            if (loc.getWorld() == null || !loc.getWorld().isChunkLoaded(loc.getBlockX() >> 4, loc.getBlockZ() >> 4)) {
+                continue; 
+            }
+
+            int regenDelaySecs = getRegenDelaySecs(state.getCropKey());
+            long wateredMs = now - state.getPlantedAt();
+            
+            // MATH (Calculated in caller thread - async if tickGrowth is called async)
+            // Note: Currently GrowthTask calls this, so it's sync, but the logic is prepared.
+            double progress = (double) wateredMs / (regenDelaySecs * 1000L);
+            
+            syncTasks.add(() -> {
+                Block b = loc.getBlock();
+                if (b.getBlockData() instanceof Ageable ag && ag.getAge() < ag.getMaximumAge()) {
+                    int exactAge = (int) Math.floor(progress * ag.getMaximumAge());
+                    exactAge = Math.min(ag.getMaximumAge(), Math.max(ag.getAge(), exactAge));
+                    if (exactAge != ag.getAge()) {
+                        ag.setAge(exactAge);
+                        b.setBlockData(ag, true);
+                    }
+                }
+            });
+        }
+
+        // Batch execution on Main Thread
+        if (!syncTasks.isEmpty()) {
+            org.bukkit.Bukkit.getScheduler().runTask(plugin, () -> {
+                for (Runnable r : syncTasks) r.run();
+            });
+        }
+    }
+
+    /**
+     * Checks if a plant is logically fully grown based on time elapsed.
+     */
+    public boolean isLogicallyFullyGrown(CustomPlantState state) {
+        if (state == null) return false;
+        if (state.isRotten()) return false;
+        
+        long now = System.currentTimeMillis();
+        long regenDelayMs = getRegenDelaySecs(state.getCropKey()) * 1000L;
+        return (now - state.getPlantedAt()) >= regenDelayMs;
     }
 
     private void rotPlant(CustomPlantState state) {
@@ -271,51 +309,101 @@ public class CustomPlantManager {
 
         ConfigurationSection garden = plugin.getConfigManager().getConfig("crops.yml")
                 .getConfigurationSection("crops.garden");
-        if (garden == null) {
-            plugin.getLogger().warning("[DEBUG] isValidSoil: crops.garden section NOT FOUND in crops.yml!");
-            return false;
-        }
+        if (garden == null) return false;
 
         for (String cropKey : garden.getKeys(false)) {
-            for (String soil : garden.getStringList(cropKey + ".soil")) {
-                // 1. Vanilla name match (fast, no HookManager call)
-                if (soil.equalsIgnoreCase(blockTypeName)) return true;
-                // 2. Resolved base-material match (cached after first call)
-                Material resolved = resolveSoilMaterial(soil);
-                plugin.getLogger().info("[DEBUG] isValidSoil: soil='" + soil + "' resolved='" + resolved + "' blockType='" + blockTypeName + "'");
+            for (String soilKey : garden.getStringList(cropKey + ".soil")) {
+                // 1. Resolve key to actual item-id from soils.yml
+                String actualId = getSoilItemId(soilKey);
+                if (actualId == null) {
+                    // Fallback to strict material name match for vanity (like "FARMLAND")
+                    if (soilKey.equalsIgnoreCase(blockTypeName)) return true;
+                    continue;
+                }
+
+                // 2. Resolve actualId to Material
+                Material resolved = resolveSoilMaterial(actualId);
                 if (resolved != Material.AIR && resolved == blockType) return true;
             }
         }
         return false;
     }
 
-    public java.util.List<String> getAllSoilIdentifiers() {
-        java.util.List<String> soils = new java.util.ArrayList<>();
-        ConfigurationSection garden = plugin.getConfigManager().getConfig("crops.yml")
-                .getConfigurationSection("crops.garden");
-        if (garden == null) return soils;
-        for (String cropKey : garden.getKeys(false)) {
-            soils.addAll(garden.getStringList(cropKey + ".soil"));
-        }
-        return soils.stream().distinct().collect(java.util.stream.Collectors.toList());
-    }
-
     public boolean isSoilItem(org.bukkit.inventory.ItemStack item) {
         if (item == null || item.getType() == Material.AIR) return false;
         String id = plugin.getHookManager().getItemIdentifier(item);
-        
-        ConfigurationSection garden = plugin.getConfigManager().getConfig("crops.yml")
-                .getConfigurationSection("crops.garden");
-        if (garden == null) return false;
+        String matName = item.getType().name();
 
-        for (String cropKey : garden.getKeys(false)) {
-            for (String soil : garden.getStringList(cropKey + ".soil")) {
-                if (soil.equalsIgnoreCase(id) || soil.equalsIgnoreCase(item.getType().name())) {
-                    return true;
-                }
-            }
+        ConfigurationSection soils = plugin.getConfigManager().getConfig("soils.yml")
+                .getConfigurationSection("soils");
+        if (soils == null) return false;
+
+        for (String key : soils.getKeys(false)) {
+            String itemId = soils.getString(key + ".item-id");
+            if (itemId == null) continue;
+            if (itemId.equalsIgnoreCase(id) || itemId.equalsIgnoreCase(matName)) return true;
         }
         return false;
+    }
+
+    public String getSoilKeyFromItem(org.bukkit.inventory.ItemStack item) {
+        if (item == null || item.getType() == Material.AIR) return null;
+        String id = plugin.getHookManager().getItemIdentifier(item);
+        String matName = item.getType().name();
+
+        ConfigurationSection soils = plugin.getConfigManager().getConfig("soils.yml")
+                .getConfigurationSection("soils");
+        if (soils == null) return null;
+
+        for (String key : soils.getKeys(false)) {
+            String itemId = soils.getString(key + ".item-id");
+            if (itemId == null) continue;
+            if (itemId.equalsIgnoreCase(id) || itemId.equalsIgnoreCase(matName)) return key;
+        }
+        return null;
+    }
+
+    public String getSoilItemId(String key) {
+        return plugin.getConfigManager().getConfig("soils.yml").getString("soils." + key + ".item-id");
+    }
+
+    /** Resolve a seed key from seeds.yml to its technical item identifier. */
+    public String getSeedItemId(String key) {
+        return plugin.getConfigManager().getConfig("seeds.yml").getString("seeds." + key + ".item-id");
+    }
+
+    /** Find the seed key for a given item stack by checking seeds.yml. */
+    public String getSeedKeyFromItem(org.bukkit.inventory.ItemStack item) {
+        if (item == null || item.getType() == Material.AIR) return null;
+        String id = plugin.getHookManager().getItemIdentifier(item);
+        String matName = item.getType().name();
+
+        ConfigurationSection seeds = plugin.getConfigManager().getConfig("seeds.yml")
+                .getConfigurationSection("seeds");
+        if (seeds == null) return null;
+
+        for (String key : seeds.getKeys(false)) {
+            String itemId = seeds.getString(key + ".item-id");
+            if (itemId == null) continue;
+            if (itemId.equalsIgnoreCase(id) || itemId.equalsIgnoreCase(matName)) return key;
+        }
+        return null;
+    }
+
+    /** Returns all registered soil keys from soils.yml. */
+    public List<String> getAllSoilKeys() {
+        ConfigurationSection soils = plugin.getConfigManager().getConfig("soils.yml")
+                .getConfigurationSection("soils");
+        if (soils == null) return new java.util.ArrayList<>();
+        return new java.util.ArrayList<>(soils.getKeys(false));
+    }
+
+    /** Returns all registered seed keys from seeds.yml. */
+    public List<String> getAllSeedKeys() {
+        ConfigurationSection seeds = plugin.getConfigManager().getConfig("seeds.yml")
+                .getConfigurationSection("seeds");
+        if (seeds == null) return new java.util.ArrayList<>();
+        return new java.util.ArrayList<>(seeds.getKeys(false));
     }
 
     /**
@@ -325,13 +413,19 @@ public class CustomPlantManager {
     public String findCropBySeed(String seedIdentifier) {
         ConfigurationSection garden = plugin.getConfigManager().getConfig("crops.yml")
                 .getConfigurationSection("crops.garden");
-        if (garden == null) {
-            plugin.getLogger().warning("[DEBUG] findCropBySeed: crops.garden NOT FOUND!");
-            return null;
-        }
+        if (garden == null) return null;
+
         for (String cropKey : garden.getKeys(false)) {
-            String seed = garden.getString(cropKey + ".seed-item", "");
-            if (seed.equalsIgnoreCase(seedIdentifier)) return cropKey;
+            // 1. Check new 'seed' field (reference to seeds.yml)
+            String seedKey = garden.getString(cropKey + ".seed");
+            if (seedKey != null) {
+                String techId = getSeedItemId(seedKey);
+                if (techId != null && techId.equalsIgnoreCase(seedIdentifier)) return cropKey;
+            }
+
+            // 2. Fallback to legacy 'seed-item' field
+            String legacySeed = garden.getString(cropKey + ".seed-item");
+            if (legacySeed != null && legacySeed.equalsIgnoreCase(seedIdentifier)) return cropKey;
         }
         return null;
     }

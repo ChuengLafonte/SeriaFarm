@@ -18,13 +18,26 @@ public class ConfigManager {
     private final Map<String, FileConfiguration> configs = new HashMap<>();
     private final Map<String, File> configFiles = new HashMap<>();
     private FileConfiguration internalMessagesConfig = null;
+    private Settings cachedSettings;
+
+    public static class Settings {
+        public boolean enabled;
+        public boolean dropToInventory;
+        public String cropGrowthMode;
+        public boolean globalRightClickHarvest;
+        public boolean globalReplant;
+        public double globalLevelScaling;
+        public boolean sweepEnabled;
+        public double regenTickInterval;
+        public int baseSoilSlots;
+    }
 
     public ConfigManager(SeriaFarmPlugin plugin) {
         this.plugin = plugin;
     }
 
     public void loadConfigs() {
-        String[] files = {"config.yml", "crops.yml", "gui.yml", "messages.yml", "regions.yml"};
+        String[] files = {"config.yml", "crops.yml", "gui.yml", "messages.yml", "regions.yml", "soils.yml", "seeds.yml"};
         for (String fileName : files) {
             File file = new File(plugin.getDataFolder(), fileName);
             if (!file.exists()) {
@@ -34,6 +47,7 @@ public class ConfigManager {
             configFiles.put(fileName, file);
         }
         
+        cacheSettings();
         // Handle migration from materials.yml if crops.yml is missing its core structure
         handleMigration();
     }
@@ -81,6 +95,7 @@ public class ConfigManager {
         // Refresh dependent caches
         if (plugin.getRegenManager() != null) {
             plugin.getRegenManager().refreshCaches();
+            plugin.getRegenManager().startTicking();
         }
         injectDropTablesIntoCrops();
     }
@@ -177,5 +192,24 @@ public class ConfigManager {
         FileConfiguration msgConfig = getConfig("messages.yml");
         String prefix = msgConfig.getString("prefix", "");
         player.sendMessage(StaticColors.getHexMsg(prefix + message));
+    }
+
+    private void cacheSettings() {
+        FileConfiguration config = getConfig("config.yml");
+        cachedSettings = new Settings();
+        cachedSettings.enabled = config.getBoolean("settings.enabled", true);
+        cachedSettings.dropToInventory = config.getBoolean("settings.drop-to-inventory", false);
+        cachedSettings.cropGrowthMode = config.getString("settings.crop-growth-mode", "INSTANT");
+        cachedSettings.globalRightClickHarvest = config.getBoolean("settings.global-right-click-harvest", true);
+        cachedSettings.globalReplant = config.getBoolean("settings.global-replant", true);
+        cachedSettings.globalLevelScaling = config.getDouble("settings.global-level-scaling", 0.1);
+        cachedSettings.sweepEnabled = config.getBoolean("settings.sweep.enabled", false);
+        cachedSettings.regenTickInterval = config.getDouble("settings.regen-tick-interval", 0.5);
+        cachedSettings.baseSoilSlots = config.getInt("composted-soil.base-slots", 9);
+    }
+
+    public Settings getSettings() {
+        if (cachedSettings == null) cacheSettings();
+        return cachedSettings;
     }
 }

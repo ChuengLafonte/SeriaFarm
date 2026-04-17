@@ -28,8 +28,8 @@ public class RegenBlock {
         this.originalMaterial = originalMaterial;
         this.originalData = originalData;
         this.restoreTime = restoreTime;
-        this.replaceBlocks = replaceBlocks;
-        this.delayBlocks = delayBlocks;
+        this.replaceBlocks = replaceBlocks != null ? replaceBlocks : new java.util.ArrayList<>();
+        this.delayBlocks = delayBlocks != null ? delayBlocks : new java.util.ArrayList<>();
         this.materialKey = materialKey;
     }
 

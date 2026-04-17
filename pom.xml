@@ -40,6 +40,10 @@
             <id>phoenix</id>
             <url>https://nexus.phoenixdevt.fr/repository/maven-public/</url>
         </repository>
+        <repository>
+            <id>codemc-repo</id>
+            <url>https://repo.codemc.io/repository/bentoboxworld/</url>
+        </repository>
     </repositories>
 
     <dependencies>
@@ -77,6 +81,12 @@
             <groupId>io.lumine</groupId>
             <artifactId>MythicLib-dist</artifactId>
             <version>1.7.1-SNAPSHOT</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>world.bentobox</groupId>
+            <artifactId>bentobox</artifactId>
+            <version>1.24.0</version>
             <scope>provided</scope>
         </dependency>
     </dependencies>

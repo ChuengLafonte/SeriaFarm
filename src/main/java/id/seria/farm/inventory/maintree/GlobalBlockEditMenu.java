@@ -41,6 +41,11 @@ public class GlobalBlockEditMenu implements Listener {
         Map<String, String> placeholders = new HashMap<>();
         placeholders.put("%display_name%", displayName);
         placeholders.put("%delay%", String.valueOf(delay));
+        
+        double rottenMulti = config.getDouble(path + ".rotten-rewards.xp-multiplier", 0.2);
+        double seedReturn = config.getDouble(path + ".seed-return-chance", 80.0);
+        placeholders.put("%rotten_xp_multi%", String.valueOf((int)(rottenMulti * 100)));
+        placeholders.put("%seed_return%", String.valueOf((int)seedReturn));
 
         Inventory inventory = plugin.getGuiManager().createInventory("catalog-edit-menu", placeholders);
 
@@ -100,7 +105,32 @@ public class GlobalBlockEditMenu implements Listener {
                 }, () -> player.openInventory(open(player, matName)));
                 break;
             case "edit_drops":
-                new DropsMenu(plugin).open(player, matName, "global", path);
+                new DropsMenu(plugin).open(player, matName, "global", path + ".rewards");
+                break;
+            case "edit_rotten_drops":
+                new DropsMenu(plugin).open(player, matName, "global", path + ".rotten-rewards");
+                break;
+            case "edit_rotten_xp":
+                ChatInputListener.requestInput(player, "Rotten XP %", "0-100 (e.g. 20)", input -> {
+                    try {
+                        double val = Double.parseDouble(input) / 100.0;
+                        config.set(path + ".rotten-rewards.xp-multiplier", val);
+                        plugin.getConfigManager().saveConfig("crops.yml");
+                        plugin.getConfigManager().sendPrefixedMessage(player, "&aRotten XP set to &f" + (int)(val*100) + "%");
+                    } catch (Exception e) {}
+                    player.openInventory(open(player, matName));
+                }, () -> player.openInventory(open(player, matName)));
+                break;
+            case "edit_seed_return":
+                ChatInputListener.requestInput(player, "Seed Return %", "0-100 (e.g. 80)", input -> {
+                    try {
+                        double val = Double.parseDouble(input);
+                        config.set(path + ".seed-return-chance", val);
+                        plugin.getConfigManager().saveConfig("crops.yml");
+                        plugin.getConfigManager().sendPrefixedMessage(player, "&aSeed return chance set to &f" + (int)val + "%");
+                    } catch (Exception e) {}
+                    player.openInventory(open(player, matName));
+                }, () -> player.openInventory(open(player, matName)));
                 break;
             case "edit_sprout":
                 new id.seria.farm.inventory.edittree.SproutBlockMenu(plugin).open(player, matName, "global", "delay-blocks", path);

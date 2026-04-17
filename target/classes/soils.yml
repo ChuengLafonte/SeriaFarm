@@ -1,0 +1,10 @@
+# SeriaFarm Soils Configuration
+# Mendaftarkan jenis-jenis tanah yang bisa digunakan untuk pertanian.
+# Gunakan ID ini di crops.yml pada bagian 'soil'.
+
+soils:
+  composted_soil:
+    # Identifier item (MMOItems, ItemsAdder, Nexo, Oraxen, atau Vanilla)
+    item-id: "mi:MISCELLANEOUS:COMPOSTED_SOIL"
+    # Nama tampilan untuk mempermudah identifikasi (misal di admin panel jika ada)
+    display-name: "&6Composted Soil"

@@ -16,8 +16,7 @@ import java.util.Map;
 public class ToggleMenu implements Listener {
 
     public static boolean isDropToInvEnabled() {
-        return SeriaFarmPlugin.getInstance().getConfigManager().getConfig("config.yml")
-                .getBoolean("settings.drop-to-inventory", false);
+        return SeriaFarmPlugin.getInstance().getConfigManager().getSettings().dropToInventory;
     }
 
     private final SeriaFarmPlugin plugin;
@@ -78,11 +77,13 @@ public class ToggleMenu implements Listener {
             case "toggle_enabled":
                 config.set("settings.enabled", !config.getBoolean("settings.enabled", true));
                 plugin.getConfigManager().saveConfig("config.yml");
+                plugin.getConfigManager().reloadConfigs();
                 player.openInventory(togglemenu(player));
                 break;
             case "toggle_drop":
                 config.set("settings.drop-to-inventory", !config.getBoolean("settings.drop-to-inventory", false));
                 plugin.getConfigManager().saveConfig("config.yml");
+                plugin.getConfigManager().reloadConfigs();
                 player.openInventory(togglemenu(player));
                 break;
             case "toggle_growth":
@@ -90,17 +91,20 @@ public class ToggleMenu implements Listener {
                 String next = current.equalsIgnoreCase("INSTANT") ? "VANILLA" : "INSTANT";
                 config.set("settings.crop-growth-mode", next);
                 plugin.getConfigManager().saveConfig("config.yml");
+                plugin.getConfigManager().reloadConfigs();
                 player.openInventory(togglemenu(player));
                 break;
             case "toggle_harvest":
                 config.set("settings.global-right-click-harvest",
                         !config.getBoolean("settings.global-right-click-harvest", true));
                 plugin.getConfigManager().saveConfig("config.yml");
+                plugin.getConfigManager().reloadConfigs();
                 player.openInventory(togglemenu(player));
                 break;
             case "toggle_replant":
                 config.set("settings.global-replant", !config.getBoolean("settings.global-replant", true));
                 plugin.getConfigManager().saveConfig("config.yml");
+                plugin.getConfigManager().reloadConfigs();
                 player.openInventory(togglemenu(player));
                 break;
         }

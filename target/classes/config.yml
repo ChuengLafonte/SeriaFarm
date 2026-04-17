@@ -12,6 +12,17 @@ settings:
   crop-growth-mode: VANILLA
   global-level-scaling: 0.1 # Bonus chance per farming level
   global-replant: true
+  
+  # XP System: VANILLA, AURASKILLS, MCMMO, MMOCORE
+  xp-engine: VANILLA
+  # Skill ID for RPG plugins (lowercase 'farming' for AuraSkills)
+  xp-skill-id: farming
+  
+  # Interval in seconds for water decay and growth visual updates
+  decay-tick-interval: 60
+  growth-tick-interval: 2
+  # Smoothness of Regional/Global regeneration (Seconds). 0.5s is recommended.
+  regen-tick-interval: 0.5
 
 # Integration settings
 hooks:

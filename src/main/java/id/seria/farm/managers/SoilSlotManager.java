@@ -15,9 +15,22 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class SoilSlotManager {
 
+    // ─── Model ───
+    public static class SoilBlock {
+        private final UUID owner;
+        private final String soilId;
+        public SoilBlock(UUID owner, String soilId) {
+            this.owner = owner;
+            this.soilId = soilId;
+        }
+        public UUID getOwner() { return owner; }
+        public String getSoilId() { return soilId; }
+    }
+
     private final SeriaFarmPlugin plugin;
     // In-memory cache of placed soil blocks
-    private final Map<org.bukkit.Location, UUID> placedSoils = new ConcurrentHashMap<>();
+    private final Map<org.bukkit.Location, SoilBlock> placedSoils = new ConcurrentHashMap<>();
+    private final Map<UUID, Integer> extraSlotsCache = new ConcurrentHashMap<>();
     private boolean loaded = false;
 
     public SoilSlotManager(SeriaFarmPlugin plugin) {
@@ -36,7 +49,8 @@ public class SoilSlotManager {
                 org.bukkit.Location loc = new org.bukkit.Location(
                         world, rs.getInt("x"), rs.getInt("y"), rs.getInt("z"));
                 UUID owner = UUID.fromString(rs.getString("owner_uuid"));
-                placedSoils.put(loc, owner);
+                String sId = rs.getString("soil_id");
+                placedSoils.put(loc, new SoilBlock(owner, sId));
             }
             loaded = true;
             plugin.getLogger().info("Loaded " + placedSoils.size() + " composted soil blocks.");
@@ -48,14 +62,16 @@ public class SoilSlotManager {
     // ─── Slot Calculation ─────────────────────────────────────────────────
 
     public int getMaxSlots(Player player) {
-        int base = plugin.getConfigManager().getConfig("config.yml")
-                .getInt("composted-soil.base-slots", 9);
+        int base = plugin.getConfigManager().getSettings().baseSoilSlots;
+
+        // Add admin-given extra slots
+        int extra = getExtraSlots(player.getUniqueId());
 
         ConfigurationSection thresholds = plugin.getConfigManager().getConfig("config.yml")
                 .getConfigurationSection("composted-soil.level-thresholds");
 
         if (thresholds == null || !plugin.getHookManager().isAuraSkillsEnabled()) {
-            return base;
+            return base + extra;
         }
 
         int farmingLevel = plugin.getAuraSkillsManager().getFarmingLevel(player);
@@ -68,7 +84,11 @@ public class SoilSlotManager {
                 }
             } catch (NumberFormatException ignored) {}
         }
-        return base + bonus;
+        return base + bonus + extra;
+    }
+
+    public int getExtraSlots(UUID uuid) {
+        return extraSlotsCache.computeIfAbsent(uuid, k -> plugin.getDatabaseManager().getExtraSlots(k));
     }
 
     public int getUsedSlots(Player player) {
@@ -77,7 +97,7 @@ public class SoilSlotManager {
 
     public int getUsedSlotsByUUID(UUID uuid) {
         if (!loaded) loadAll();
-        return (int) placedSoils.values().stream().filter(u -> u.equals(uuid)).count();
+        return (int) placedSoils.values().stream().filter(b -> b.getOwner().equals(uuid)).count();
     }
 
     public boolean canPlace(Player player) {
@@ -85,18 +105,28 @@ public class SoilSlotManager {
     }
 
     public boolean isSoilOwner(org.bukkit.Location loc, UUID uuid) {
-        UUID owner = placedSoils.get(loc);
-        return owner != null && owner.equals(uuid);
+        SoilBlock b = placedSoils.get(loc);
+        return b != null && b.getOwner().equals(uuid);
     }
 
     public UUID getOwner(org.bukkit.Location loc) {
-        return placedSoils.get(loc);
+        SoilBlock b = placedSoils.get(loc);
+        return b != null ? b.getOwner() : null;
     }
 
-    public void placeSoil(org.bukkit.Location loc, Player player) {
+    public String getSoilId(org.bukkit.Location loc) {
+        SoilBlock b = placedSoils.get(loc);
+        return b != null ? b.getSoilId() : null;
+    }
+
+    public Map<org.bukkit.Location, SoilBlock> getPlacedSoils() {
+        return placedSoils;
+    }
+
+    public void placeSoil(org.bukkit.Location loc, Player player, String soilId) {
         UUID uuid = player.getUniqueId();
-        placedSoils.put(loc, uuid);
-        saveAsync(loc, uuid);
+        placedSoils.put(loc, new SoilBlock(uuid, soilId));
+        saveAsync(loc, uuid, soilId);
     }
 
     public void breakSoil(org.bukkit.Location loc) {
@@ -105,17 +135,90 @@ public class SoilSlotManager {
         }
     }
 
+    /**
+     * Forcefully removes soil without typical break checks (used for island deletion).
+     */
+    public void forceRemoveSoil(org.bukkit.Location loc) {
+        if (placedSoils.remove(loc) != null) {
+            deleteAsync(loc);
+            loc.getBlock().setType(org.bukkit.Material.AIR);
+        }
+    }
+
+    /**
+     * Picks up all soil blocks owned by the target player and returns them to their inventory.
+     */
+    public int pickupAllSoil(org.bukkit.command.CommandSender admin, Player target) {
+        UUID uuid = target.getUniqueId();
+        java.util.List<org.bukkit.Location> targetLocs = new java.util.ArrayList<>();
+        
+        for (Map.Entry<org.bukkit.Location, SoilBlock> entry : placedSoils.entrySet()) {
+            if (entry.getValue().getOwner().equals(uuid)) {
+                targetLocs.add(entry.getKey());
+            }
+        }
+
+        int count = 0;
+        for (org.bukkit.Location loc : targetLocs) {
+            String soilId = getSoilId(loc);
+            if (soilId != null) {
+                // Return item to player
+                org.bukkit.configuration.file.FileConfiguration soilsConfig = plugin.getConfigManager().getConfig("soils.yml");
+                String itemId = soilsConfig.getString("soils." + soilId + ".item-id");
+                if (itemId != null) {
+                    org.bukkit.inventory.ItemStack item = plugin.getHookManager().getItem(itemId);
+                    if (item != null && item.getType() != org.bukkit.Material.AIR) {
+                        target.getInventory().addItem(item);
+                    }
+                }
+            }
+            forceRemoveSoil(loc);
+            count++;
+        }
+        return count;
+    }
+
+    // ─── Extra Slots Management ──────────────────────────────────────────
+
+    public void setExtraSlots(UUID uuid, int total) {
+        int val = Math.max(0, total);
+        extraSlotsCache.put(uuid, val);
+        plugin.getDatabaseManager().setExtraSlots(uuid, val);
+    }
+
+    public void addExtraSlots(UUID uuid, int amount) {
+        setExtraSlots(uuid, getExtraSlots(uuid) + amount);
+    }
+
+    public void removeExtraSlots(UUID uuid, int amount) {
+        setExtraSlots(uuid, getExtraSlots(uuid) - amount);
+    }
+
+    public void sendNotification(Player player) {
+        int used = getUsedSlots(player);
+        int max = getMaxSlots(player);
+        
+        String msg = plugin.getConfigManager().getConfig("messages.yml")
+                .getString("soil-slot-notification", "&fCave Soil, Slot &e{used}&f/&e{max}");
+        
+        msg = msg.replace("{used}", String.valueOf(used))
+                 .replace("{max}", String.valueOf(max));
+        
+        plugin.getConfigManager().sendPrefixedMessage(player, msg);
+    }
+
     // ─── DB ───────────────────────────────────────────────────────────────
 
-    private void saveAsync(org.bukkit.Location loc, UUID uuid) {
+    private void saveAsync(org.bukkit.Location loc, UUID uuid, String soilId) {
         org.bukkit.Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
-            String sql = "INSERT OR REPLACE INTO player_soil_blocks (world, x, y, z, owner_uuid) VALUES (?, ?, ?, ?, ?)";
+            String sql = "INSERT OR REPLACE INTO player_soil_blocks (world, x, y, z, owner_uuid, soil_id) VALUES (?, ?, ?, ?, ?, ?)";
             try (PreparedStatement ps = plugin.getDatabaseManager().getConnection().prepareStatement(sql)) {
                 ps.setString(1, loc.getWorld().getName());
                 ps.setInt(2, loc.getBlockX());
                 ps.setInt(3, loc.getBlockY());
                 ps.setInt(4, loc.getBlockZ());
                 ps.setString(5, uuid.toString());
+                ps.setString(6, soilId);
                 ps.executeUpdate();
             } catch (SQLException e) {
                 plugin.getLogger().warning("DB Error (save soil blocks): " + e.getMessage());

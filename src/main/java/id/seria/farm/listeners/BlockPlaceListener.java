@@ -19,7 +19,7 @@ public class BlockPlaceListener implements Listener {
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onBlockPlace(BlockPlaceEvent event) {
         // 0. Check if plugin is globally enabled
-        if (!plugin.getConfigManager().getConfig("config.yml").getBoolean("settings.enabled", true)) return;
+        if (!plugin.getConfigManager().getSettings().enabled) return;
 
         Block block = event.getBlock();
 
@@ -35,11 +35,17 @@ public class BlockPlaceListener implements Listener {
                 return;
             }
             
+            String soilKey = plugin.getCustomPlantManager().getSoilKeyFromItem(item);
+            if (soilKey == null) {
+                // If not in soils.yml, we don't track it as a managed soil slot?
+                // Or use raw ID as fallback? User said strict, so we might block placement if not in soils.yml.
+                // But isSoilItem already checked if it's in soils.yml.
+                soilKey = plugin.getHookManager().getItemIdentifier(item); 
+            }
+            
             // Register it!
-            plugin.getSoilSlotManager().placeSoil(block.getLocation(), player);
-            int usedNow = plugin.getSoilSlotManager().getUsedSlots(player) + 1;
-            int max = plugin.getSoilSlotManager().getMaxSlots(player);
-            plugin.getConfigManager().sendPrefixedMessage(player, "&aPemasangan berhasil, Slot: &f" + usedNow + "&a/&f" + max);
+            plugin.getSoilSlotManager().placeSoil(block.getLocation(), player, soilKey);
+            plugin.getSoilSlotManager().sendNotification(player);
         }
 
         // 2. Check if this is a managed crop/block

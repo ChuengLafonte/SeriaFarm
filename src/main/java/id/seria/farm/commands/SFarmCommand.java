@@ -101,6 +101,7 @@ public class SFarmCommand implements CommandExecutor, TabCompleter {
             case "reload":
                 if (!player.isOp()) return noPerm(player);
                 plugin.getConfigManager().reloadConfigs();
+                plugin.getExperienceManager().reload();
                 plugin.getConfigManager().sendPrefixedMessage(player, " &aPlugin reloaded successfully!");
                 break;
             case "clear":
@@ -109,35 +110,134 @@ public class SFarmCommand implements CommandExecutor, TabCompleter {
                 WandListener.Mpos2.remove(player.getUniqueId());
                 plugin.getConfigManager().sendPrefixedMessage(player, " &aSelection and particles cleared!");
                 break;
-            case "givesoil":
+            case "soil":
                 if (!player.isOp()) return noPerm(player);
-                if (args.length < 3) {
-                    plugin.getConfigManager().sendPrefixedMessage(player, " &cUsage: /sfarm givesoil <soil_id> <player> [amount]");
+                if (args.length < 2) {
+                    plugin.getConfigManager().sendPrefixedMessage(player, " &cUsage: /sfarm soil <pickup|slot|give> ...");
                     return true;
                 }
-                String soilId = args[1];
-                Player target = org.bukkit.Bukkit.getPlayer(args[2]);
-                if (target == null) {
-                    plugin.getConfigManager().sendPrefixedMessage(player, " &cPlayer not found: " + args[2]);
-                    return true;
-                }
-                int amount = 1;
-                if (args.length >= 4) {
-                    try { amount = Integer.parseInt(args[3]); } catch (NumberFormatException e) {
-                        plugin.getConfigManager().sendPrefixedMessage(player, " &cInvalid amount: " + args[3]);
+                
+                String soilSub = args[1].toLowerCase();
+                
+                // 1. /sfarm soil pickup <namaplayer>
+                if (soilSub.equals("pickup")) {
+                    if (args.length < 3) {
+                        plugin.getConfigManager().sendPrefixedMessage(player, " &cUsage: /sfarm soil pickup <player>");
                         return true;
                     }
+                    Player target = org.bukkit.Bukkit.getPlayer(args[2]);
+                    if (target == null) {
+                        plugin.getConfigManager().sendPrefixedMessage(player, " &cPlayer &f" + args[2] + " &cnot found or offline.");
+                        return true;
+                    }
+                    int picked = plugin.getSoilSlotManager().pickupAllSoil(player, target);
+                    plugin.getConfigManager().sendPrefixedMessage(player, " &aPicked up &f" + picked + " &asoil blocks from &f" + target.getName());
+                    return true;
                 }
-                
-                ItemStack soilItem = plugin.getHookManager().getItem(soilId);
-                if (soilItem == null || soilItem.getType() == Material.AIR) {
-                    plugin.getConfigManager().sendPrefixedMessage(player, " &cInvalid soil identifier: " + soilId);
+
+                // 2. /sfarm soil slot <add|set|remove> <player> <amount>
+                if (soilSub.equals("slot")) {
+                    if (args.length < 5) {
+                        plugin.getConfigManager().sendPrefixedMessage(player, " &cUsage: /sfarm soil slot <add|set|remove> <player> <amount>");
+                        return true;
+                    }
+                    String slotAction = args[2].toLowerCase();
+                    String tName = args[3];
+                    int amount;
+                    try { amount = Integer.parseInt(args[4]); } catch (Exception e) {
+                        plugin.getConfigManager().sendPrefixedMessage(player, " &cInvalid amount: " + args[4]);
+                        return true;
+                    }
+
+                    org.bukkit.OfflinePlayer target = org.bukkit.Bukkit.getOfflinePlayer(tName);
+                    java.util.UUID uuid = target.getUniqueId();
+
+                    switch (slotAction) {
+                        case "add":
+                            plugin.getSoilSlotManager().addExtraSlots(uuid, amount);
+                            plugin.getConfigManager().sendPrefixedMessage(player, " &aAdded &f" + amount + " &aslots to &f" + tName);
+                            break;
+                        case "set":
+                            plugin.getSoilSlotManager().setExtraSlots(uuid, amount);
+                            plugin.getConfigManager().sendPrefixedMessage(player, " &aSet total extra slots for &f" + tName + " &ato &f" + amount);
+                            break;
+                        case "remove":
+                            plugin.getSoilSlotManager().removeExtraSlots(uuid, amount);
+                            plugin.getConfigManager().sendPrefixedMessage(player, " &aRemoved &f" + amount + " &aslots from &f" + tName);
+                            break;
+                        default:
+                            plugin.getConfigManager().sendPrefixedMessage(player, " &cUnknown action: " + slotAction);
+                            break;
+                    }
+                    return true;
+                }
+
+                // 3. /sfarm soil give <key> <player> <amount>
+                if (soilSub.equals("give")) {
+                    if (args.length < 4) {
+                        plugin.getConfigManager().sendPrefixedMessage(player, " &cUsage: /sfarm soil give <soilKey> <player> [amount]");
+                        return true;
+                    }
+                    String key = args[2];
+                    Player target = org.bukkit.Bukkit.getPlayer(args[3]);
+                    if (target == null) {
+                        plugin.getConfigManager().sendPrefixedMessage(player, " &cPlayer not found: " + args[3]);
+                        return true;
+                    }
+                    int amount = 1;
+                    if (args.length >= 5) {
+                        try { amount = Integer.parseInt(args[4]); } catch (Exception e) {}
+                    }
+                    
+                    org.bukkit.configuration.file.FileConfiguration soilsSetting = plugin.getConfigManager().getConfig("soils.yml");
+                    String itemId = soilsSetting.getString("soils." + key + ".item-id");
+                    if (itemId == null) {
+                        plugin.getConfigManager().sendPrefixedMessage(player, " &cSoil key not found: " + key);
+                        return true;
+                    }
+                    ItemStack sItem = plugin.getHookManager().getItem(itemId);
+                    if (sItem != null && sItem.getType() != Material.AIR) {
+                        sItem.setAmount(amount);
+                        target.getInventory().addItem(sItem);
+                        plugin.getConfigManager().sendPrefixedMessage(player, " &bGave &f" + amount + "x " + key + " &bto &f" + target.getName());
+                    } else {
+                        plugin.getConfigManager().sendPrefixedMessage(player, " &cCould not resolve item for key: " + key);
+                    }
+                    return true;
+                }
+                break;
+            case "seed":
+                if (args.length < 3) {
+                    plugin.getConfigManager().sendPrefixedMessage(player, "&cUsage: /sfarm seed <key> <player> [amount]");
+                    return true;
+                }
+                String seedKey = args[1];
+                Player sPlayer = org.bukkit.Bukkit.getPlayer(args[2]);
+                if (sPlayer == null) {
+                    plugin.getConfigManager().sendPrefixedMessage(player, "&cPlayer not found!");
                     return true;
                 }
                 
-                soilItem.setAmount(amount);
-                target.getInventory().addItem(soilItem);
-                plugin.getConfigManager().sendPrefixedMessage(player, " &aGave &f" + amount + "x " + soilId + " &ato &f" + target.getName());
+                String sId = plugin.getCustomPlantManager().getSeedItemId(seedKey);
+                if (sId == null) {
+                    plugin.getConfigManager().sendPrefixedMessage(player, "&cSeed key not found in seeds.yml!");
+                    return true;
+                }
+                
+                int sAmount = 1;
+                if (args.length >= 4) {
+                    try { sAmount = Integer.parseInt(args[3]); } catch (Exception ignored) {}
+                }
+                
+                ItemStack sItemObj = plugin.getHookManager().getItem(sId);
+                if (sItemObj == null || sItemObj.getType() == Material.AIR) {
+                    plugin.getConfigManager().sendPrefixedMessage(player, "&cTechnical Item ID not resolvable for this seed!");
+                    return true;
+                }
+                
+                sItemObj.setAmount(sAmount);
+                sPlayer.getInventory().addItem(sItemObj);
+                plugin.getConfigManager().sendPrefixedMessage(player, " &aGave &f" + sAmount + "x " + seedKey + " &ato &f" + sPlayer.getName());
                 break;
             default:
                 sendHelp(player);
@@ -159,7 +259,8 @@ public class SFarmCommand implements CommandExecutor, TabCompleter {
         player.sendMessage(StaticColors.getHexMsg("&e/sfarm pos1 &7- Set Position 1"));
         player.sendMessage(StaticColors.getHexMsg("&e/sfarm pos2 &7- Set Position 2"));
         player.sendMessage(StaticColors.getHexMsg("&e/sfarm create <name> &7- Create Region"));
-        player.sendMessage(StaticColors.getHexMsg("&e/sfarm givesoil <soil> <player> [amount] &7- Give soil item"));
+        player.sendMessage(StaticColors.getHexMsg("&e/sfarm soil <key> <player> [amount] &7- Give soil item"));
+        player.sendMessage(StaticColors.getHexMsg("&e/sfarm seed <key> <player> [amount] &7- Give seed item"));
         player.sendMessage(StaticColors.getHexMsg("&e/sfarm clear &7- Clear Selection"));
         player.sendMessage(StaticColors.getHexMsg("&e/sfarm help &7- Page 1/1"));
         player.sendMessage(StaticColors.getHexMsg("&e/sfarm reload &7- Reload Configs"));
@@ -179,23 +280,58 @@ public class SFarmCommand implements CommandExecutor, TabCompleter {
             subs.add("pos1");
             subs.add("pos2");
             subs.add("create");
-            subs.add("givesoil");
+            subs.add("soil");
+            subs.add("seed");
             subs.add("clear");
             subs.add("reload");
             return subs.stream().filter(s -> s.startsWith(args[0].toLowerCase())).collect(Collectors.toList());
         }
 
-        if (args.length == 2 && args[0].equalsIgnoreCase("givesoil")) {
-            return plugin.getCustomPlantManager().getAllSoilIdentifiers().stream()
-                    .filter(s -> s.toLowerCase().startsWith(args[1].toLowerCase()))
-                    .collect(Collectors.toList());
+        if (args.length == 2) {
+            if (args[0].equalsIgnoreCase("soil")) {
+                List<String> soilSubs = new ArrayList<>();
+                soilSubs.add("pickup");
+                soilSubs.add("slot");
+                soilSubs.add("give");
+                return soilSubs.stream().filter(s -> s.startsWith(args[1].toLowerCase())).collect(Collectors.toList());
+            }
+            if (args[0].equalsIgnoreCase("seed")) {
+                return plugin.getCustomPlantManager().getAllSeedKeys().stream()
+                        .filter(s -> s.toLowerCase().startsWith(args[1].toLowerCase()))
+                        .collect(Collectors.toList());
+            }
         }
 
-        if (args.length == 3 && args[0].equalsIgnoreCase("givesoil")) {
-            return org.bukkit.Bukkit.getOnlinePlayers().stream()
-                    .map(Player::getName)
-                    .filter(n -> n.toLowerCase().startsWith(args[2].toLowerCase()))
-                    .collect(Collectors.toList());
+        if (args.length == 3) {
+            String sub = args[0].toLowerCase();
+            if (sub.equals("soil")) {
+                String sub2 = args[1].toLowerCase();
+                if (sub2.equals("pickup")) {
+                    return org.bukkit.Bukkit.getOnlinePlayers().stream().map(Player::getName).filter(n -> n.toLowerCase().startsWith(args[2].toLowerCase())).collect(Collectors.toList());
+                }
+                if (sub2.equals("slot")) {
+                    List<String> slotSubs = new ArrayList<>();
+                    slotSubs.add("add");
+                    slotSubs.add("set");
+                    slotSubs.add("remove");
+                    return slotSubs.stream().filter(s -> s.startsWith(args[2].toLowerCase())).collect(Collectors.toList());
+                }
+                if (sub2.equals("give")) {
+                    return plugin.getCustomPlantManager().getAllSoilKeys().stream()
+                            .filter(s -> s.toLowerCase().startsWith(args[2].toLowerCase()))
+                            .collect(Collectors.toList());
+                }
+            }
+        }
+
+        if (args.length == 4) {
+            String sub = args[0].toLowerCase();
+            if (sub.equals("soil")) {
+                String sub2 = args[1].toLowerCase();
+                if (sub2.equals("slot") || sub2.equals("give")) {
+                    return org.bukkit.Bukkit.getOnlinePlayers().stream().map(Player::getName).filter(n -> n.toLowerCase().startsWith(args[3].toLowerCase())).collect(Collectors.toList());
+                }
+            }
         }
         return new ArrayList<>();
     }

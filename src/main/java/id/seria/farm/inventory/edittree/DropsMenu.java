@@ -29,20 +29,20 @@ public class DropsMenu implements Listener {
         this.plugin = plugin;
     }
 
-    public void open(Player player, String matName, String regionName, String fullPath) {
+    public void open(Player player, String matName, String regionName, String listPath) {
         String materialKey = matName.contains(":") ? matName.split(":")[1] : matName;
         Map<String, String> placeholders = new HashMap<>();
         placeholders.put("%material%", materialKey);
 
         Inventory inv = plugin.getGuiManager().createInventory("drops-menu", placeholders);
         
-        // Metadata (PAPER in slot 49)
+        // Metadata (PAPER in slot 49) - Store mat|region|listPath
         ItemStack info = inv.getItem(49);
-        if (info != null) LocalizedName.set(info, matName + "|" + regionName + "|" + fullPath);
+        if (info != null) LocalizedName.set(info, matName + "|" + regionName + "|" + listPath);
 
         // Load existing data
         YamlConfiguration config = (YamlConfiguration) plugin.getConfigManager().getConfig("crops.yml");
-        List<?> drops = config.getList(fullPath + ".rewards.drops");
+        List<?> drops = config.getList(listPath + ".drops");
         
         int slot = 0;
         if (drops != null) {
@@ -215,7 +215,7 @@ public class DropsMenu implements Listener {
 
     private void saveData(Player player, Inventory inv) {
         ItemStack info = inv.getItem(49);
-        String fullPath = LocalizedName.get(info).split("\\|")[2];
+        String listPath = LocalizedName.get(info).split("\\|")[2];
         List<Map<String, Object>> dropsList = new ArrayList<>();
         
         for (int i = 0; i < 44; i++) {
@@ -246,7 +246,7 @@ public class DropsMenu implements Listener {
             }
         }
         YamlConfiguration config = (YamlConfiguration) plugin.getConfigManager().getConfig("crops.yml");
-        config.set(fullPath + ".rewards.drops", dropsList);
+        config.set(listPath + ".drops", dropsList);
         plugin.getConfigManager().saveConfig("crops.yml");
         plugin.getConfigManager().sendPrefixedMessage(player, "&aDrops saved!");
     }

@@ -329,6 +329,33 @@ catalog-edit-menu:
       lore:
         - "&7Configure water requirements."
         - "&eClick to edit"
+    rotten_drops:
+      priority: 1
+      slots: ["21"]
+      action: "edit_rotten_drops"
+      material: BONE_MEAL
+      name: "&#9370dbRotten Drops"
+      lore:
+        - "&7Customize drops when the plant is dead."
+        - "&eClick to edit"
+    rotten_xp:
+      priority: 1
+      slots: ["23"]
+      action: "edit_rotten_xp"
+      material: EXPERIENCE_BOTTLE
+      name: "&#9370dbRotten XP %"
+      lore:
+        - "&7Current: &f%rotten_xp_multi%%"
+        - "&eClick to edit percentage"
+    seed_return:
+      priority: 1
+      slots: ["25"]
+      action: "edit_seed_return"
+      material: WHEAT_SEEDS
+      name: "&#9370dbSeed Return Chance"
+      lore:
+        - "&7Current: &f%seed_return%%"
+        - "&eClick to edit chance"
     back:
       priority: 1
       slots: ["35"]
@@ -664,6 +691,27 @@ edit-menu:
       name: "&2Growth Settings"
       lore: ["&7Vertical growth properties"]
       action: "edit_growth"
+    edit_rotten_drops:
+      priority: 1
+      slots: ["30"]
+      material: BONE_MEAL
+      name: "&6Rotten Drops"
+      lore: ["&7Customize drops when the plant is dead."]
+      action: "edit_rotten_drops"
+    edit_rotten_xp:
+      priority: 1
+      slots: ["34"]
+      material: EXPERIENCE_BOTTLE
+      name: "&dRotten XP %"
+      lore: ["&7Current: &f%rotten_xp_multi%%", "&eClick to edit percentage."]
+      action: "edit_rotten_xp"
+    edit_seed_return:
+      priority: 1
+      slots: ["40"]
+      material: WHEAT_SEEDS
+      name: "&aSeed Return Chance"
+      lore: ["&7Current: &f%seed_return%%", "&eClick to edit chance."]
+      action: "edit_seed_return"
     delete_block:
       priority: 1
       slots: ["52"]

@@ -10,6 +10,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.EquipmentSlot;
+import org.bukkit.inventory.ItemStack;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -23,11 +24,13 @@ public class WandListener implements Listener {
     @EventHandler
     public void OnClick(PlayerInteractEvent event) {
         Player player = event.getPlayer();
-        if (player.getInventory().getItemInMainHand().getType() != Material.AIR 
-            && player.getInventory().getItemInMainHand().hasItemMeta()
-            && PlainTextComponentSerializer.plainText().serialize(player.getInventory().getItemInMainHand().getItemMeta().displayName()).equals("REGEN WAND") 
-            && player.getInventory().getItemInMainHand().getItemMeta().hasCustomModelData()
-            && player.getInventory().getItemInMainHand().getItemMeta().getCustomModelData() == 20) {
+        ItemStack item = player.getInventory().getItemInMainHand();
+        
+        if (item.getType() != Material.AIR && item.hasItemMeta()) {
+            net.kyori.adventure.text.Component displayName = item.getItemMeta().displayName();
+            if (displayName != null && PlainTextComponentSerializer.plainText().serialize(displayName).equals("REGEN WAND") 
+                && item.getItemMeta().hasCustomModelData()
+                && item.getItemMeta().getCustomModelData() == 20) {
             
             if (event.getAction().equals(Action.LEFT_CLICK_BLOCK)) {
                 event.setCancelled(true);
@@ -42,4 +45,5 @@ public class WandListener implements Listener {
             }
         }
     }
+}
 }

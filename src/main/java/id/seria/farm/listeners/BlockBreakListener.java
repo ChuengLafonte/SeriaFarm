@@ -28,7 +28,7 @@ public class BlockBreakListener implements Listener {
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
     public void onBlockBreak(BlockBreakEvent event) {
         // 0. Check if plugin is globally enabled
-        if (!plugin.getConfigManager().getConfig("config.yml").getBoolean("settings.enabled", true)) return;
+        if (!plugin.getConfigManager().getSettings().enabled) return;
  
         Block block = event.getBlock();
         Player player = event.getPlayer();
@@ -37,54 +37,69 @@ public class BlockBreakListener implements Listener {
         if (plugin.getCustomPlantManager().isCustomPlant(block.getLocation())) {
             id.seria.farm.models.CustomPlantState state = plugin.getCustomPlantManager().getState(block.getLocation());
             if (state != null) {
-                if (!state.isRotten() && !isFullyGrown(block)) {
-                    event.setCancelled(true);
-                    return; // Prevent breaking immature plants (unless completely rotten)
-                }
-
-                // Allow break!
+                // Allow break for all garden plants now
                 event.setCancelled(true); // Take over drops
                 block.setType(Material.AIR);
 
-                // Plant Cleanup (Slot is NOT freed here, because soil is still placed)
-                plugin.getCustomPlantManager().removePlant(block.getLocation());
-                if (player != null) plugin.getHologramManager().hide(player);
+                String cropKey = state.getCropKey();
+                ConfigurationSection gardenCfg = plugin.getConfigManager().getConfig("crops.yml")
+                        .getConfigurationSection("crops.garden." + cropKey);
 
-                // Rewards if NOT ROTTEN
-                if (!state.isRotten() && isFullyGrown(block)) {
-                    ConfigurationSection gardenCfg = plugin.getConfigManager().getConfig("crops.yml")
-                            .getConfigurationSection("crops.garden." + state.getCropKey());
+                if (state.isRotten()) {
+                    // CONDITION: ROTTEN
+                    if (gardenCfg != null) {
+                        ConfigurationSection rottenRewards = gardenCfg.getConfigurationSection("rotten-rewards");
+                        if (rottenRewards != null) {
+                            distributeRewards(player, block, rottenRewards);
+                            
+                            // Give 20% of mature XP if multiplier exists
+                            double multi = rottenRewards.getDouble("xp-multiplier", 0.2);
+                            int matureXp = gardenCfg.getInt("rewards.xp", 0);
+                            int rottenXp = (int) (matureXp * multi);
+                            if (rottenXp > 0) plugin.getExperienceManager().giveXP(player, rottenXp);
+                        }
+                    }
+                } else if (plugin.getCustomPlantManager().isLogicallyFullyGrown(state)) {
+                    // CONDITION: MATURE HARVEST (Use logical time)
                     if (gardenCfg != null) {
                         distributeRewards(player, block, gardenCfg);
-                        plugin.getAuraSkillsManager().giveXP(player, block.getType());
+                    }
+                } else {
+                    // CONDITION: IMMATURE (Return seed with chance)
+                    if (gardenCfg != null) {
+                        double chance = gardenCfg.getDouble("seed-return-chance", 80.0);
+                        if (random.nextDouble() * 100.0 <= chance) {
+                            String seedKey = gardenCfg.getString("seed");
+                            if (seedKey != null) {
+                                String itemId = plugin.getCustomPlantManager().getSeedItemId(seedKey);
+                                if (itemId != null) {
+                                    ItemStack seedItem = plugin.getHookManager().getItem(itemId);
+                                    if (seedItem != null && seedItem.getType() != Material.AIR) {
+                                        block.getWorld().dropItemNaturally(block.getLocation(), seedItem);
+                                        player.sendMessage(plugin.getConfigManager().getMessage("garden-seed-saved"));
+                                    } else {
+                                        plugin.getLogger().warning("Seed item not found: " + itemId + " refering to key: " + seedKey);
+                                        player.sendMessage(plugin.getConfigManager().getMessage("garden-seed-not-found"));
+                                    }
+                                }
+                            }
+                        } else {
+                            player.sendMessage(plugin.getConfigManager().getMessage("garden-seed-lost"));
+                        }
                     }
                 }
+
+                // Plant Cleanup
+                plugin.getCustomPlantManager().removePlant(block.getLocation());
+                if (player != null) plugin.getHologramManager().hide(player);
                 return;
             }
         }
 
         // 1.5 Check if they broke an actual Composted Soil Block
-        java.util.UUID soilOwner = plugin.getSoilSlotManager().getOwner(block.getLocation());
-        if (soilOwner != null) {
-            if (!soilOwner.equals(player.getUniqueId()) && !player.hasPermission("seriafarm.admin")) {
-                event.setCancelled(true);
-                plugin.getConfigManager().sendPrefixedMessage(player, "&cIni bukan ladang milikmu!");
-                return;
-            }
-
-            // Refund the slot
-            plugin.getSoilSlotManager().breakSoil(block.getLocation());
-            int usedNow = plugin.getSoilSlotManager().getUsedSlotsByUUID(soilOwner);
-            plugin.getConfigManager().sendPrefixedMessage(player, "&aLadang dibongkar, Slot kembali: &f" + usedNow);
-
-            // Also explicitly destroy the plant above it if it exists, so holograms don't linger
-            Block above = block.getRelative(0, 1, 0);
-            if (plugin.getCustomPlantManager().isCustomPlant(above.getLocation())) {
-                plugin.getCustomPlantManager().removePlant(above.getLocation());
-                above.setType(Material.AIR);
-                if (player != null) plugin.getHologramManager().hide(player);
-            }
-            // Standard drops handle the soil item
+        if (plugin.getSoilSlotManager().getOwner(block.getLocation()) != null) {
+            event.setCancelled(true);
+            return;
         }
 
         // 2. Check if this block is managed by SeriaFarm (Global or Regional)
@@ -96,6 +111,11 @@ public class BlockBreakListener implements Listener {
  
         // 2.1 Strict Growth Check for Crops (Apply to Global and Regional)
         if (!isFullyGrown(block)) {
+            if (blockKey.startsWith("global.")) {
+                // Allow break for vanilla global crops but cancel any active regen timer
+                plugin.getRegenManager().cancelRegeneration(block.getLocation());
+                return; // Let vanilla break proceed
+            }
             event.setCancelled(true);
             return;
         }
@@ -123,7 +143,7 @@ public class BlockBreakListener implements Listener {
                 }
                 
                 // RESPECT GLOBAL REPLANT
-                boolean replant = plugin.getConfigManager().getConfig("config.yml").getBoolean("settings.global-replant", true);
+                boolean replant = plugin.getConfigManager().getSettings().globalReplant;
                 if (replant) {
                     int delay = calculateDelayForPlayer(player, config.getInt("regen-delay", 10));
                     plugin.getRegenManager().scheduleRegeneration(block, delay, null, null, org.bukkit.Material.AIR, blockKey);
@@ -134,7 +154,7 @@ public class BlockBreakListener implements Listener {
             } else {
                 // Standard vanilla block break
                 // If it's a crop and we want replant:
-                boolean replant = plugin.getConfigManager().getConfig("config.yml").getBoolean("settings.global-replant", true);
+                boolean replant = plugin.getConfigManager().getSettings().globalReplant;
                 if (replant && isGrowthCapable(block)) {
                     // NEW: Requirement Check for Vanilla Global Crops (Engine handles messaging)
                     if (!plugin.getRequirementEngine().canBreak(player, config)) {
@@ -275,27 +295,36 @@ public class BlockBreakListener implements Listener {
     }
  
     private void distributeRewards(Player player, Block block, ConfigurationSection config) {
+        if (config == null) return;
 
         ConfigurationSection rewards = config.getConfigurationSection("rewards");
+        
+        // Handle XP
+        int xp = 0;
         if (rewards != null) {
-            int xp = rewards.getInt("xp", 0);
-            if (xp > 0) player.giveExp(xp);
-            
+            xp = rewards.getInt("xp", 0);
+        } else {
+            xp = config.getInt("xp", 0);
+        }
+        if (xp > 0) plugin.getExperienceManager().giveXP(player, xp);
+
+        // Handle Commands & Drops (only if 'rewards' section exists)
+        if (rewards != null) {
             for (String cmd : rewards.getStringList("commands")) {
                 org.bukkit.Bukkit.dispatchCommand(org.bukkit.Bukkit.getConsoleSender(), cmd.replace("%player%", player.getName()));
             }
-  
+
             List<?> drops = rewards.getList("drops");
             if (drops != null) {
-                boolean dropToInv = ToggleMenu.isDropToInvEnabled();
                 ItemStack tool = player.getInventory().getItemInMainHand();
                 int fortune = 0;
-                if (tool != null && tool.hasItemMeta()) {
+                if (tool != null && tool.getType() != Material.AIR) {
                     fortune = tool.getEnchantmentLevel(org.bukkit.enchantments.Enchantment.FORTUNE);
                 }
                 
                 int playerLevel = plugin.getAuraSkillsManager().getFarmingLevel(player);
-                double globalScaling = plugin.getConfigManager().getConfig("config.yml").getDouble("settings.global-level-scaling", 0.1);
+                double globalScaling = plugin.getConfigManager().getSettings().globalLevelScaling;
+                boolean dropToInv = plugin.getConfigManager().getSettings().dropToInventory;
 
                 boolean hasCommonDrop = false;
                 java.util.List<java.util.Map<?, ?>> weightedPool = new java.util.ArrayList<>();
@@ -306,11 +335,9 @@ public class BlockBreakListener implements Listener {
                             ItemStack item = (ItemStack) map.get("item");
                             if (item == null) continue;
 
-                            // 1. Level Requirement Check
                             int reqLevel = map.containsKey("farming-level") ? ((Number) map.get("farming-level")).intValue() : 0;
                             if (playerLevel < reqLevel) continue;
 
-                            // 2. Chance Scaling
                             double baseChance = map.containsKey("chance") ? ((Number) map.get("chance")).doubleValue() : 100.0;
                             double scaling = map.containsKey("level-scaling") ? ((Number) map.get("level-scaling")).doubleValue() : globalScaling;
                             double finalChance = baseChance + (playerLevel - reqLevel) * scaling;
@@ -319,25 +346,21 @@ public class BlockBreakListener implements Listener {
 
                             if (baseChance >= 10.0) hasCommonDrop = true;
 
-                            // If it has a weight (numeric or range), add to weighted pool competition
                             if (map.containsKey("weight")) {
                                 weightedPool.add(map);
                             } else {
-                                // Static drop (Independent)
                                 giveReward(player, block, item.clone(), map, dropToInv, fortune);
                             }
                         } catch (Exception ignored) {}
                     }
                 }
 
-                // 3. Automatic Vanilla Drop (Trash Item)
-                if (!hasCommonDrop && !config.getBoolean("suppress-vanilla-drop", false)) {
+                if (!config.getBoolean("suppress-vanilla-drop", false)) {
                     Material vanillaMat = block.getType();
                     vanillaMat = id.seria.farm.inventory.utils.InvUtils.getSingleMaterial(vanillaMat);
                     giveReward(player, block, new ItemStack(vanillaMat), new java.util.HashMap<>(), dropToInv, fortune);
                 }
 
-                // Handle the weighted pool competition (Pick only ONE)
                 if (!weightedPool.isEmpty()) {
                     double totalWeight = 0;
                     for (java.util.Map<?, ?> map : weightedPool) {
@@ -502,8 +525,8 @@ public class BlockBreakListener implements Listener {
     }
 
     private void handleSweep(Player player, Block center, ConfigurationSection config, String blockKey) {
-        // Only run if sweep is explicitly enabled in config.yml
-        if (!plugin.getConfigManager().getConfig("config.yml").getBoolean("settings.sweep.enabled", false)) return;
+        // Only run if sweep is explicitly enabled in config
+        if (!plugin.getConfigManager().getSettings().sweepEnabled) return;
 
         ItemStack tool = player.getInventory().getItemInMainHand();
         if (tool == null || !tool.hasItemMeta()) return;
