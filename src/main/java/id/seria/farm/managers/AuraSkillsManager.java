@@ -1,5 +1,6 @@
 package id.seria.farm.managers;
 
+import id.seria.core.models.FortuneType;
 import id.seria.farm.SeriaFarmPlugin;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
@@ -173,16 +174,39 @@ public class AuraSkillsManager {
     }
 
     public double getFarmingFortune(Player player) {
+        return getFortune(player, "farming");
+    }
 
-        if (!SeriaFarmPlugin.getInstance().getHookManager().isAuraSkillsEnabled()) return 0.0;
-        try {
-            dev.aurelium.auraskills.api.AuraSkillsApi api = dev.aurelium.auraskills.api.AuraSkillsApi.get();
-            dev.aurelium.auraskills.api.user.SkillsUser user = api.getUser(player.getUniqueId());
-            dev.aurelium.auraskills.api.stat.Stat stat = api.getGlobalRegistry().getStat(dev.aurelium.auraskills.api.registry.NamespacedId.of("auraskills", "farming_fortune"));
-            if (stat != null && user != null) {
-                return user.getStatLevel(stat);
-            }
-        } catch (NoClassDefFoundError | Exception ignored) {}
+    public double getMiningFortune(Player player) {
+        return getFortune(player, "mining");
+    }
+
+    public double getForagingFortune(Player player) {
+        return getFortune(player, "foraging");
+    }
+
+    public double getFortune(Player player, String type) {
+        // 1. Try SeriaFortune API first (Centralized)
+        if (Bukkit.getPluginManager().isPluginEnabled("SeriaFortune")) {
+            try {
+                Class<?> apiClass = Class.forName("id.seria.fortune.api.FortuneAPI");
+                Class<FortuneType> typeClass = FortuneType.class;
+                Object typeEnum = Enum.valueOf(typeClass, type.toUpperCase());
+                return (double) apiClass.getMethod("getFortune", Player.class, typeClass).invoke(null, player, typeEnum);
+            } catch (Exception ignored) {}
+        }
+
+        // 2. Fallback to AuraSkills directly
+        if (SeriaFarmPlugin.getInstance().getHookManager().isAuraSkillsEnabled()) {
+            try {
+                dev.aurelium.auraskills.api.AuraSkillsApi api = dev.aurelium.auraskills.api.AuraSkillsApi.get();
+                dev.aurelium.auraskills.api.user.SkillsUser user = api.getUser(player.getUniqueId());
+                dev.aurelium.auraskills.api.stat.Stat stat = api.getGlobalRegistry().getStat(dev.aurelium.auraskills.api.registry.NamespacedId.of("auraskills", type.toLowerCase() + "_fortune"));
+                if (stat != null && user != null) {
+                    return user.getStatLevel(stat);
+                }
+            } catch (NoClassDefFoundError | Exception ignored) {}
+        }
         return 0.0;
     }
 

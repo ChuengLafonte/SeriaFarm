@@ -13,7 +13,6 @@ import org.bukkit.inventory.ItemStack;
 import id.seria.farm.managers.GuiManager;
 import java.util.*;
 import id.seria.farm.listeners.ChatInputListener;
-import id.seria.farm.inventory.edittree.ReplaceBlockMenu;
 import id.seria.farm.inventory.edittree.DropsMenu;
 
 public class GlobalBlockEditMenu implements Listener {

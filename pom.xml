@@ -89,6 +89,24 @@
             <version>1.24.0</version>
             <scope>provided</scope>
         </dependency>
+        <dependency>
+            <groupId>id.seria</groupId>
+            <artifactId>seriafortune</artifactId>
+            <version>1.0.0-SNAPSHOT</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>id.seria</groupId>
+            <artifactId>seriacollection</artifactId>
+            <version>1.0.0-SNAPSHOT</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>id.seria</groupId>
+            <artifactId>seriacore</artifactId>
+            <version>1.0.0-SNAPSHOT</version>
+            <scope>provided</scope>
+        </dependency>
     </dependencies>
 
     <build>

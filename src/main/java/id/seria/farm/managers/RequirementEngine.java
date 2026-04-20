@@ -2,6 +2,7 @@ package id.seria.farm.managers;
 
 import id.seria.farm.SeriaFarmPlugin;
 import org.bukkit.Material;
+import org.bukkit.block.Block;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
@@ -40,8 +41,41 @@ public class RequirementEngine {
         return hasTools;
     }
 
-    public boolean canPlace(Player player, ConfigurationSection section) {
-        return canBreak(player, section, true);
+    public boolean canPlace(Player player, ConfigurationSection section, Block soilBlock) {
+        // 1. Check Standard Permissions/AuraSkills/Tools (Reuse canBreak logic)
+        if (!canBreak(player, section, true)) {
+            return false;
+        }
+
+        // 2. Check Soil Requirements
+        return checkSoil(player, soilBlock, section);
+    }
+
+    private boolean checkSoil(Player player, Block soilBlock, ConfigurationSection section) {
+        if (section == null) return true;
+        
+        List<String> allowedSoils = section.getStringList("soil");
+        if (allowedSoils.isEmpty()) return true;
+
+        // Get actual soil ID if it's a managed composted soil
+        String placedSoilId = plugin.getSoilSlotManager().getSoilId(soilBlock.getLocation());
+        String vanillaMat = soilBlock.getType().name();
+
+        for (String allowed : allowedSoils) {
+            // Case 1: Match with Composted Soil ID (e.g. "composted_soil")
+            if (placedSoilId != null && placedSoilId.equalsIgnoreCase(allowed)) return true;
+            
+            // Case 2: Match with Vanilla Material (e.g. "FARMLAND")
+            if (vanillaMat.equalsIgnoreCase(allowed)) return true;
+        }
+
+        // If we reach here, soil is invalid
+        String soilsStr = String.join(", ", allowedSoils);
+        String msg = plugin.getConfigManager().getConfig("messages.yml")
+                .getString("invalid-soil", "&cTanah tidak sesuai! &fTanaman ini membutuhkan tanah jenis: &e{soils}");
+        
+        plugin.getConfigManager().sendPrefixedMessage(player, msg.replace("{soils}", soilsStr));
+        return false;
     }
 
     private boolean checkAuraSkills(Player player, ConfigurationSection section, boolean sendMessage) {

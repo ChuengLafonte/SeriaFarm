@@ -18,6 +18,7 @@ public class HookManager {
     private boolean itemsAdderEnabled = false;
     private boolean oraxenEnabled = false;
     private boolean nexoEnabled = false;
+    private boolean seriaCollectionEnabled = false;
 
     // Reflection Cache to avoid expensive dynamic lookups in hot loops
     private final Map<String, Class<?>> classCache = new HashMap<>();
@@ -30,6 +31,7 @@ public class HookManager {
         this.itemsAdderEnabled = Bukkit.getPluginManager().isPluginEnabled("ItemsAdder");
         this.oraxenEnabled = Bukkit.getPluginManager().isPluginEnabled("Oraxen");
         this.nexoEnabled = Bukkit.getPluginManager().isPluginEnabled("Nexo");
+        this.seriaCollectionEnabled = Bukkit.getPluginManager().isPluginEnabled("SeriaCollection");
         
         if (mmoItemsEnabled) preCacheMMOItems();
         if (auraSkillsEnabled) preCacheAuraSkills();
@@ -63,6 +65,7 @@ public class HookManager {
     public boolean isItemsAdderEnabled() { return itemsAdderEnabled; }
     public boolean isOraxenEnabled() { return oraxenEnabled; }
     public boolean isNexoEnabled() { return nexoEnabled; }
+    public boolean isSeriaCollectionEnabled() { return seriaCollectionEnabled; }
 
     /**
      * Highly optimized skill level lookup using cached reflection.
@@ -218,5 +221,26 @@ public class HookManager {
         if (item != null && item.getType() != org.bukkit.Material.STONE) {
             player.getInventory().addItem(item);
         }
+    }
+
+    /**
+     * Safe reflection hook for SeriaCollection to avoid ClassCastException during reloads.
+     */
+    public void handleCollectionGain(Player player, ItemStack item) {
+        if (!seriaCollectionEnabled || item == null || item.getType() == org.bukkit.Material.AIR) return;
+        
+        try {
+            org.bukkit.plugin.Plugin plugin = Bukkit.getPluginManager().getPlugin("SeriaCollection");
+            if (plugin == null || !plugin.isEnabled()) return;
+
+            // 1. Get PlayerDataManager instance via reflection
+            Method getPDM = plugin.getClass().getMethod("getPlayerDataManager");
+            Object pdm = getPDM.invoke(plugin);
+            if (pdm == null) return;
+
+            // 2. Invoke handleCollectionGain(Player, ItemStack) on the PDM instance
+            Method handleGain = pdm.getClass().getMethod("handleCollectionGain", Player.class, ItemStack.class);
+            handleGain.invoke(pdm, player, item);
+        } catch (Exception ignored) {}
     }
 }

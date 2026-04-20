@@ -188,7 +188,6 @@ public class WateringToolsMenu implements Listener {
                                 // Rebuild the slot item
                                 WateringToolManager.WateringTool updated =
                                     new WateringToolManager.WateringTool(identifier, identifier, pu, c, emptyInput.trim());
-                                Inventory freshInv = open(player); // Re-open; slot will be re-reflected if we re-save first
                                 // But we need to update the in-flight inventory too
                                 ItemStack existing = inv.getItem(slot);
                                 if (existing != null) {

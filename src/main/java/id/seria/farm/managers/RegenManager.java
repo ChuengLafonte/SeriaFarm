@@ -100,7 +100,6 @@ public class RegenManager {
 
                 // Recalculate step duration for vanilla growth
                 if (regen.isGrowth() && regen.getMaxStage() > 0 && "VANILLA".equalsIgnoreCase(regen.getGrowthMode())) {
-                    long totalDuration = restoreTime - System.currentTimeMillis(); // Note: this is rough, but better than 0
                     // Actually, step duration is usually based on the config. 
                     // Let's recalculate based on the original delay if possible, but keep it simple.
                     ConfigurationSection config = plugin.getConfigManager().getConfig("crops.yml").getConfigurationSection("crops." + materialKey);
@@ -545,8 +544,7 @@ public class RegenManager {
                 String key = regionMap.get(normalizedMat);
                 if (key != null) return regionName + "." + key;
             }
-            // STRICT ISOLATION: If we are in a region, we DO NOT fall back to global.
-            return null;
+            // If not in region map, fallback to global
         }
 
         // 2. Check Global

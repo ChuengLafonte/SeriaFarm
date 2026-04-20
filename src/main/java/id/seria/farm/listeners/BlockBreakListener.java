@@ -1,7 +1,6 @@
 package id.seria.farm.listeners;
  
 import id.seria.farm.SeriaFarmPlugin;
-import id.seria.farm.inventory.maintree.ToggleMenu;
 import id.seria.farm.inventory.utils.StaticColors;
 import id.seria.farm.inventory.utils.InvUtils;
 import org.bukkit.event.EventHandler;
@@ -108,11 +107,20 @@ public class BlockBreakListener implements Listener {
         
         ConfigurationSection config = getBlockConfig(block, blockKey);
         if (config == null) return;
+
+        // NEW: Detect if we are inside any region
+        String regionName = plugin.getRegenManager().getRegionAt(block.getLocation());
  
         // 2.1 Strict Growth Check for Crops (Apply to Global and Regional)
         if (!isFullyGrown(block)) {
+            // IF IN REGION: IMMATURE CROPS CANNOT BE DESTROYED (STAY AT CURRENT STAGE)
+            if (regionName != null) {
+                event.setCancelled(true);
+                return;
+            }
+
             if (blockKey.startsWith("global.")) {
-                // Allow break for vanilla global crops but cancel any active regen timer
+                // Allow break for vanilla global crops outside regions but cancel any active regen timer
                 plugin.getRegenManager().cancelRegeneration(block.getLocation());
                 return; // Let vanilla break proceed
             }
@@ -121,7 +129,9 @@ public class BlockBreakListener implements Listener {
         }
 
         // 2. REFINED GLOBAL HANDLING (Left-Click / Break)
-        if (blockKey.startsWith("global.")) {
+        // Only run global logic IF we are NOT inside a region. 
+        // If we ARE in a region, fall through to the regional logic below which FORCES replant.
+        if (regionName == null && blockKey.startsWith("global.")) {
             // Cancel any active growth timer at this location upon break
             plugin.getRegenManager().cancelRegeneration(block.getLocation());
             
@@ -299,34 +309,47 @@ public class BlockBreakListener implements Listener {
 
         ConfigurationSection rewards = config.getConfigurationSection("rewards");
         
-        // Handle XP
-        int xp = 0;
-        if (rewards != null) {
-            xp = rewards.getInt("xp", 0);
-        } else {
-            xp = config.getInt("xp", 0);
-        }
+        // 1. Handle XP (from rewards or base config if rewards missing)
+        int xp = (rewards != null) ? rewards.getInt("xp", 0) : config.getInt("xp", 0);
         if (xp > 0) plugin.getExperienceManager().giveXP(player, xp);
 
-        // Handle Commands & Drops (only if 'rewards' section exists)
+        // 2. Handle Commands
         if (rewards != null) {
             for (String cmd : rewards.getStringList("commands")) {
                 org.bukkit.Bukkit.dispatchCommand(org.bukkit.Bukkit.getConsoleSender(), cmd.replace("%player%", player.getName()));
             }
+        }
 
+        // --- COMMON DROP METRICS ---
+        ItemStack tool = player.getInventory().getItemInMainHand();
+        int fortune = (tool != null && tool.getType() != Material.AIR) ? 
+                      tool.getEnchantmentLevel(org.bukkit.enchantments.Enchantment.FORTUNE) : 0;
+        
+        int playerLevel = plugin.getAuraSkillsManager().getFarmingLevel(player);
+        double globalScaling = plugin.getConfigManager().getSettings().globalLevelScaling;
+        boolean dropToInv = plugin.getConfigManager().getSettings().dropToInventory;
+
+        // 3. VANILLA DROPS (unless suppressed or custom material)
+        String matStr = config.getString("material", "");
+        boolean isCustom = isCustomMaterial(matStr);
+        
+        if (!isCustom && !config.getBoolean("suppress-vanilla-drop", false)) {
+            boolean inRegion = plugin.getRegenManager().getRegionAt(block.getLocation()) != null;
+            
+            for (ItemStack vanillaDrop : block.getDrops(tool)) {
+                if (vanillaDrop != null && vanillaDrop.getType() != Material.AIR) {
+                    // Suppress wheat seeds specifically in regions
+                    if (inRegion && vanillaDrop.getType() == Material.WHEAT_SEEDS) continue;
+                    
+                    giveReward(player, block, vanillaDrop.clone(), new java.util.HashMap<>(), dropToInv, 0);
+                }
+            }
+        }
+
+        // 4. CUSTOM REWARDS & WEIGHTED DROPS
+        if (rewards != null) {
             List<?> drops = rewards.getList("drops");
             if (drops != null) {
-                ItemStack tool = player.getInventory().getItemInMainHand();
-                int fortune = 0;
-                if (tool != null && tool.getType() != Material.AIR) {
-                    fortune = tool.getEnchantmentLevel(org.bukkit.enchantments.Enchantment.FORTUNE);
-                }
-                
-                int playerLevel = plugin.getAuraSkillsManager().getFarmingLevel(player);
-                double globalScaling = plugin.getConfigManager().getSettings().globalLevelScaling;
-                boolean dropToInv = plugin.getConfigManager().getSettings().dropToInventory;
-
-                boolean hasCommonDrop = false;
                 java.util.List<java.util.Map<?, ?>> weightedPool = new java.util.ArrayList<>();
                 
                 for (Object obj : drops) {
@@ -344,8 +367,6 @@ public class BlockBreakListener implements Listener {
 
                             if ((random.nextDouble() * 100.0) > finalChance) continue;
 
-                            if (baseChance >= 10.0) hasCommonDrop = true;
-
                             if (map.containsKey("weight")) {
                                 weightedPool.add(map);
                             } else {
@@ -353,12 +374,6 @@ public class BlockBreakListener implements Listener {
                             }
                         } catch (Exception ignored) {}
                     }
-                }
-
-                if (!config.getBoolean("suppress-vanilla-drop", false)) {
-                    Material vanillaMat = block.getType();
-                    vanillaMat = id.seria.farm.inventory.utils.InvUtils.getSingleMaterial(vanillaMat);
-                    giveReward(player, block, new ItemStack(vanillaMat), new java.util.HashMap<>(), dropToInv, fortune);
                 }
 
                 if (!weightedPool.isEmpty()) {
@@ -374,7 +389,9 @@ public class BlockBreakListener implements Listener {
                             count += getSelectionWeight(map);
                             if (roll <= count) {
                                 ItemStack item = (ItemStack) map.get("item");
-                                giveReward(player, block, item.clone(), map, dropToInv, fortune);
+                                if (item != null) {
+                                    giveReward(player, block, item.clone(), map, dropToInv, fortune);
+                                }
                                 break;
                             }
                         }
@@ -408,9 +425,28 @@ public class BlockBreakListener implements Listener {
             dropItem.setAmount(dropItem.getAmount() + bonus);
         }
 
-        // AuraSkills Farming Fortune (Farmer Ability, etc)
         // 100 Fortune = +1 guaranteed drop, 50 Fortune = 50% chance for +1
-        double auraFortune = plugin.getAuraSkillsManager().getFarmingFortune(player);
+        double auraFortune;
+        String matName = block.getType().name();
+        if (matName.contains("ORE") || matName.contains("STONE") || matName.contains("DEEPSLATE")) {
+            auraFortune = plugin.getAuraSkillsManager().getMiningFortune(player);
+        } else {
+            auraFortune = plugin.getAuraSkillsManager().getFarmingFortune(player);
+            
+            // Add SeriaFortune Bonuses
+            id.seria.fortune.SeriaFortunePlugin sFortune = (id.seria.fortune.SeriaFortunePlugin) org.bukkit.Bukkit.getPluginManager().getPlugin("SeriaFortune");
+            if (sFortune != null && sFortune.isEnabled()) {
+                // 1. Add Global Permanent Farming Fortune
+                auraFortune += sFortune.getFortuneManager().getTotalFortune(player, id.seria.core.models.FortuneType.FARMING);
+                
+                // 2. Add Crop Specific Fortune
+                id.seria.core.models.FortuneType cropType = mapToFortuneType(block.getType());
+                if (cropType != null) {
+                    auraFortune += sFortune.getFortuneManager().getTotalFortune(player, cropType);
+                }
+            }
+        }
+
         if (auraFortune > 0) {
             int extraDrops = (int) (auraFortune / 100);
             double leftOverChance = auraFortune % 100;
@@ -428,6 +464,10 @@ public class BlockBreakListener implements Listener {
 
         if (dropToInv) {
             java.util.HashMap<Integer, ItemStack> remaining = player.getInventory().addItem(dropItem);
+            
+            // SeriaCollection Hook (Safe Hook via Reflection)
+            plugin.getHookManager().handleCollectionGain(player, dropItem);
+
             if (!remaining.isEmpty()) {
                 for (ItemStack left : remaining.values()) {
                     block.getWorld().dropItemNaturally(block.getLocation(), left);
@@ -597,5 +637,22 @@ public class BlockBreakListener implements Listener {
         }
         
         return baseDelay;
+    }
+
+    private id.seria.core.models.FortuneType mapToFortuneType(Material material) {
+        return switch (material) {
+            case WHEAT -> id.seria.core.models.FortuneType.WHEAT;
+            case POTATO, POTATOES -> id.seria.core.models.FortuneType.POTATO;
+            case CARROT, CARROTS -> id.seria.core.models.FortuneType.CARROT;
+            case BEETROOT, BEETROOTS -> id.seria.core.models.FortuneType.BEETROOT;
+            case MELON -> id.seria.core.models.FortuneType.MELON;
+            case PUMPKIN -> id.seria.core.models.FortuneType.PUMPKIN;
+            case SUGAR_CANE -> id.seria.core.models.FortuneType.SUGAR_CANE;
+            case CACTUS -> id.seria.core.models.FortuneType.CACTUS;
+            case COCOA -> id.seria.core.models.FortuneType.COCOA;
+            case NETHER_WART -> id.seria.core.models.FortuneType.NETHER_WART;
+            case BROWN_MUSHROOM, RED_MUSHROOM -> id.seria.core.models.FortuneType.MUSHROOM;
+            default -> null;
+        };
     }
 }

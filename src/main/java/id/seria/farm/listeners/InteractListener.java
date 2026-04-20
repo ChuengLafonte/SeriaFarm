@@ -209,7 +209,10 @@ public class InteractListener implements Listener {
  
         if (blockKey == null) return;
         
-        // 2.1 Regional blocks: Disable right-click harvesting
+        // 2.1 Regional blocks: Disable right-click harvesting (Enforce even for global fallback)
+        if (plugin.getRegenManager().getRegionAt(block.getLocation()) != null) return;
+        
+        // 2.2 Global blocks: Check harvest toggle
         if (!blockKey.startsWith("global.")) return;
         
         // 2.2 Global blocks: Check harvest toggle

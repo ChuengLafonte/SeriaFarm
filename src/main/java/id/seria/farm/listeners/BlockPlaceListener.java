@@ -2,6 +2,7 @@ package id.seria.farm.listeners;
 
 import id.seria.farm.SeriaFarmPlugin;
 import org.bukkit.block.Block;
+import org.bukkit.block.BlockFace;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -54,7 +55,8 @@ public class BlockPlaceListener implements Listener {
         if (blockKey != null) {
             // 2. Check Requirement Engine (Engine handles messaging)
             ConfigurationSection config = plugin.getConfigManager().getConfig("crops.yml").getConfigurationSection("crops." + blockKey);
-            if (config != null && !plugin.getRequirementEngine().canPlace(event.getPlayer(), config)) {
+            Block soilBlock = block.getRelative(BlockFace.DOWN);
+            if (config != null && !plugin.getRequirementEngine().canPlace(event.getPlayer(), config, soilBlock)) {
                 event.setCancelled(true);
                 return;
             }

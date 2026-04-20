@@ -35,6 +35,7 @@ id\seria\farm\listeners\RegionListener.class
 id\seria\farm\listeners\BlockPlaceListener.class
 id\seria\farm\models\Plant.class
 id\seria\farm\tasks\WaterDecayTask.class
+id\seria\farm\listeners\BlockBreakListener$1.class
 id\seria\farm\managers\AuraSkillsManager.class
 id\seria\farm\managers\RegenManager$CachedRegion.class
 id\seria\farm\managers\ConfigManager.class
