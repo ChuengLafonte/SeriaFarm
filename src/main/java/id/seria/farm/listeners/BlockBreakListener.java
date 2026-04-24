@@ -318,6 +318,10 @@ public class BlockBreakListener implements Listener {
             for (String cmd : rewards.getStringList("commands")) {
                 org.bukkit.Bukkit.dispatchCommand(org.bukkit.Bukkit.getConsoleSender(), cmd.replace("%player%", player.getName()));
             }
+            
+            for (String reward : rewards.getStringList("reward-lines")) {
+                id.seria.core.utils.RewardUtility.giveReward(player, reward);
+            }
         }
 
         // --- COMMON DROP METRICS ---

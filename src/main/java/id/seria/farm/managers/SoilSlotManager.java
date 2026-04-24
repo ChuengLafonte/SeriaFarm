@@ -35,6 +35,21 @@ public class SoilSlotManager {
 
     public SoilSlotManager(SeriaFarmPlugin plugin) {
         this.plugin = plugin;
+        setupTables();
+    }
+
+    private void setupTables() {
+        id.seria.core.SeriaCorePlugin.getInstance().getPlayerDataManager().runAsync(conn -> {
+            try (java.sql.Statement smt = conn.createStatement()) {
+                smt.execute("CREATE TABLE IF NOT EXISTS player_farm_stats (" +
+                        "uuid TEXT PRIMARY KEY, " +
+                        "extra_soil_slots INTEGER DEFAULT 0" +
+                        ");");
+            } catch (SQLException e) {
+                plugin.getLogger().severe("Failed to setup player_farm_stats table in centralized database!");
+                e.printStackTrace();
+            }
+        });
     }
 
     public void loadAll() {
@@ -88,7 +103,21 @@ public class SoilSlotManager {
     }
 
     public int getExtraSlots(UUID uuid) {
-        return extraSlotsCache.computeIfAbsent(uuid, k -> plugin.getDatabaseManager().getExtraSlots(k));
+        return extraSlotsCache.computeIfAbsent(uuid, k -> {
+            int amount = 0;
+            Connection conn = id.seria.core.SeriaCorePlugin.getInstance().getPlayerDataManager().getConnection();
+            if (conn == null) return 0;
+            
+            String sql = "SELECT extra_soil_slots FROM player_farm_stats WHERE uuid = ?";
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setString(1, k.toString());
+                ResultSet rs = ps.executeQuery();
+                if (rs.next()) amount = rs.getInt("extra_soil_slots");
+            } catch (SQLException e) {
+                plugin.getLogger().warning("DB Error (get extra slots from core): " + e.getMessage());
+            }
+            return amount;
+        });
     }
 
     public int getUsedSlots(Player player) {
@@ -183,7 +212,17 @@ public class SoilSlotManager {
     public void setExtraSlots(UUID uuid, int total) {
         int val = Math.max(0, total);
         extraSlotsCache.put(uuid, val);
-        plugin.getDatabaseManager().setExtraSlots(uuid, val);
+        
+        id.seria.core.SeriaCorePlugin.getInstance().getPlayerDataManager().runAsync(conn -> {
+            String sql = "INSERT OR REPLACE INTO player_farm_stats (uuid, extra_soil_slots) VALUES (?, ?)";
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setString(1, uuid.toString());
+                ps.setInt(2, val);
+                ps.executeUpdate();
+            } catch (SQLException e) {
+                plugin.getLogger().warning("DB Error (set extra slots to core): " + e.getMessage());
+            }
+        });
     }
 
     public void addExtraSlots(UUID uuid, int amount) {

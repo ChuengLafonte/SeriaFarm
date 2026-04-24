@@ -100,11 +100,10 @@ public class RegenManager {
 
                 // Recalculate step duration for vanilla growth
                 if (regen.isGrowth() && regen.getMaxStage() > 0 && "VANILLA".equalsIgnoreCase(regen.getGrowthMode())) {
-                    // Actually, step duration is usually based on the config. 
-                    // Let's recalculate based on the original delay if possible, but keep it simple.
                     ConfigurationSection config = plugin.getConfigManager().getConfig("crops.yml").getConfigurationSection("crops." + materialKey);
                     int delay = config != null ? config.getInt("regen-delay", 45) : 45;
-                    regen.setStepDuration((delay * 1000L) / regen.getMaxStage());
+                    // Ensure we don't divide by zero and step duration is at least 1ms
+                    regen.setStepDuration(Math.max(1, (delay * 1000L) / regen.getMaxStage()));
                 }
 
                 activeRegens.put(toKey(loc), regen);
@@ -127,6 +126,11 @@ public class RegenManager {
 
         // VANILLA Phased Growth
         if (regen.getCurrentStage() < regen.getMaxStage()) {
+            if (regen.getStepDuration() <= 0) {
+                // Safety: if duration is 0, just restore it to avoid crash
+                restoreBlock(regen);
+                return true;
+            }
             long elapsed = now - regen.getStartTime();
             int expectedStage = (int) (elapsed / regen.getStepDuration());
             
@@ -393,7 +397,7 @@ public class RegenManager {
         regen.setCurrentStage(0);
 
         if (mode.equalsIgnoreCase("VANILLA") && maxAge > 0) {
-            regen.setStepDuration((delaySeconds * 1000L) / maxAge);
+            regen.setStepDuration(Math.max(1, (delaySeconds * 1000L) / maxAge));
         }
         
         regen.setLastStepTime(now);
