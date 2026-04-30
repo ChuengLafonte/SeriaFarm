@@ -527,7 +527,7 @@ public class RegenManager {
                 normalizedMap.put(normalize(matStr), key);
                 normalizedMap.put(normalize(key), key);
             }
-            materialLookup.put(sectionName, normalizedMap);
+            materialLookup.put(sectionName.toLowerCase(), normalizedMap);
         }
     }
 
@@ -543,7 +543,7 @@ public class RegenManager {
         
         // 1. Check Region-Specific
         if (regionName != null) {
-            Map<String, String> regionMap = materialLookup.get(regionName);
+            Map<String, String> regionMap = materialLookup.get(regionName.toLowerCase());
             if (regionMap != null) {
                 String key = regionMap.get(normalizedMat);
                 if (key != null) return regionName + "." + key;
