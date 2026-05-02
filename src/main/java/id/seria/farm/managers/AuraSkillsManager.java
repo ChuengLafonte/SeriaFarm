@@ -210,6 +210,18 @@ public class AuraSkillsManager {
         return 0.0;
     }
 
+    public double getSpecificFortune(Player player, String specificType) {
+        if (Bukkit.getPluginManager().isPluginEnabled("SeriaFortune")) {
+            try {
+                Class<?> apiClass = Class.forName("id.seria.fortune.api.FortuneAPI");
+                Class<?> typeClass = Class.forName("id.seria.core.models.FortuneType");
+                Object typeEnum = Enum.valueOf((Class<Enum>) typeClass, specificType.toUpperCase());
+                return (double) apiClass.getMethod("getFortune", Player.class, typeClass).invoke(null, player, typeEnum);
+            } catch (Exception ignored) {}
+        }
+        return 0.0;
+    }
+
     public void setReplenishActive(UUID uuid, long expiryTimeMs) {
 
         activeReplenish.put(uuid, expiryTimeMs);

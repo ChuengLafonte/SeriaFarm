@@ -437,17 +437,10 @@ public class BlockBreakListener implements Listener {
         } else {
             auraFortune = plugin.getAuraSkillsManager().getFarmingFortune(player);
             
-            // Add SeriaFortune Bonuses
-            id.seria.fortune.SeriaFortunePlugin sFortune = (id.seria.fortune.SeriaFortunePlugin) org.bukkit.Bukkit.getPluginManager().getPlugin("SeriaFortune");
-            if (sFortune != null && sFortune.isEnabled()) {
-                // 1. Add Global Permanent Farming Fortune
-                auraFortune += sFortune.getFortuneManager().getTotalFortune(player, id.seria.core.models.FortuneType.FARMING);
-                
-                // 2. Add Crop Specific Fortune
-                id.seria.core.models.FortuneType cropType = mapToFortuneType(block.getType());
-                if (cropType != null) {
-                    auraFortune += sFortune.getFortuneManager().getTotalFortune(player, cropType);
-                }
+            // Add Crop Specific Fortune
+            id.seria.core.models.FortuneType cropType = mapToFortuneType(block.getType());
+            if (cropType != null) {
+                auraFortune += plugin.getAuraSkillsManager().getSpecificFortune(player, cropType.name());
             }
         }
 
