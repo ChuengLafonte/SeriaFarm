@@ -109,6 +109,12 @@ public class WateringToolManager {
         if (config == null) return item;
 
         int current = getCapacity(item);
+        
+        // Respect unbreakable flag
+        if (item.hasItemMeta() && item.getItemMeta().isUnbreakable()) {
+            return item;
+        }
+
         int next = current - 1;
 
         if (next <= 0) {

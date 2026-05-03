@@ -6,11 +6,11 @@
 
     <groupId>id.seria</groupId>
     <artifactId>seriafarm</artifactId>
-    <version>1.1.0</version>
+    <version>1.2.0</version>
     <packaging>jar</packaging>
 
     <name>SeriaFarm</name>
-    <description>Hybrid Block Regeneration and Farming Plugin based on UBR and LiteFarm</description>
+    <description>Farming Plugin for Project Seria Servers</description>
 
     <properties>
         <java.version>21</java.version>

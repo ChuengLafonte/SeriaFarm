@@ -287,6 +287,8 @@ public class BlockBreakListener implements Listener {
         if (tool.getType().getMaxDurability() <= 0) return;
  
         org.bukkit.inventory.meta.ItemMeta meta = tool.getItemMeta();
+        if (meta == null || meta.isUnbreakable()) return;
+
         if (meta instanceof org.bukkit.inventory.meta.Damageable) {
             org.bukkit.inventory.meta.Damageable damageable = (org.bukkit.inventory.meta.Damageable) meta;
             int unbreakingLevel = tool.getEnchantmentLevel(org.bukkit.enchantments.Enchantment.UNBREAKING);
