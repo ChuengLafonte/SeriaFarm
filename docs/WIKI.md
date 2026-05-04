@@ -1,54 +1,32 @@
-# SeriaFarm Wiki
+# 🌾 SeriaFarm Wiki
 
-Comprehensive guide for SeriaFarm configuration and management.
+SeriaFarm is a high-performance farming system designed for large-scale RPG environments. It includes crop regeneration, custom growth speeds, and Farming Fortune integration.
 
 ## 🛠 Commands
-| Command | Permission | Description |
-|---------|------------|-------------|
-| `/sfarm menu` | `seriafarm.admin` | Open the main configuration dashboard |
-| `/sfarm reload` | `seriafarm.admin` | Reload all configurations |
-| `/sfarm stats` | `seriafarm.use` | View personal farming statistics |
+| Command | Alias | Permission | Description |
+|---------|-------|------------|-------------|
+| `/sfarm` | `/farm` | `seriafarm.use` | Open farming stats |
+| `/sfarm catalog` | - | `seriafarm.admin` | View all registered crops |
+| `/sfarm reload` | - | `seriafarm.admin` | Reload configuration |
 
-## 🔑 Permissions
-- `seriafarm.admin`: Full access to all features and GUIs.
-- `seriafarm.use`: Access to basic player features.
+## 📊 Placeholders
+- `%seriafarm_farming_fortune%`: Current total Farming Fortune.
+- `%seriafarm_crops_harvested%`: Total crops harvested by player.
 
-## ⚙️ Configuration
+## ⚙️ Configuration Example
 
-### crops.yml
-Define block regeneration settings.
+### config.yml
 ```yaml
+settings:
+  regeneration:
+    enabled: true
+    default_delay: 300 # seconds
+  growth:
+    speed_multiplier: 1.0
+
 crops:
-  WHEAT:
-    regen-time: 30 # Seconds
-    replace-block: WHEAT
-    growth-stages: 7
-    drops:
-      - id: mi:MATERIAL:WHEAT_BUNDLE
-        chance: 0.1
+  wheat:
+    regen_time: 60
+    xp_gain: 5.0
+    fortune_multiplier: 1.0
 ```
-
-### seeds.yml
-Configure custom plants that require watering and specific soil.
-```yaml
-seeds:
-  MAGIC_BEAN:
-    name: "<green>Magic Bean"
-    item: "mi:MATERIAL:MAGIC_BEAN"
-    growth_time: 3600 # 1 Hour
-    stages: 3
-    soil: "FERTILE_SOIL"
-    water_consumption: 0.1
-```
-
-## 🌍 Region Management
-SeriaFarm supports regional overrides via WorldGuard.
-1. Select a region using `/sfarm menu`.
-2. Configure specific regen times or crop availability for that region only.
-3. Save settings to `regions.yml` automatically via the GUI.
-
-## 💧 Watering System
-Custom plants require soil moisture.
-- Use **Watering Cans** (MMOItems) to increase soil moisture.
-- Moisture decays over time (configurable in `config.yml`).
-- Plants stop growing if moisture reaches 0%.
