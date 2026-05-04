@@ -96,6 +96,10 @@ public class AuraSkillsManager {
 
         try {
             dev.aurelium.auraskills.api.AuraSkillsApi api = dev.aurelium.auraskills.api.AuraSkillsApi.get();
+            // Safety check for AuraSkills initialization
+            if (api.getGlobalRegistry().getSkill(dev.aurelium.auraskills.api.registry.NamespacedId.of("auraskills", "farming")) == null) {
+                return;
+            }
             dev.aurelium.auraskills.api.user.SkillsUser user = api.getUser(player.getUniqueId());
             dev.aurelium.auraskills.api.skill.Skill skill = api.getGlobalRegistry().getSkill(dev.aurelium.auraskills.api.registry.NamespacedId.of("auraskills", info.skill));
             if (skill != null) {
@@ -111,6 +115,10 @@ public class AuraSkillsManager {
     public int getAbilityLevel(Player player, String abilityName) {
         try {
             dev.aurelium.auraskills.api.AuraSkillsApi api = dev.aurelium.auraskills.api.AuraSkillsApi.get();
+            // Safety check
+            if (api.getGlobalRegistry().getSkill(dev.aurelium.auraskills.api.registry.NamespacedId.of("auraskills", "farming")) == null) {
+                return 0;
+            }
             dev.aurelium.auraskills.api.user.SkillsUser user = api.getUser(player.getUniqueId());
             dev.aurelium.auraskills.api.ability.Ability ability = api.getGlobalRegistry().getAbility(dev.aurelium.auraskills.api.registry.NamespacedId.of("auraskills", abilityName));
             if (ability != null) {
@@ -142,6 +150,10 @@ public class AuraSkillsManager {
         if (!SeriaFarmPlugin.getInstance().getHookManager().isAuraSkillsEnabled()) return 0.0;
         try {
             dev.aurelium.auraskills.api.AuraSkillsApi api = dev.aurelium.auraskills.api.AuraSkillsApi.get();
+            // Safety check
+            if (api.getGlobalRegistry().getSkill(dev.aurelium.auraskills.api.registry.NamespacedId.of("auraskills", "farming")) == null) {
+                return 0.0;
+            }
             dev.aurelium.auraskills.api.user.SkillsUser user = api.getUser(player.getUniqueId());
             dev.aurelium.auraskills.api.stat.Stat stat = api.getGlobalRegistry().getStat(dev.aurelium.auraskills.api.registry.NamespacedId.of("auraskills", "farming_luck"));
             if (stat != null && user != null) {
@@ -155,6 +167,10 @@ public class AuraSkillsManager {
         if (!SeriaFarmPlugin.getInstance().getHookManager().isAuraSkillsEnabled()) return 0.0;
         try {
             dev.aurelium.auraskills.api.AuraSkillsApi api = dev.aurelium.auraskills.api.AuraSkillsApi.get();
+            // Safety check
+            if (api.getGlobalRegistry().getSkill(dev.aurelium.auraskills.api.registry.NamespacedId.of("auraskills", "farming")) == null) {
+                return 0.0;
+            }
             dev.aurelium.auraskills.api.user.SkillsUser user = api.getUser(player.getUniqueId());
             dev.aurelium.auraskills.api.ability.Ability ability = api.getGlobalRegistry().getAbility(dev.aurelium.auraskills.api.registry.NamespacedId.of("auraskills", "growth_aura"));
             if (ability != null && user != null) {
@@ -200,6 +216,10 @@ public class AuraSkillsManager {
         if (SeriaFarmPlugin.getInstance().getHookManager().isAuraSkillsEnabled()) {
             try {
                 dev.aurelium.auraskills.api.AuraSkillsApi api = dev.aurelium.auraskills.api.AuraSkillsApi.get();
+                // Safety check
+                if (api.getGlobalRegistry().getSkill(dev.aurelium.auraskills.api.registry.NamespacedId.of("auraskills", "farming")) == null) {
+                    return 0.0;
+                }
                 dev.aurelium.auraskills.api.user.SkillsUser user = api.getUser(player.getUniqueId());
                 dev.aurelium.auraskills.api.stat.Stat stat = api.getGlobalRegistry().getStat(dev.aurelium.auraskills.api.registry.NamespacedId.of("auraskills", type.toLowerCase() + "_fortune"));
                 if (stat != null && user != null) {
