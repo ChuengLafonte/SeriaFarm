@@ -43,12 +43,18 @@ public class InteractListener implements Listener {
         // 0. Global enable check + off-hand guard
         if (!plugin.getConfigManager().getSettings().enabled) return;
         if (event.getHand() == EquipmentSlot.OFF_HAND) return;
-        if (event.getAction() != Action.RIGHT_CLICK_BLOCK) return;
-
         Block block = event.getClickedBlock();
         if (block == null) return;
         Player player = event.getPlayer();
         ItemStack itemInHand = player.getInventory().getItemInMainHand();
+
+        // ─── X. ENCHANTED BONE MEAL HANDLING ────────────────────────────────────
+        if (isEnchantedBoneMeal(itemInHand)) {
+            if (handleEnchantedBoneMeal(player, block, itemInHand)) {
+                event.setCancelled(true);
+                return;
+            }
+        }
 
         // ─── A. CUSTOM PLANT INTERACTION ────────────────────────────────────────
         if (plugin.getCustomPlantManager().isCustomPlant(block.getLocation())) {
@@ -433,6 +439,128 @@ public class InteractListener implements Listener {
 
     private ConfigurationSection getBlockConfig(Block block, String blockKey) {
         return plugin.getConfigManager().getConfig("crops.yml").getConfigurationSection("crops." + blockKey);
+    }
+
+    private boolean isEnchantedBoneMeal(ItemStack item) {
+        if (item == null || item.getType() == Material.AIR) return false;
+        String id = plugin.getHookManager().getItemIdentifier(item);
+        if (id == null) return false;
+        
+        // Handle format mi:TYPE:ENCHANTED_BONE_MEAL or just ENCHANTED_BONE_MEAL
+        return id.equalsIgnoreCase("ENCHANTED_BONE_MEAL") || id.endsWith(":ENCHANTED_BONE_MEAL");
+    }
+
+    private boolean handleEnchantedBoneMeal(Player player, Block block, ItemStack item) {
+        Material type = block.getType();
+        boolean success = false;
+
+        // 1. SKIP Garden Plants (Mekanik berbeda)
+        if (plugin.getCustomPlantManager().isCustomPlant(block.getLocation())) {
+            return false;
+        }
+
+        // 2. Check for Vanilla Ageable (Wheat, Carrots, etc.)
+        if (block.getBlockData() instanceof Ageable ag) {
+            if (ag.getAge() < ag.getMaximumAge()) {
+                ag.setAge(ag.getMaximumAge());
+                block.setBlockData(ag, true);
+                success = true;
+            }
+        }
+        // 3. Check for Saplings & Azaleas (Instant Tree)
+        else if (type.name().contains("SAPLING") || type.name().contains("AZALEA")) {
+            org.bukkit.TreeType treeType = getTreeType(type);
+            if (treeType != null) {
+                block.setType(Material.AIR);
+                if (!block.getWorld().generateTree(block.getLocation(), treeType)) {
+                    block.setType(type);
+                } else {
+                    success = true;
+                }
+            }
+        }
+        // 4. Check for Nether Fungi (Giant Fungi)
+        else if (type == Material.CRIMSON_FUNGUS || type == Material.WARPED_FUNGUS) {
+            org.bukkit.TreeType treeType = (type == Material.CRIMSON_FUNGUS) ? org.bukkit.TreeType.CRIMSON_FUNGUS : org.bukkit.TreeType.WARPED_FUNGUS;
+            block.setType(Material.AIR);
+            if (!block.getWorld().generateTree(block.getLocation(), treeType)) {
+                block.setType(type);
+            } else {
+                success = true;
+            }
+        }
+        // 5. Check for Mushrooms (Giant Mushrooms)
+        else if (type == Material.BROWN_MUSHROOM || type == Material.RED_MUSHROOM) {
+            org.bukkit.TreeType treeType = (type == Material.BROWN_MUSHROOM) ? org.bukkit.TreeType.BROWN_MUSHROOM : org.bukkit.TreeType.RED_MUSHROOM;
+            block.setType(Material.AIR);
+            if (!block.getWorld().generateTree(block.getLocation(), treeType)) {
+                block.setType(type);
+            } else {
+                success = true;
+            }
+        }
+        // 6. Check for Vertical Crops (Sugar Cane, Cactus, Bamboo)
+        else if (isVerticalCrop(type)) {
+            Block root = plugin.getRegenManager().getVerticalRoot(block);
+            String blockKey = findBlockKey(player, root);
+            int max = 3; // Default
+            if (blockKey != null) {
+                String configKey = type == Material.BAMBOO ? "bamboo-max-height" : "growth-max-height";
+                int def = type == Material.BAMBOO ? 12 : 3;
+                max = plugin.getConfigManager().getConfig("crops.yml").getInt("crops." + blockKey + "." + configKey, def);
+            }
+            
+            int currentHeight = plugin.getRegenManager().getVerticalHeight(root, type);
+            if (currentHeight < max) {
+                for (int i = currentHeight; i < max; i++) {
+                    Block above = root.getRelative(0, i, 0);
+                    if (above.getType() == Material.AIR || above.getType() == Material.CAVE_AIR || above.getType() == type) {
+                        above.setType(type, true);
+                        success = true;
+                    } else break;
+                }
+            }
+        }
+        // 7. Sea Pickles (Max Cluster)
+        else if (type == Material.SEA_PICKLE) {
+            if (block.getBlockData() instanceof org.bukkit.block.data.type.SeaPickle pickle) {
+                if (pickle.getPickles() < pickle.getMaximumPickles()) {
+                    pickle.setPickles(pickle.getMaximumPickles());
+                    block.setBlockData(pickle, true);
+                    success = true;
+                }
+            }
+        }
+
+        if (success) {
+            // Particle & Sound
+            block.getWorld().spawnParticle(org.bukkit.Particle.HAPPY_VILLAGER, block.getLocation().add(0.5, 0.5, 0.5), 15, 0.3, 0.3, 0.3);
+            block.getWorld().playSound(block.getLocation(), org.bukkit.Sound.ITEM_BONE_MEAL_USE, 1.0f, 1.0f);
+            
+            // Consume item
+            if (player.getGameMode() != org.bukkit.GameMode.CREATIVE) {
+                item.setAmount(item.getAmount() - 1);
+            }
+            return true;
+        }
+
+        return false;
+    }
+
+    private org.bukkit.TreeType getTreeType(Material mat) {
+        return switch (mat) {
+            case OAK_SAPLING -> org.bukkit.TreeType.TREE;
+            case SPRUCE_SAPLING -> org.bukkit.TreeType.REDWOOD;
+            case BIRCH_SAPLING -> org.bukkit.TreeType.BIRCH;
+            case JUNGLE_SAPLING -> org.bukkit.TreeType.JUNGLE;
+            case ACACIA_SAPLING -> org.bukkit.TreeType.ACACIA;
+            case DARK_OAK_SAPLING -> org.bukkit.TreeType.DARK_OAK;
+            case MANGROVE_PROPAGULE -> org.bukkit.TreeType.MANGROVE;
+            case CHERRY_SAPLING -> org.bukkit.TreeType.CHERRY;
+            case AZALEA -> org.bukkit.TreeType.AZALEA;
+            case FLOWERING_AZALEA -> org.bukkit.TreeType.AZALEA;
+            default -> null;
+        };
     }
 
     private boolean isVerticalCrop(Material mat) {
