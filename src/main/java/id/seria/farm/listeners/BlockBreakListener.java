@@ -120,9 +120,26 @@ public class BlockBreakListener implements Listener {
             }
 
             if (blockKey.startsWith("global.")) {
-                // Allow break for vanilla global crops outside regions but cancel any active regen timer
+                event.setDropItems(false);
                 plugin.getRegenManager().cancelRegeneration(block.getLocation());
-                return; // Let vanilla break proceed
+
+                double chance = config.getDouble("seed-return-chance", 80.0);
+                if (random.nextDouble() * 100.0 <= chance) {
+                    String matStr = config.getString("material", "");
+                    if (isCustomMaterial(matStr)) {
+                        ItemStack source = plugin.getHookManager().getItem(matStr);
+                        if (source != null && source.getType() != org.bukkit.Material.AIR) {
+                            block.getWorld().dropItemNaturally(block.getLocation(), source);
+                        }
+                    } else {
+                        for (ItemStack drop : block.getDrops(player.getInventory().getItemInMainHand())) {
+                            if (drop != null && drop.getType() != org.bukkit.Material.AIR) {
+                                block.getWorld().dropItemNaturally(block.getLocation(), drop);
+                            }
+                        }
+                    }
+                }
+                return;
             }
             event.setCancelled(true);
             return;
