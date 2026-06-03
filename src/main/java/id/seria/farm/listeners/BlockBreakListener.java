@@ -135,50 +135,12 @@ public class BlockBreakListener implements Listener {
             // Cancel any active growth timer at this location upon break
             plugin.getRegenManager().cancelRegeneration(block.getLocation());
             
-            String matStr = config.getString("material", "");
-            
             // 1.2 NEW: Requirement Check for Global Crops (Engine handles messaging)
             if (!plugin.getRequirementEngine().canBreak(player, config)) {
                 event.setCancelled(true);
-                return;
             }
-
-            // If it's a Hooked/Custom material (MMOItems, ItemsAdder, etc.)
-            if (isCustomMaterial(matStr)) {
-                // Intercept and drop the custom source item
-                event.setCancelled(true);
-                ItemStack source = plugin.getHookManager().getItem(matStr);
-                if (source != null && source.getType() != org.bukkit.Material.STONE) {
-                    block.getWorld().dropItemNaturally(block.getLocation(), source);
-                }
-                
-                // RESPECT GLOBAL REPLANT
-                boolean replant = plugin.getConfigManager().getSettings().globalReplant;
-                if (replant) {
-                    int delay = calculateDelayForPlayer(player, config.getInt("regen-delay", 10));
-                    plugin.getRegenManager().scheduleRegeneration(block, delay, null, null, org.bukkit.Material.AIR, blockKey);
-                } else {
-                    block.setType(org.bukkit.Material.AIR);
-                }
-                return;
-            } else {
-                // Standard vanilla block break
-                // If it's a crop and we want replant:
-                boolean replant = plugin.getConfigManager().getSettings().globalReplant;
-                if (replant && isGrowthCapable(block)) {
-                    // NEW: Requirement Check for Vanilla Global Crops (Engine handles messaging)
-                    if (!plugin.getRequirementEngine().canBreak(player, config)) {
-                        event.setCancelled(true);
-                        return;
-                    }
-                    
-                    event.setCancelled(true);
-                    distributeRewards(player, block, config);
-                    int delay = calculateDelayForPlayer(player, config.getInt("regen-delay", 10));
-                    plugin.getRegenManager().scheduleRegeneration(block, delay, null, null, block.getType(), blockKey);
-                }
-                return;
-            }
+            // Let vanilla break proceed so AuraSkills handles drops, XP, and Replenish natively.
+            return;
         }
  
         // --- REGIONAL BLOCK LOGIC ONLY FROM HERE ---

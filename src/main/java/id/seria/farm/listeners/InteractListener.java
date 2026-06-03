@@ -16,6 +16,7 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.block.BlockFertilizeEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
@@ -188,7 +189,12 @@ public class InteractListener implements Listener {
                 }
             }
             if (event.getAction() == Action.RIGHT_CLICK_BLOCK) {
-                event.setCancelled(true);
+                ItemStack hand = player.getInventory().getItemInMainHand();
+                if (hand != null && hand.getType() == Material.BONE_MEAL) {
+                    // Do not cancel, allow vanilla bonemeal to proceed
+                } else {
+                    event.setCancelled(true);
+                }
             }
             return;
         }
@@ -215,7 +221,12 @@ public class InteractListener implements Listener {
                     plugin.getVisualManager().showGrowthInfo(player, regen);
                 }
                 if (event.getAction() == Action.RIGHT_CLICK_BLOCK) {
-                    event.setCancelled(true);
+                    ItemStack hand = player.getInventory().getItemInMainHand();
+                    if (hand != null && hand.getType() == Material.BONE_MEAL) {
+                        // Do not cancel, allow vanilla bonemeal to proceed
+                    } else {
+                        event.setCancelled(true);
+                    }
                 }
                 return;
             }
@@ -306,6 +317,34 @@ public class InteractListener implements Listener {
             lastTargetLocation.put(player.getUniqueId(), locKey);
             lastWaterLevel.put(player.getUniqueId(), state.getWateringLevel());
             plugin.getHologramManager().show(player, target.getLocation(), state);
+        }
+    }
+
+    // ─── Sync SeriaFarm with Vanilla Bonemeal ────────────────────────────────
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onBlockFertilize(org.bukkit.event.block.BlockFertilizeEvent event) {
+        Block block = event.getBlock();
+        if (plugin.getRegenManager().isRegenerating(block.getLocation())) {
+            id.seria.farm.models.RegenBlock regen = plugin.getRegenManager().getRegenBlock(block.getLocation());
+            if (regen != null && regen.isGrowth()) {
+                // Sync stage next tick after vanilla finishes updating the block
+                plugin.getServer().getScheduler().runTask(plugin, () -> {
+                    if (block.getBlockData() instanceof org.bukkit.block.data.Ageable ageable) {
+                        int newStage = ageable.getAge();
+                        if (newStage > regen.getCurrentStage()) {
+                            regen.setCurrentStage(newStage);
+                            // Adjust start time to logically match the new stage
+                            long offset = (long) (newStage * regen.getStepDuration());
+                            regen.setStartTime(System.currentTimeMillis() - offset);
+                        }
+                    } else {
+                        // Check if it grew into a full plant or tree (max stage)
+                        regen.setCurrentStage(regen.getMaxStage());
+                        long offset = (long) (regen.getMaxStage() * regen.getStepDuration());
+                        regen.setStartTime(System.currentTimeMillis() - offset);
+                    }
+                });
+            }
         }
     }
 
