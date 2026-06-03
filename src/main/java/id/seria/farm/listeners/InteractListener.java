@@ -183,9 +183,13 @@ public class InteractListener implements Listener {
             }
  
             if (regen != null && regen.isGrowth()) {
-                plugin.getVisualManager().showGrowthInfo(player, regen);
+                if (event.getAction() == Action.RIGHT_CLICK_BLOCK || event.getAction() == Action.LEFT_CLICK_BLOCK) {
+                    plugin.getVisualManager().showGrowthInfo(player, regen);
+                }
             }
-            event.setCancelled(true);
+            if (event.getAction() == Action.RIGHT_CLICK_BLOCK) {
+                event.setCancelled(true);
+            }
             return;
         }
  
@@ -207,8 +211,12 @@ public class InteractListener implements Listener {
             
             RegenBlock regen = plugin.getRegenManager().getRegenBlock(root.getLocation());
             if (regen != null && regen.isGrowth()) {
-                plugin.getVisualManager().showGrowthInfo(player, regen);
-                event.setCancelled(true);
+                if (event.getAction() == Action.RIGHT_CLICK_BLOCK || event.getAction() == Action.LEFT_CLICK_BLOCK) {
+                    plugin.getVisualManager().showGrowthInfo(player, regen);
+                }
+                if (event.getAction() == Action.RIGHT_CLICK_BLOCK) {
+                    event.setCancelled(true);
+                }
                 return;
             }
         }
