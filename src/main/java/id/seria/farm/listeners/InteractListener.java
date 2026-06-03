@@ -191,7 +191,12 @@ public class InteractListener implements Listener {
             if (event.getAction() == Action.RIGHT_CLICK_BLOCK) {
                 ItemStack hand = player.getInventory().getItemInMainHand();
                 if (hand != null && hand.getType() == Material.BONE_MEAL) {
-                    // Do not cancel, allow vanilla bonemeal to proceed
+                    if (applyVanillaBoneMeal(player, block, regen)) {
+                        if (player.getGameMode() != org.bukkit.GameMode.CREATIVE) hand.setAmount(hand.getAmount() - 1);
+                        block.getWorld().spawnParticle(org.bukkit.Particle.HAPPY_VILLAGER, block.getLocation().add(0.5, 0.5, 0.5), 15, 0.3, 0.3, 0.3);
+                        block.getWorld().playSound(block.getLocation(), org.bukkit.Sound.ITEM_BONE_MEAL_USE, 1.0f, 1.0f);
+                    }
+                    event.setCancelled(true);
                 } else {
                     event.setCancelled(true);
                 }
@@ -223,7 +228,12 @@ public class InteractListener implements Listener {
                 if (event.getAction() == Action.RIGHT_CLICK_BLOCK) {
                     ItemStack hand = player.getInventory().getItemInMainHand();
                     if (hand != null && hand.getType() == Material.BONE_MEAL) {
-                        // Do not cancel, allow vanilla bonemeal to proceed
+                        if (applyVanillaBoneMeal(player, block, regen)) {
+                            if (player.getGameMode() != org.bukkit.GameMode.CREATIVE) hand.setAmount(hand.getAmount() - 1);
+                            block.getWorld().spawnParticle(org.bukkit.Particle.HAPPY_VILLAGER, block.getLocation().add(0.5, 0.5, 0.5), 15, 0.3, 0.3, 0.3);
+                            block.getWorld().playSound(block.getLocation(), org.bukkit.Sound.ITEM_BONE_MEAL_USE, 1.0f, 1.0f);
+                        }
+                        event.setCancelled(true);
                     } else {
                         event.setCancelled(true);
                     }
@@ -478,6 +488,24 @@ public class InteractListener implements Listener {
         } else {
             block.getWorld().dropItemNaturally(block.getLocation(), dropItem);
         }
+    }
+
+    private boolean applyVanillaBoneMeal(Player player, Block block, id.seria.farm.models.RegenBlock regen) {
+        if (block.getBlockData() instanceof org.bukkit.block.data.Ageable ag) {
+            if (ag.getAge() < ag.getMaximumAge()) {
+                int growth = java.util.concurrent.ThreadLocalRandom.current().nextInt(2, 6);
+                int newAge = Math.min(ag.getMaximumAge(), ag.getAge() + growth);
+                ag.setAge(newAge);
+                block.setBlockData(ag, true);
+                if (regen != null) {
+                    regen.setCurrentStage(newAge);
+                    long offset = (long) (newAge * regen.getStepDuration());
+                    regen.setStartTime(System.currentTimeMillis() - offset);
+                }
+                return true;
+            }
+        }
+        return false;
     }
  
     private String findBlockKey(Player player, Block block) {
