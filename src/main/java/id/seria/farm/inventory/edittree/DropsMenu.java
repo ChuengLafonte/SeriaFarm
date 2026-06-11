@@ -24,9 +24,29 @@ import java.util.Map;
 
 public class DropsMenu implements Listener {
     private final SeriaFarmPlugin plugin;
+    private final org.bukkit.NamespacedKey originalItemKey;
 
     public DropsMenu(SeriaFarmPlugin plugin) {
         this.plugin = plugin;
+        this.originalItemKey = new org.bukkit.NamespacedKey(plugin, "original_item");
+    }
+
+    private byte[] serializeItem(ItemStack item) {
+        try {
+            java.io.ByteArrayOutputStream io = new java.io.ByteArrayOutputStream();
+            org.bukkit.util.io.BukkitObjectOutputStream os = new org.bukkit.util.io.BukkitObjectOutputStream(io);
+            os.writeObject(item);
+            os.flush();
+            return io.toByteArray();
+        } catch (Exception e) { return new byte[0]; }
+    }
+
+    private ItemStack deserializeItem(byte[] data) {
+        try {
+            java.io.ByteArrayInputStream in = new java.io.ByteArrayInputStream(data);
+            org.bukkit.util.io.BukkitObjectInputStream is = new org.bukkit.util.io.BukkitObjectInputStream(in);
+            return (ItemStack) is.readObject();
+        } catch (Exception e) { return null; }
     }
 
     public void open(Player player, String matName, String regionName, String listPath) {
@@ -58,8 +78,17 @@ public class DropsMenu implements Listener {
                         if (slot >= 44) break;
                         
                         String weight = map.containsKey("weight") ? String.valueOf(map.get("weight")) : null;
-                        updateLore(item, chance, weight);
-                        inv.setItem(slot, item);
+                        
+                        ItemStack guiItem = item.clone();
+                        byte[] originalData = serializeItem(item);
+                        ItemMeta m = guiItem.getItemMeta();
+                        if (m != null) {
+                            m.getPersistentDataContainer().set(originalItemKey, PersistentDataType.BYTE_ARRAY, originalData);
+                            guiItem.setItemMeta(m);
+                        }
+                        
+                        updateLore(guiItem, chance, weight);
+                        inv.setItem(slot, guiItem);
                         slot++;
                     }
                 }
@@ -131,10 +160,20 @@ public class DropsMenu implements Listener {
                     }
                 }
                 if (firstEmpty != -1) {
-                    ItemStack dropItem = clicked.clone();
+                    ItemStack original = clicked.clone();
+                    original.setAmount(1);
+                    ItemStack dropItem = original.clone();
+                    byte[] originalData = serializeItem(original);
+                    ItemMeta m = dropItem.getItemMeta();
+                    if (m != null) {
+                        m.getPersistentDataContainer().set(originalItemKey, PersistentDataType.BYTE_ARRAY, originalData);
+                        dropItem.setItemMeta(m);
+                    }
+                    
                     updateLore(dropItem, 100.0, null);
                     topInv.setItem(firstEmpty, dropItem);
                     clicked.setAmount(clicked.getAmount() - 1);
+                    Bukkit.getScheduler().runTaskLater(plugin, player::updateInventory, 1L);
                 }
             }
             event.setCancelled(true);
@@ -154,6 +193,14 @@ public class DropsMenu implements Listener {
                 Bukkit.getScheduler().runTaskLater(plugin, () -> {
                     ItemStack inSlot = topInv.getItem(slot);
                     if (inSlot != null && inSlot.getType() != Material.AIR && LocalizedName.get(inSlot) == null) {
+                        ItemStack original = inSlot.clone();
+                        original.setAmount(1);
+                        byte[] originalData = serializeItem(original);
+                        ItemMeta m = inSlot.getItemMeta();
+                        if (m != null) {
+                            m.getPersistentDataContainer().set(originalItemKey, PersistentDataType.BYTE_ARRAY, originalData);
+                            inSlot.setItemMeta(m);
+                        }
                         updateLore(inSlot, 100.0, null);
                     }
                 }, 1L);
@@ -225,21 +272,31 @@ public class DropsMenu implements Listener {
                 ItemMeta meta = item.getItemMeta();
                 double chance = 100.0;
                 String weight = null;
+                ItemStack originalToSave = item.clone();
                 if (meta != null) {
                     chance = meta.getPersistentDataContainer().getOrDefault(SeriaFarmPlugin.chanceKey, PersistentDataType.DOUBLE, 100.0);
                     weight = meta.getPersistentDataContainer().get(SeriaFarmPlugin.weightKey, PersistentDataType.STRING);
-                    // Cleanup lore
-                    List<Component> lore = meta.lore();
-                    if (lore != null) {
-                        lore.removeIf(line -> id.seria.farm.SeriaFarmPlugin.MINI_MESSAGE.serialize(line).contains("Chance:"));
-                        lore.removeIf(line -> id.seria.farm.SeriaFarmPlugin.MINI_MESSAGE.serialize(line).contains("Weight:"));
-                        lore.removeIf(line -> id.seria.farm.SeriaFarmPlugin.MINI_MESSAGE.serialize(line).contains("Click:"));
-                        meta.lore(lore);
-                        item.setItemMeta(meta);
+                    
+                    byte[] originalData = meta.getPersistentDataContainer().get(originalItemKey, PersistentDataType.BYTE_ARRAY);
+                    if (originalData != null && originalData.length > 0) {
+                        ItemStack decoded = deserializeItem(originalData);
+                        if (decoded != null) originalToSave = decoded;
+                    } else {
+                        // Cleanup lore fallback
+                        List<Component> lore = meta.lore();
+                        if (lore != null) {
+                            lore.removeIf(line -> id.seria.farm.SeriaFarmPlugin.MINI_MESSAGE.serialize(line).contains("Chance:"));
+                            lore.removeIf(line -> id.seria.farm.SeriaFarmPlugin.MINI_MESSAGE.serialize(line).contains("Weight:"));
+                            lore.removeIf(line -> id.seria.farm.SeriaFarmPlugin.MINI_MESSAGE.serialize(line).contains("Click:"));
+                            meta.lore(lore.isEmpty() ? null : lore);
+                            meta.getPersistentDataContainer().remove(SeriaFarmPlugin.chanceKey);
+                            meta.getPersistentDataContainer().remove(SeriaFarmPlugin.weightKey);
+                            originalToSave.setItemMeta(meta);
+                        }
                     }
                 }
                 Map<String, Object> entry = new HashMap<>();
-                entry.put("item", item);
+                entry.put("item", originalToSave);
                 entry.put("chance", chance);
                 if (weight != null) entry.put("weight", weight);
                 dropsList.add(entry);
