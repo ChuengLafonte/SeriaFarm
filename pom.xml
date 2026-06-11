@@ -97,8 +97,8 @@
         </dependency>
         <dependency>
             <groupId>id.seria</groupId>
-            <artifactId>seriacollection</artifactId>
-            <version>v1.2.1</version>
+            <artifactId>SeriaCollection</artifactId>
+            <version>1.3.0</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
