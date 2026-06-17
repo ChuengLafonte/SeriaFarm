@@ -462,14 +462,17 @@ public class BlockBreakListener implements Listener {
         InvUtils.stripTechnicalLore(dropItem);
 
         if (dropToInv) {
-            java.util.HashMap<Integer, ItemStack> remaining = player.getInventory().addItem(dropItem);
-            
-            // SeriaCollection Hook (Safe Hook via Reflection)
+            // Panggil SeriaCollection hook SEBELUM dimasukkan ke inventory 
+            // agar amount (jumlah) masih utuh (Inventory#addItem mengubah amount item)
             plugin.getHookManager().handleCollectionGain(player, dropItem);
+
+            java.util.HashMap<Integer, ItemStack> remaining = player.getInventory().addItem(dropItem);
 
             if (!remaining.isEmpty()) {
                 for (ItemStack left : remaining.values()) {
-                    block.getWorld().dropItemNaturally(block.getLocation(), left);
+                    org.bukkit.entity.Item dropped = block.getWorld().dropItemNaturally(block.getLocation(), left);
+                    // Taint item yang jatuh agar tidak terhitung ganda saat di-pickup
+                    dropped.getPersistentDataContainer().set(new org.bukkit.NamespacedKey("seriacollection", "dropped_item"), org.bukkit.persistence.PersistentDataType.BYTE, (byte) 1);
                 }
             }
         } else {
