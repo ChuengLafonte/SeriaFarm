@@ -20,12 +20,29 @@ public class BlockBreakListener implements Listener {
     private final SeriaFarmPlugin plugin;
     private final Random random = new Random();
 
+    // Digunakan untuk mencegah recursive loop saat memanggil event palsu
+    private static final ThreadLocal<Boolean> IN_FAKE_EVENT = ThreadLocal.withInitial(() -> false);
+
     public BlockBreakListener(SeriaFarmPlugin plugin) {
         this.plugin = plugin;
+    }
+
+    private void fireFakeEventForCompatibility(Block block, Player player) {
+        IN_FAKE_EVENT.set(true);
+        try {
+            BlockBreakEvent fakeEvent = new BlockBreakEvent(block, player);
+            fakeEvent.setDropItems(false);
+            fakeEvent.setExpToDrop(0);
+            org.bukkit.Bukkit.getPluginManager().callEvent(fakeEvent);
+        } finally {
+            IN_FAKE_EVENT.set(false);
+        }
     }
  
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
     public void onBlockBreak(BlockBreakEvent event) {
+        if (IN_FAKE_EVENT.get()) return;
+
         // 0. Check if plugin is globally enabled
         if (!plugin.getConfigManager().getSettings().enabled) return;
  
@@ -38,6 +55,7 @@ public class BlockBreakListener implements Listener {
             if (state != null) {
                 // Allow break for all garden plants now
                 event.setCancelled(true); // Take over drops
+                fireFakeEventForCompatibility(block, player);
                 block.setType(Material.AIR);
 
                 String cropKey = state.getCropKey();
@@ -147,6 +165,7 @@ public class BlockBreakListener implements Listener {
             if (isCustomMaterial(matStr)) {
                 // Intercept and drop the custom source item
                 event.setCancelled(true);
+                fireFakeEventForCompatibility(block, player);
                 ItemStack source = plugin.getHookManager().getItem(matStr);
                 if (source != null && source.getType() != org.bukkit.Material.STONE) {
                     block.getWorld().dropItemNaturally(block.getLocation(), source);
@@ -173,6 +192,7 @@ public class BlockBreakListener implements Listener {
                     }
                     
                     event.setCancelled(true);
+                    fireFakeEventForCompatibility(block, player);
                     distributeRewards(player, block, config);
                     int delay = calculateDelayForPlayer(player, config.getInt("regen-delay", 10));
                     plugin.getRegenManager().scheduleRegeneration(block, delay, null, null, block.getType(), blockKey);
@@ -212,6 +232,7 @@ public class BlockBreakListener implements Listener {
  
         // 4. CANCEL EVENT - Plugin takes full control for Regional blocks
         event.setCancelled(true);
+        fireFakeEventForCompatibility(block, player);
  
         // 5. DISTRIBUTE REWARDS & XP
         distributeRewards(player, block, config);
