@@ -587,7 +587,7 @@ public class RegenManager {
         double reduction = plugin.getAuraSkillsManager().getGrowthAuraReduction(player);
         if (reduction <= 0) return baseDelay;
         double multiplier = 1.0 - (reduction / 100.0);
-        if (multiplier < 0) multiplier = 0;
+        if (multiplier < 0.10) multiplier = 0.10; // Cap at 90% reduction so it never grows instantly
         return (int) Math.round(baseDelay * multiplier);
     }
 
