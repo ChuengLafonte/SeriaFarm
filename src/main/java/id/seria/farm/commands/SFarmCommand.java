@@ -108,6 +108,7 @@ public class SFarmCommand implements CommandExecutor, TabCompleter {
                 if (!player.isOp()) return noPerm(player);
                 WandListener.Mpos1.remove(player.getUniqueId());
                 WandListener.Mpos2.remove(player.getUniqueId());
+                plugin.getVisualManager().setFocusedRegion(player, null);
                 plugin.getConfigManager().sendPrefixedMessage(player, " &aSelection and particles cleared!");
                 break;
             case "soil":

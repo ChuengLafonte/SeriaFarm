@@ -403,11 +403,11 @@ public class RegenManager {
         regen.setLastStepTime(now);
         final Material initialMat = startMat;
         Bukkit.getScheduler().runTask(plugin, () -> {
-            block.setType(initialMat, true);
+            block.setType(initialMat, false);
             BlockData data = block.getBlockData();
             if (data instanceof Ageable ageable) {
                 ageable.setAge(0);
-                block.setBlockData(ageable, true);
+                block.setBlockData(ageable, false);
             }
         });
     }

@@ -5,9 +5,15 @@ SeriaFarm is a high-performance farming system designed for large-scale RPG envi
 ## 🛠 Commands
 | Command | Alias | Permission | Description |
 |---------|-------|------------|-------------|
-| `/sfarm` | `/farm` | `seriafarm.use` | Open farming stats |
-| `/sfarm catalog` | - | `seriafarm.admin` | View all registered crops |
-| `/sfarm reload` | - | `seriafarm.admin` | Reload configuration |
+| `/sfarm editor` | - | `seriafarm.admin` (Op) | Open Admin Panel |
+| `/sfarm wand` | - | `seriafarm.admin` (Op) | Get Selection Wand |
+| `/sfarm pos1` | - | `seriafarm.admin` (Op) | Set Position 1 |
+| `/sfarm pos2` | - | `seriafarm.admin` (Op) | Set Position 2 |
+| `/sfarm create <name>` | - | `seriafarm.admin` (Op) | Create Region |
+| `/sfarm soil <key> <player> [amount]` | - | `seriafarm.admin` (Op) | Give soil item |
+| `/sfarm seed <key> <player> [amount]` | - | `seriafarm.admin` (Op) | Give seed item |
+| `/sfarm clear` | - | `seriafarm.admin` (Op) | Clear Selection and Preview Particles |
+| `/sfarm reload` | - | `seriafarm.admin` (Op) | Reload configuration |
 
 ## 📊 Placeholders
 - `%seriafarm_farming_fortune%`: Current total Farming Fortune.
